@@ -1,5 +1,6 @@
 <script>
 	import { getPlayerHeadshot, teams, searchPlayers } from '../../api/universalSearch';
+	import { theme } from '$lib/theme.svelte.js';
 	import { afterNavigate } from '$app/navigation';
 
 	import WaDropdown from '@awesome.me/webawesome/dist/components/dropdown/dropdown.js';
@@ -8,6 +9,7 @@
 	import WaInput from '@awesome.me/webawesome/dist/components/input/input.js';
 	import WaOption from '@awesome.me/webawesome/dist/components/option/option.js';
 	import WaDivider from '@awesome.me/webawesome/dist/components/divider/divider.js';
+	import WaTooltip from '@awesome.me/webawesome/dist/components/tooltip/tooltip.js';
 
 	let query = $state('');
 	let matchedPlayers = $state([]);
@@ -157,6 +159,10 @@
 				{/if}
 			</div>
 		{/if}
+		<wa-tooltip for="color-scheme-button">toggle theme</wa-tooltip>
+		<wa-button id="color-scheme-button" size="s" onclick={() => theme.toggle()}>
+			<wa-icon name={theme.isDark ? 'sun' : 'moon'} label="Toggle Theme"></wa-icon>
+		</wa-button>
 	</div>
 </div>
 
@@ -179,6 +185,7 @@
 		width: 100%;
 		justify-content: space-between;
 		backdrop-filter: blur(6px);
+		background-color: color-mix(in srgb, var(--wa-color-surface-default) 85%, transparent);
 		box-sizing: border-box;
 		z-index: 100;
 	}
@@ -189,6 +196,8 @@
 	}
 
 	.search-wrapper {
+		display: flex;
+		gap: 0.5rem;
 		position: relative;
 		width: 280px;
 	}

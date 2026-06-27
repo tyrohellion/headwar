@@ -100,6 +100,8 @@
 		<wa-tab panel="general">Overview</wa-tab>
 		<wa-tab panel="custom">Batting</wa-tab>
 		<wa-tab panel="advanced">Pitching</wa-tab>
+		<wa-tab panel="advanced">Schedule</wa-tab>
+		<wa-tab panel="advanced">Accolades</wa-tab>
 		<wa-tab panel="disabled" disabled>Disabled</wa-tab>
 
 		<wa-tab-panel name="general">Info</wa-tab-panel>
