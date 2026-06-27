@@ -1,6 +1,5 @@
 <script>
 	import { getPlayerHeadshot, teams, searchPlayers } from '../../api/universalSearch';
-	import { fetchPybaseball } from '$lib/pybaseball.js';
 	import { afterNavigate } from '$app/navigation';
 
 	import WaDropdown from '@awesome.me/webawesome/dist/components/dropdown/dropdown.js';
@@ -212,10 +211,11 @@
 
 	.category-header {
 		font-size: 0.7rem;
-		font-weight: 700;
-		text-transform: uppercase;
+		font-weight: 800;
 		letter-spacing: 0.5px;
-		color: #757575;
+		text-transform: uppercase;
+		color: var(--wa-color-brand-on-quiet);
+		font-family: var(--wa-font-family-body);
 		padding: 1rem 1rem 0 1rem;
 		background: var(--wa-color-surface-raised);
 		cursor: default;
@@ -235,13 +235,12 @@
 		font-family: var(--wa-font-family-body);
 		font-size: 1rem;
 		cursor: pointer;
-		color: inherit;
+		color: var(--wa-color-primary-on-quiet);
 		transition: all 100ms ease;
 	}
 
 	.dropdown-item:hover {
 		background-color: var(--wa-color-neutral-fill-normal);
-		color: var(--wa-color-blue-on);
 		transform: scale(1.03);
 		transition: all 100ms ease;
 	}

@@ -1,1 +1,196 @@
-<h1>hello</h1>
+<script>
+	import { fetchPybaseball } from '$lib/pybaseball.js';
+	import { getPlayerPictureLarge } from '../../../api/getPlayerPicture';
+	import { getPlayerInfo } from '../../../api/getPlayerInfo';
+	import { page } from '$app/stores';
+
+	import WaTabGroup from '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
+	import WaTabPanel from '@awesome.me/webawesome/dist/components/tab-panel/tab-panel.js';
+	import WaDivider from '@awesome.me/webawesome/dist/components/divider/divider.js';
+	import WaSkeleton from '@awesome.me/webawesome/dist/components/skeleton/skeleton.js';
+	import WaBadge from '@awesome.me/webawesome/dist/components/badge/badge.js';
+
+	let playerData = $state(null);
+	let loading = $state(true);
+	let errorMsg = $state('');
+
+	$effect(() => {
+		const id = $page.params.id;
+		if (!id) return;
+
+		async function loadData() {
+			loading = true;
+			errorMsg = '';
+			try {
+				const data = await getPlayerInfo(id);
+				playerData = data;
+			} catch (err) {
+				console.error('Failed to load player data', err);
+				errorMsg = err.message;
+			} finally {
+				loading = false;
+			}
+		}
+
+		loadData();
+	});
+
+	let playerProfile = $derived(playerData?.people?.[0] || null);
+</script>
+
+{#if loading}
+	<div class="skeleton-overview">
+		<header>
+			<wa-skeleton effect="sheen"></wa-skeleton>
+			<wa-skeleton effect="sheen"></wa-skeleton>
+		</header>
+
+		<wa-skeleton effect="sheen"></wa-skeleton>
+		<wa-skeleton effect="sheen"></wa-skeleton>
+		<wa-skeleton effect="sheen"></wa-skeleton>
+	</div>
+
+	<wa-divider></wa-divider>
+	<div class="skeleton-paragraphs">
+		<wa-skeleton></wa-skeleton>
+		<wa-skeleton></wa-skeleton>
+		<wa-skeleton></wa-skeleton>
+		<wa-skeleton></wa-skeleton>
+		<wa-skeleton></wa-skeleton>
+	</div>
+{:else if errorMsg}
+	<div class="wa-heading-m">We couldn't find that player :(</div>
+{:else if playerProfile}
+	<div class="player-info-box">
+		<div class="img-status-wrapper">
+			<img
+				src={getPlayerPictureLarge($page.params.id)}
+				alt="playerHeadshot"
+				class="player-thumb"
+				loading="lazy"
+				onerror={(e) =>
+					(e.target.src =
+						'https://img.mlbstatic.com/mlb-photos/image/upload/w_50,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current')}
+			/>
+			{#if playerProfile.active == true}
+				<wa-badge pill variant="success">active</wa-badge>
+			{:else}
+				<wa-badge pill variant="disabled">inactive</wa-badge>
+			{/if}
+		</div>
+		<div class="player-text-box">
+			<div class="wa-heading-xl">{playerProfile.fullName}</div>
+			<div class="small-details-wrapper">
+				<div class="wa-heading-m">
+					{playerProfile.deathDate ? 'Died at ' : ''}{playerProfile.currentAge} years old
+				</div>
+				<wa-divider orientation="vertical"></wa-divider>
+				<div class="wa-heading-m">{playerProfile.primaryPosition?.name}</div>
+				<wa-divider orientation="vertical"></wa-divider>
+				<div class="wa-heading-m">{playerProfile.weight} lbs</div>
+				<wa-divider orientation="vertical"></wa-divider>
+				<div class="wa-heading-m">{playerProfile.height}</div>
+			</div>
+		</div>
+	</div>
+
+	<wa-divider></wa-divider>
+
+	<wa-tab-group placement="start">
+		<wa-tab panel="general">Overview</wa-tab>
+		<wa-tab panel="custom">Batting</wa-tab>
+		<wa-tab panel="advanced">Pitching</wa-tab>
+		<wa-tab panel="disabled" disabled>Disabled</wa-tab>
+
+		<wa-tab-panel name="general">Info</wa-tab-panel>
+		<wa-tab-panel name="custom">This is the custom tab panel.</wa-tab-panel>
+		<wa-tab-panel name="advanced">This is the advanced tab panel.</wa-tab-panel>
+		<wa-tab-panel name="disabled">This is a disabled tab panel.</wa-tab-panel>
+	</wa-tab-group>
+{/if}
+
+<style>
+	.player-info-box {
+		display: flex;
+		flex-direction: column;
+		gap: 1.5rem;
+		justify-content: center;
+	}
+
+	.img-status-wrapper {
+		position: relative;
+		width: min-content;
+		height: min-content;
+	}
+
+	wa-badge {
+		position: absolute;
+		right: -1.3rem;
+		top: -0.6rem;
+		box-shadow: var(--wa-shadow-s);
+	}
+
+	img {
+		max-width: 150px;
+		height: auto;
+	}
+
+	.player-text-box {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+	}
+
+	.small-details-wrapper {
+		display: flex;
+		gap: 0;
+	}
+
+	.skeleton-overview header {
+		display: flex;
+		align-items: center;
+		margin-bottom: 1rem;
+	}
+
+	.skeleton-overview header wa-skeleton:last-child {
+		flex: 0 0 auto;
+		width: 30%;
+	}
+
+	.skeleton-overview wa-skeleton {
+		margin-bottom: 1rem;
+	}
+
+	.skeleton-overview wa-skeleton:nth-child(1) {
+		float: left;
+		width: 3rem;
+		height: 3rem;
+		margin-right: 1rem;
+		vertical-align: middle;
+	}
+
+	.skeleton-overview wa-skeleton:nth-child(3) {
+		width: 45%;
+	}
+
+	.skeleton-overview wa-skeleton:nth-child(4) {
+		width: 35%;
+	}
+
+	.skeleton-paragraphs wa-skeleton {
+		margin-top: 4rem;
+		margin-bottom: 1rem;
+	}
+
+	.skeleton-paragraphs wa-skeleton:nth-child(2) {
+		width: 95%;
+	}
+
+	.skeleton-paragraphs wa-skeleton:nth-child(4) {
+		width: 90%;
+	}
+
+	.skeleton-paragraphs wa-skeleton:last-child {
+		width: 50%;
+	}
+</style>
