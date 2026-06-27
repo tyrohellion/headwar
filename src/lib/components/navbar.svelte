@@ -229,21 +229,21 @@
 		height: min-content;
 		padding: 0.5rem 1rem 0.5rem 1rem;
 		border: none;
-		border-radius: 0.5rem;
+		border-radius: var(--wa-border-radius-m);
 		background: transparent;
 		text-align: left;
 		font-family: var(--wa-font-family-body);
 		font-size: 1rem;
 		cursor: pointer;
 		color: inherit;
-		transition: all 150ms ease;
+		transition: all 100ms ease;
 	}
 
 	.dropdown-item:hover {
 		background-color: var(--wa-color-neutral-fill-normal);
 		color: var(--wa-color-blue-on);
 		transform: scale(1.03);
-		transition: all 150ms ease;
+		transition: all 100ms ease;
 	}
 
 	.player-thumb {
@@ -258,7 +258,7 @@
 		font-weight: bold;
 		background: #333;
 		color: #fff;
-		padding: 2px 5px;
+		padding: 0.2rem 0.3rem 0.2rem 0.3rem;
 		border-radius: 3px;
 		min-width: 32px;
 		text-align: center;

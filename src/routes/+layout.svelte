@@ -11,12 +11,15 @@
 </svelte:head>
 
 <Navbar />
-<div class="spacer"></div>
-
-{@render children()}
+<div class="main">
+	{@render children()}
+</div>
 
 <style>
-	.spacer {
-		height: 6rem;
+	.main {
+		margin-top: 6rem;
+		width: 100%;
+		height: 100%;
+		padding: 0 2rem 0 2rem;
 	}
 </style>
