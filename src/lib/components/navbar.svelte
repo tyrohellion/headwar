@@ -10,11 +10,13 @@
 	import WaOption from '@awesome.me/webawesome/dist/components/option/option.js';
 	import WaDivider from '@awesome.me/webawesome/dist/components/divider/divider.js';
 	import WaTooltip from '@awesome.me/webawesome/dist/components/tooltip/tooltip.js';
+	import WaSkeleton from '@awesome.me/webawesome/dist/components/skeleton/skeleton.js';
 
 	let query = $state('');
 	let matchedPlayers = $state([]);
 	let isSearching = $state(false);
 	let searchWrapperEl = $state(null);
+	let debounceTimer;
 
 	let matchedTeams = $derived.by(() => {
 		const cleanQuery = query.trim().toLowerCase();
@@ -35,27 +37,32 @@
 		query = e.target.value;
 		const cleanQuery = query.trim();
 
+		clearTimeout(debounceTimer);
+
 		if (cleanQuery.length < 2) {
 			matchedPlayers = [];
+			isSearching = false;
 			return;
 		}
 
-		isSearching = true;
-		try {
-			const people = await searchPlayers(cleanQuery);
-			matchedPlayers = people.slice(0, 8);
-		} catch (err) {
-			console.error('Universal lookup failed:', err);
-		} finally {
-			isSearching = false;
-		}
+		// Set up the delay timer (300ms is standard for typeaheads)
+		debounceTimer = setTimeout(async () => {
+			isSearching = true;
+			try {
+				const people = await searchPlayers(cleanQuery);
+				matchedPlayers = people.slice(0, 8);
+			} catch (err) {
+				console.error('Universal lookup failed:', err);
+			} finally {
+				isSearching = false;
+			}
+		}, 300);
 	}
 </script>
 
 <svelte:window
 	onclick={(e) => {
 		if (searchWrapperEl && !searchWrapperEl.contains(e.target)) {
-			matchedTeams = [];
 			matchedPlayers = [];
 		}
 	}}
@@ -122,7 +129,15 @@
 			<wa-icon name="magnifying-glass" slot="start"></wa-icon>
 		</wa-input>
 
-		{#if matchedPlayers.length > 0 || matchedTeams.length > 0 || isSearching}
+		{#if isSearching}
+			<div class="search-dropdown-skeleton">
+				<wa-skeleton effect="pulse"></wa-skeleton>
+				<wa-skeleton effect="pulse"></wa-skeleton>
+				<wa-skeleton effect="pulse"></wa-skeleton>
+				<wa-skeleton effect="pulse"></wa-skeleton>
+				<wa-skeleton effect="pulse"></wa-skeleton>
+			</div>
+		{:else if matchedPlayers.length > 0 || matchedTeams.length > 0 || isSearching}
 			<div class="search-dropdown">
 				{#if matchedTeams.length > 0}
 					<div class="category-header">Teams</div>
@@ -218,6 +233,24 @@
 		flex-direction: column;
 	}
 
+	.search-dropdown-skeleton {
+		position: absolute;
+		top: calc(100% + 0.5rem);
+		left: 0;
+		width: 100%;
+		padding: 0 1rem 1rem 1rem;
+		background: var(--wa-color-surface-raised);
+		border: 1px solid var(--wa-color-border-quiet);
+		border-radius: var(--wa-border-radius-m);
+		box-shadow: var(--wa-shadow-m);
+		max-height: 400px;
+		overflow-y: auto;
+		padding-top: 1rem;
+		display: flex;
+		gap: 2rem;
+		flex-direction: column;
+	}
+
 	.category-header {
 		font-size: 0.7rem;
 		font-weight: 800;
@@ -270,6 +303,10 @@
 		border-radius: 3px;
 		min-width: 32px;
 		text-align: center;
+	}
+
+	.nav-buttons :global(a) {
+		text-decoration: none;
 	}
 
 	.item-name {
