@@ -127,14 +127,15 @@
 
 	wa-badge {
 		position: absolute;
-		right: -1.3rem;
-		top: -0.6rem;
+		right: -0.9rem;
+		top: -0.7rem;
 		box-shadow: var(--wa-shadow-s);
 	}
 
 	img {
 		max-width: 150px;
 		height: auto;
+		box-shadow: var(--wa-shadow-l);
 	}
 
 	.player-text-box {
