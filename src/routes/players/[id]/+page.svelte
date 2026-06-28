@@ -9,6 +9,9 @@
 	import WaDivider from '@awesome.me/webawesome/dist/components/divider/divider.js';
 	import WaSkeleton from '@awesome.me/webawesome/dist/components/skeleton/skeleton.js';
 	import WaBadge from '@awesome.me/webawesome/dist/components/badge/badge.js';
+	import WaFormatDate from '@awesome.me/webawesome/dist/components/format-date/format-date.js';
+	import WaIcon from '@awesome.me/webawesome/dist/components/icon/icon.js';
+	import WaTooltip from '@awesome.me/webawesome/dist/components/tooltip/tooltip.js';
 
 	let playerData = $state(null);
 	let loading = $state(true);
@@ -62,34 +65,58 @@
 	<div class="wa-heading-m">We couldn't find that player :(</div>
 {:else if playerProfile}
 	<div class="player-info-box">
-		<div class="img-status-wrapper">
-			<img
-				src={getPlayerPictureLarge($page.params.id)}
-				alt="playerHeadshot"
-				class="player-thumb"
-				loading="lazy"
-				onerror={(e) =>
-					(e.target.src =
-						'https://img.mlbstatic.com/mlb-photos/image/upload/w_50,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current')}
-			/>
-			{#if playerProfile.active == true}
-				<wa-badge pill variant="success">active</wa-badge>
-			{:else}
-				<wa-badge pill variant="disabled">inactive</wa-badge>
-			{/if}
-		</div>
+		<img
+			src={getPlayerPictureLarge($page.params.id)}
+			alt="playerHeadshot"
+			class="player-thumb"
+			loading="lazy"
+			onerror={(e) =>
+				(e.target.src =
+					'https://img.mlbstatic.com/mlb-photos/image/upload/w_50,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current')}
+		/>
 		<div class="player-text-box">
 			<div class="wa-heading-xl">{playerProfile.fullName}</div>
 			<div class="small-details-wrapper">
-				<div class="wa-heading-m">
+				<p>
 					{playerProfile.deathDate ? 'Died at ' : ''}{playerProfile.currentAge} years old
-				</div>
+				</p>
 				<wa-divider orientation="vertical"></wa-divider>
-				<div class="wa-heading-m">{playerProfile.primaryPosition?.name}</div>
+				{#if playerProfile.mlbDebutDate}
+					<wa-tooltip for="debut-wrapper">Years active since MLB debut</wa-tooltip>
+					<div id="debut-wrapper">
+						<wa-badge appearance="outlined" variant="neutral">
+							<wa-format-date
+								month="long"
+								day="numeric"
+								year="numeric"
+								date={playerProfile.mlbDebutDate}
+							></wa-format-date>
+						</wa-badge>
+
+						<wa-icon name="arrow-right" label="arrow right" style="font-size: 12px;"></wa-icon>
+
+						{#if playerProfile.lastPlayedDate}
+							<wa-badge appearance="filled" size="l" variant="neutral">
+								<wa-format-date
+									month="long"
+									day="numeric"
+									year="numeric"
+									date={playerProfile.lastPlayedDate}
+								></wa-format-date>
+							</wa-badge>
+						{:else}
+							<wa-badge appearance="filled" variant="brand">present</wa-badge>
+						{/if}
+					</div>
+				{:else}
+					<wa-badge appearance="outlined" variant="neutral">No Major League Debut</wa-badge>
+				{/if}
 				<wa-divider orientation="vertical"></wa-divider>
-				<div class="wa-heading-m">{playerProfile.weight} lbs</div>
+				<p>{playerProfile.primaryPosition?.name}</p>
 				<wa-divider orientation="vertical"></wa-divider>
-				<div class="wa-heading-m">{playerProfile.height}</div>
+				<p>{playerProfile.weight} lbs</p>
+				<wa-divider orientation="vertical"></wa-divider>
+				<p>{playerProfile.height}</p>
 			</div>
 		</div>
 	</div>
@@ -125,11 +152,15 @@
 		height: min-content;
 	}
 
-	wa-badge {
+	#statusBadge {
 		position: absolute;
 		right: -0.9rem;
 		top: -0.7rem;
 		box-shadow: var(--wa-shadow-s);
+	}
+
+	wa-badge {
+		height: min-content;
 	}
 
 	img {

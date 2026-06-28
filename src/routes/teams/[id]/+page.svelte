@@ -107,11 +107,11 @@
 		<div class="player-text-box">
 			<div class="wa-heading-xl">{teamProfile.name}</div>
 			<div class="small-details-wrapper">
-				<div class="wa-heading-m">est. {teamProfile.firstYearOfPlay}</div>
+				<p>est. {teamProfile.firstYearOfPlay}</p>
 				<wa-divider orientation="vertical"></wa-divider>
-				<div class="wa-heading-m">{teamProfile.league?.name}</div>
+				<p>{teamProfile.league?.name}</p>
 				<wa-divider orientation="vertical"></wa-divider>
-				<div class="wa-heading-m">{teamProfile.division?.name}</div>
+				<p>{teamProfile.division?.name}</p>
 			</div>
 		</div>
 	</div>
