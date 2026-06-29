@@ -2,6 +2,7 @@
 	import { fetchPybaseball } from '$lib/pybaseball.js';
 	import { getPlayerPictureLarge } from '../../../api/getPlayerPicture';
 	import { getPlayerInfo } from '../../../api/getPlayerInfo';
+	import { getTeamLogo } from '../../../api/getTeamLogo';
 	import { page } from '$app/stores';
 
 	import WaTabGroup from '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
@@ -17,37 +18,59 @@
 	let loading = $state(true);
 	let errorMsg = $state('');
 
+	let bbrefId = $state('');
+
+	let imgLoading = $state(true);
+
+	$effect(() => {
+		if ($page.params.id) {
+			imgLoading = true;
+		}
+	});
+
 	$effect(() => {
 		const id = $page.params.id;
+		console.log(`[Profile Effect] URL changed. Target MLBAM ID: ${id}`);
+
 		if (!id) return;
 
-		async function loadData() {
+		async function loadProfile() {
 			loading = true;
 			errorMsg = '';
 			try {
-				const data = await getPlayerInfo(id);
-				playerData = data;
+				const info = await getPlayerInfo(id);
+				playerData = info;
+
+				const lookupRes = await fetchPybaseball('playerid_reverse_lookup', {
+					player_ids: [id],
+					key_type: 'mlbam'
+				});
+				bbrefId = lookupRes?.[0]?.key_bbref || '';
+				console.log(`[Identity Cross-Ref] Resolved BBRef code: ${bbrefId}`);
 			} catch (err) {
-				console.error('Failed to load player data', err);
+				console.error('[Profile Effect] Failure in data pipeline:', err);
 				errorMsg = err.message;
 			} finally {
 				loading = false;
 			}
 		}
 
-		loadData();
+		loadProfile();
 	});
 
 	let playerProfile = $derived(playerData?.people?.[0] || null);
+	let teamLogoUrl = $derived.by(() => {
+		const teamId = playerProfile?.currentTeam?.id;
+		return teamId ? getTeamLogo(teamId) : '';
+	});
 </script>
 
 {#if loading}
 	<div class="skeleton-overview">
-		<header>
-			<wa-skeleton effect="sheen"></wa-skeleton>
-			<wa-skeleton effect="sheen"></wa-skeleton>
-		</header>
-
+		<wa-skeleton
+			effect="sheen"
+			style="width: 150px; height: 225px; border-radius: var(--wa-border-radius-m); z-index: 2;"
+		></wa-skeleton>
 		<wa-skeleton effect="sheen"></wa-skeleton>
 		<wa-skeleton effect="sheen"></wa-skeleton>
 		<wa-skeleton effect="sheen"></wa-skeleton>
@@ -65,17 +88,48 @@
 	<div class="wa-heading-m">We couldn't find that player :(</div>
 {:else if playerProfile}
 	<div class="player-info-box">
-		<img
-			src={getPlayerPictureLarge($page.params.id)}
-			alt="playerHeadshot"
-			class="player-thumb"
-			loading="lazy"
-			onerror={(e) =>
-				(e.target.src =
-					'https://img.mlbstatic.com/mlb-photos/image/upload/w_50,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current')}
-		/>
+		<div class="image-container">
+			{#if imgLoading}
+				<wa-skeleton
+					effect="sheen"
+					class="square"
+					style="width: 150px; height: 225px; border-radius: var(--wa-border-radius-m); position: absolute; top: 0; left: 0; z-index: 2;"
+				></wa-skeleton>
+			{/if}
+
+			<img
+				src={getPlayerPictureLarge($page.params.id)}
+				alt="playerHeadshot"
+				class="player-thumb"
+				loading="lazy"
+				onload={() => (imgLoading = false)}
+				onerror={(e) => {
+					imgLoading = false;
+					e.target.src =
+						'https://img.mlbstatic.com/mlb-photos/image/upload/w_50,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current';
+				}}
+			/>
+		</div>
 		<div class="player-text-box">
-			<div class="wa-heading-xl">{playerProfile.fullName}</div>
+			<div class="player-name-and-team-wrapper">
+				<div class="wa-heading-xl">{playerProfile.fullName}</div>
+				{#if !playerProfile.deathDate && !playerProfile.lastPlayedDate}
+					<wa-divider orientation="vertical"></wa-divider>
+					<wa-tooltip for="teamLogoNameButton"
+						>{playerProfile.currentTeam?.name} team page</wa-tooltip
+					>
+					<a
+						href="/teams/{playerProfile.currentTeam?.id}"
+						class="team-logo-name-wrapper"
+						id="teamLogoNameButton"
+					>
+						{#if teamLogoUrl}
+							<img src={teamLogoUrl} alt="Team Logo" class="team-logo" loading="lazy" />
+						{/if}
+						<p>{playerProfile.currentTeam?.name}</p>
+					</a>
+				{/if}
+			</div>
 			<div class="small-details-wrapper">
 				<p>
 					{playerProfile.deathDate ? 'Died at ' : ''}{playerProfile.currentAge} years old
@@ -105,7 +159,7 @@
 								></wa-format-date>
 							</wa-badge>
 						{:else}
-							<wa-badge appearance="filled" variant="brand">present</wa-badge>
+							<wa-badge appearance="filled" variant="brand">Present</wa-badge>
 						{/if}
 					</div>
 				{:else}
@@ -125,16 +179,25 @@
 
 	<wa-tab-group placement="start">
 		<wa-tab panel="general">Overview</wa-tab>
-		<wa-tab panel="custom">Batting</wa-tab>
+		<wa-tab panel="stats">Stats</wa-tab>
 		<wa-tab panel="advanced">Pitching</wa-tab>
-		<wa-tab panel="advanced">Schedule</wa-tab>
-		<wa-tab panel="advanced">Accolades</wa-tab>
-		<wa-tab panel="disabled" disabled>Disabled</wa-tab>
+		<wa-tab panel="schedule">Schedule</wa-tab>
+		<wa-tab panel="accolades">Accolades</wa-tab>
 
-		<wa-tab-panel name="general">Info</wa-tab-panel>
-		<wa-tab-panel name="custom">This is the custom tab panel.</wa-tab-panel>
+		<wa-tab-panel name="general">
+			<h3>Player Profile Info</h3>
+			<p>Bats: {playerProfile.batSide?.description || 'N/A'}</p>
+			<p>Throws: {playerProfile.pitchHand?.description || 'N/A'}</p>
+		</wa-tab-panel>
+
+		<wa-tab-panel name="stats">
+			<h3>Statistics</h3>
+			<p>Statistical metrics infrastructure pending migration...</p>
+		</wa-tab-panel>
+
 		<wa-tab-panel name="advanced">This is the advanced tab panel.</wa-tab-panel>
-		<wa-tab-panel name="disabled">This is a disabled tab panel.</wa-tab-panel>
+		<wa-tab-panel name="schedule">Schedule panels content.</wa-tab-panel>
+		<wa-tab-panel name="accolades">Accolades panel content.</wa-tab-panel>
 	</wa-tab-group>
 {/if}
 
@@ -146,17 +209,9 @@
 		justify-content: center;
 	}
 
-	.img-status-wrapper {
-		position: relative;
-		width: min-content;
-		height: min-content;
-	}
-
-	#statusBadge {
-		position: absolute;
-		right: -0.9rem;
-		top: -0.7rem;
-		box-shadow: var(--wa-shadow-s);
+	.player-name-and-team-wrapper {
+		display: flex;
+		align-items: center;
 	}
 
 	wa-badge {
@@ -166,7 +221,55 @@
 	img {
 		max-width: 150px;
 		height: auto;
+		max-height: 225px;
+	}
+
+	a {
+		text-decoration: none;
+		color: inherit;
+	}
+
+	.image-container {
+		position: relative;
+		width: 150px;
+		height: 225px;
+		flex-shrink: 0;
 		box-shadow: var(--wa-shadow-l);
+	}
+
+	.team-logo {
+		max-width: 32px;
+		width: 32px;
+		height: auto;
+		max-height: 32px;
+		background-color: var(--wa-color-gray-70);
+		padding: 6px;
+		box-shadow: var(--wa-shadow-l);
+		transition: all 100ms ease;
+	}
+
+	.team-logo-name-wrapper {
+		display: flex;
+		justify-content: center;
+		width: min-content;
+		align-items: center;
+		gap: 0.5rem;
+		white-space: nowrap;
+		padding: 0.5rem 1rem 0.5rem 1rem;
+		border-radius: var(--wa-border-radius-m);
+		transition: all 100ms ease;
+	}
+
+	.team-logo-name-wrapper p {
+		white-space: nowrap;
+	}
+
+	.team-logo-name-wrapper:hover {
+		cursor: pointer;
+		background-color: var(--wa-color-neutral-fill-normal);
+		transform: scale(1.03);
+		transition: all 100ms ease;
+		text-decoration: underline;
 	}
 
 	.player-text-box {
@@ -201,6 +304,7 @@
 		height: 3rem;
 		margin-right: 1rem;
 		vertical-align: middle;
+		border-radius: var(--wa-border-radius-m);
 	}
 
 	.skeleton-overview wa-skeleton:nth-child(3) {

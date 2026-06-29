@@ -1,5 +1,5 @@
 export async function getPlayerInfo(id) {
-	const res = await fetch(`https://statsapi.mlb.com/api/v1/people/${id}`, {
+	const res = await fetch(`https://statsapi.mlb.com/api/v1/people/${id}?hydrate=currentTeam`, {
 		next: {
 			revalidate: 60
 		}

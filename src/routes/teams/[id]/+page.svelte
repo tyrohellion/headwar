@@ -66,11 +66,10 @@
 
 {#if loading}
 	<div class="skeleton-overview">
-		<header>
-			<wa-skeleton effect="sheen"></wa-skeleton>
-			<wa-skeleton effect="sheen"></wa-skeleton>
-		</header>
-
+		<wa-skeleton
+			effect="sheen"
+			style="width: 150px; height: 150px; border-radius: var(--wa-border-radius-m); z-index: 2;"
+		></wa-skeleton>
 		<wa-skeleton effect="sheen"></wa-skeleton>
 		<wa-skeleton effect="sheen"></wa-skeleton>
 		<wa-skeleton effect="sheen"></wa-skeleton>
@@ -110,8 +109,6 @@
 				<p>est. {teamProfile.firstYearOfPlay}</p>
 				<wa-divider orientation="vertical"></wa-divider>
 				<p>{teamProfile.league?.name}</p>
-				<wa-divider orientation="vertical"></wa-divider>
-				<p>{teamProfile.division?.name}</p>
 			</div>
 		</div>
 	</div>
@@ -157,7 +154,8 @@
 	img {
 		max-width: 150px;
 		width: 150px;
-		height: auto;
+		height: 150px;
+		max-height: 150px;
 		background-color: var(--wa-color-gray-80);
 		padding: 2rem;
 		box-shadow: var(--wa-shadow-l);
