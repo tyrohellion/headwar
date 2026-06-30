@@ -45,7 +45,6 @@
 			return;
 		}
 
-		// Set up the delay timer (300ms is standard for typeaheads)
 		debounceTimer = setTimeout(async () => {
 			isSearching = true;
 			try {

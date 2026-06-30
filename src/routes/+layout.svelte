@@ -2,6 +2,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import Navbar from '$lib/components/navbar.svelte';
 	import '@awesome.me/webawesome/dist/styles/webawesome.css';
+	import '@fontsource-variable/jetbrains-mono/wght.css';
 
 	let { children } = $props();
 </script>
@@ -16,6 +17,10 @@
 </div>
 
 <style>
+	:root {
+		--font-mono: font-family: 'JetBrains Mono Variable', monospace;
+	}
+
 	.main {
 		margin-top: 6rem;
 		width: 100%;

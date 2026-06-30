@@ -3,6 +3,8 @@
 	import { getPlayerPictureLarge } from '../../../api/getPlayerPicture';
 	import { getPlayerInfo } from '../../../api/getPlayerInfo';
 	import { getTeamLogo } from '../../../api/getTeamLogo';
+	import { getPlayerBattingStatsBref } from '../../../api/getPlayerBattingStats';
+	import { getPlayerBattingPercentileStats } from '../../../api/getPlayerBattingPercentile';
 	import { page } from '$app/stores';
 
 	import WaTabGroup from '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
@@ -13,6 +15,8 @@
 	import WaFormatDate from '@awesome.me/webawesome/dist/components/format-date/format-date.js';
 	import WaIcon from '@awesome.me/webawesome/dist/components/icon/icon.js';
 	import WaTooltip from '@awesome.me/webawesome/dist/components/tooltip/tooltip.js';
+
+	import StatBar from '$lib/components/statBar.svelte';
 
 	let playerData = $state(null);
 	let loading = $state(true);
@@ -63,6 +67,167 @@
 		const teamId = playerProfile?.currentTeam?.id;
 		return teamId ? getTeamLogo(teamId) : '';
 	});
+
+	let battingStats = $state(null);
+	let isBattingStatsLoading = $state(false);
+	let userSelectedYear = $state('2026');
+
+	$effect(() => {
+		const id = $page.params.id;
+		if (!id) return;
+
+		async function loadBattingStats() {
+			isBattingStatsLoading = true;
+			try {
+				battingStats = await getPlayerBattingStatsBref(id, userSelectedYear);
+			} catch (err) {
+				battingStats = null;
+			} finally {
+				isBattingStatsLoading = false;
+			}
+		}
+
+		loadBattingStats();
+	});
+
+	let isBattingPercentileStatsLoading = $state(false);
+	let battingPercentileStats = $state(null);
+
+	$effect(() => {
+		const id = $page.params.id;
+		if (!id) return;
+
+		async function loadPercentiles() {
+			isBattingPercentileStatsLoading = true;
+			try {
+				battingPercentileStats = await getPlayerBattingPercentileStats(id, userSelectedYear);
+			} catch (err) {
+				battingPercentileStats = null;
+			} finally {
+				isBattingPercentileStatsLoading = false;
+			}
+		}
+
+		loadPercentiles();
+	});
+
+	const battingStatConfig = [
+		// --- 1. Statcast Profile (Power & Batted Ball) ---
+		{
+			key: 'exit_velocity',
+			label: 'Exit Velocity',
+			category: 'profile',
+			description: 'The average speed (in mph) of all batted balls off the bat.'
+		},
+		{
+			key: 'max_ev',
+			label: 'Max Exit Velocity',
+			category: 'profile',
+			description: 'The absolute maximum speed recorded on any single batted ball.'
+		},
+		{
+			key: 'hard_hit_percent',
+			label: 'Hard Hit Percentage',
+			category: 'profile',
+			description: 'The percentage of batted balls struck at 95 mph or faster.'
+		},
+		{
+			key: 'brl',
+			label: 'Barrels',
+			category: 'profile',
+			description:
+				'The raw number of batted balls meeting perfect optimal launch angle and exit velocity.'
+		},
+		{
+			key: 'brl_percent',
+			label: 'Barrel Percentage',
+			category: 'profile',
+			description: 'The percentage of total batted balls that are classified as Barrels.'
+		},
+		{
+			key: 'bat_speed',
+			label: 'Bat Speed',
+			category: 'profile',
+			description: 'The average tracking speed of the sweet spot of the bat at contact.'
+		},
+		{
+			key: 'swing_length',
+			label: 'Swing Length',
+			category: 'profile',
+			description:
+				'The average distance the bat travels through the strike zone to complete a swing.'
+		},
+		{
+			key: 'squared_up_rate',
+			label: 'Squared Up Rate',
+			category: 'profile',
+			description:
+				'The percentage of possible exit velocity achieved based on the player’s bat speed.'
+		},
+
+		// --- 2. Plate Discipline & Contact ---
+		{
+			key: 'bb_percent',
+			label: 'Walk Percentage',
+			category: 'discipline',
+			description: 'How often the hitter draws a walk as a percentage of overall plate appearances.'
+		},
+		{
+			key: 'k_percent',
+			label: 'Strikeout Percentage',
+			category: 'discipline',
+			description: 'How often the hitter strikes out as a percentage of overall plate appearances.'
+		},
+		{
+			key: 'chase_percent',
+			label: 'Chase Percentage',
+			category: 'discipline',
+			description: 'The frequency with which a batter swings at pitches outside of the strike zone.'
+		},
+		{
+			key: 'whiff_percent',
+			label: 'Whiff Percentage',
+			category: 'discipline',
+			description: 'The rate at which a batter swings and misses completely on a pitch.'
+		},
+
+		// --- 3. Expected Metrics ---
+		{
+			key: 'xba',
+			label: 'Expected BA',
+			category: 'expected',
+			description:
+				'Expected Batting Average based purely on quality of contact and launch angle, removing defense.'
+		},
+		{
+			key: 'xobp',
+			label: 'Expected OBP',
+			category: 'expected',
+			description:
+				'Expected On-Base Percentage combining quality of contact metrics with actual strike zone discipline.'
+		},
+		{
+			key: 'xslg',
+			label: 'Expected SLG',
+			category: 'expected',
+			description:
+				'Expected Slugging Percentage measuring modeled extra-base power based on launch vectors.'
+		},
+		{
+			key: 'xiso',
+			label: 'Expected ISO',
+			category: 'expected',
+			description:
+				'Expected Isolated Power (xSLG minus xBA) isolating the hitter’s raw extra-base capability.'
+		},
+		{
+			key: 'xwoba',
+			label: 'Expected wOBA',
+			category: 'expected',
+			description:
+				'Expected Weighted On-Base Average, assigning proportional run values to all quality-of-contact outcomes.'
+		}
+	];
 </script>
 
 {#if loading}
@@ -172,9 +337,9 @@
 
 	<wa-tab-group placement="start">
 		<wa-tab panel="general">Overview</wa-tab>
-		<wa-tab panel="stats">Stats</wa-tab>
+		<wa-tab panel="batting">Batting</wa-tab>
 		<wa-tab panel="advanced">Pitching</wa-tab>
-		<wa-tab panel="schedule">Schedule</wa-tab>
+		<wa-tab panel="advanced">Fielding</wa-tab>
 		<wa-tab panel="accolades">Accolades</wa-tab>
 
 		<wa-tab-panel name="general">
@@ -183,9 +348,66 @@
 			<p>Throws: {playerProfile.pitchHand?.description || 'N/A'}</p>
 		</wa-tab-panel>
 
-		<wa-tab-panel name="stats">
-			<h3>Statistics</h3>
-			<p>Statistical metrics infrastructure pending migration...</p>
+		<wa-tab-panel name="batting">
+			<wa-tooltip for="battingExplanation">
+				For example: 93 means that player is in the top 93 percent of MLB players in that category.
+			</wa-tooltip>
+			<div class="horizontal-wrapper" id="battingExplanation">
+				<h3>Batting Percentiles</h3>
+				<wa-divider orientation="vertical"></wa-divider>
+				<wa-badge variant="brand" appearance="filled">Higher number is better</wa-badge>
+			</div>
+
+			<div class="stats-grid-container">
+				<div class="stats-column">
+					<h4 class="category-heading">Power Profile</h4>
+					<div class="wa-stack">
+						{#each battingStatConfig.filter((s) => s.category === 'profile') as stat}
+							{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
+								<StatBar
+									label={stat.label}
+									percentile={battingPercentileStats[stat.key]}
+									tooltipText={stat.description}
+								/>
+							{/if}
+						{/each}
+					</div>
+				</div>
+
+				<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+
+				<div class="stats-column">
+					<h4 class="category-heading">Plate Discipline</h4>
+					<div class="wa-stack">
+						{#each battingStatConfig.filter((s) => s.category === 'discipline') as stat}
+							{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
+								<StatBar
+									label={stat.label}
+									percentile={battingPercentileStats[stat.key]}
+									tooltipText={stat.description}
+								/>
+							{/if}
+						{/each}
+					</div>
+				</div>
+
+				<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+
+				<div class="stats-column">
+					<h4 class="category-heading">Expected Metrics</h4>
+					<div class="wa-stack">
+						{#each battingStatConfig.filter((s) => s.category === 'expected') as stat}
+							{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
+								<StatBar
+									label={stat.label}
+									percentile={battingPercentileStats[stat.key]}
+									tooltipText={stat.description}
+								/>
+							{/if}
+						{/each}
+					</div>
+				</div>
+			</div>
 		</wa-tab-panel>
 
 		<wa-tab-panel name="advanced">This is the advanced tab panel.</wa-tab-panel>
@@ -276,6 +498,61 @@
 		text-decoration: underline;
 	}
 
+	.stats-grid-container {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: 2rem;
+		align-items: start;
+		margin-top: 1rem;
+		width: 100%;
+	}
+
+	.stats-column {
+		display: flex;
+		flex-direction: column;
+		gap: 1.25rem;
+	}
+
+	.grid-desktop-divider {
+		display: none;
+		height: 100%;
+		align-self: stretch;
+	}
+
+	.category-heading {
+		margin: 0;
+		font-size: var(--wa-font-size-m);
+		color: var(--wa-color-brand-on-quiet);
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		border-bottom: 1px dashed var(--wa-color-border-quiet);
+		padding-bottom: 0.5rem;
+	}
+
+	@media (min-width: 1024px) {
+		.stats-grid-container {
+			/* 3 main content columns with 2 auto-sized tracks for vertical lines */
+			grid-template-columns: 1fr auto 1fr auto 1fr;
+			gap: 1.5rem;
+		}
+
+		.grid-desktop-divider {
+			display: block;
+		}
+	}
+
+	.horizontal-wrapper {
+		display: flex;
+		align-items: center;
+		margin: 2rem 0 2rem 0;
+		width: min-content;
+	}
+
+	h3 {
+		margin: 0;
+		white-space: nowrap;
+	}
+
 	.player-text-box {
 		display: flex;
 		flex-direction: column;
@@ -285,17 +562,6 @@
 	.small-details-wrapper {
 		display: flex;
 		gap: 0;
-	}
-
-	.skeleton-overview header {
-		display: flex;
-		align-items: center;
-		margin-bottom: 1rem;
-	}
-
-	.skeleton-overview header wa-skeleton:last-child {
-		flex: 0 0 auto;
-		width: 30%;
 	}
 
 	.skeleton-overview wa-skeleton {
