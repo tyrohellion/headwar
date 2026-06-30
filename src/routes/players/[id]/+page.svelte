@@ -15,16 +15,22 @@
 	import WaFormatDate from '@awesome.me/webawesome/dist/components/format-date/format-date.js';
 	import WaIcon from '@awesome.me/webawesome/dist/components/icon/icon.js';
 	import WaTooltip from '@awesome.me/webawesome/dist/components/tooltip/tooltip.js';
+	import WaSelect from '@awesome.me/webawesome/dist/components/select/select.js';
 
 	import StatBar from '$lib/components/statBar.svelte';
 
 	let playerData = $state(null);
 	let loading = $state(true);
 	let errorMsg = $state('');
-
 	let bbrefId = $state('');
-
 	let imgLoading = $state(true);
+
+	let battingStats = $state(null);
+	let isBattingStatsLoading = $state(false);
+	let battingPercentileStats = $state(null);
+	let isBattingPercentileStatsLoading = $state(false);
+
+	let userSelectedYear = $state(new Date().getFullYear().toString());
 
 	$effect(() => {
 		if ($page.params.id) {
@@ -34,8 +40,6 @@
 
 	$effect(() => {
 		const id = $page.params.id;
-		console.log(`[Profile Effect] URL changed. Target MLBAM ID: ${id}`);
-
 		if (!id) return;
 
 		async function loadProfile() {
@@ -50,9 +54,29 @@
 					key_type: 'mlbam'
 				});
 				bbrefId = lookupRes?.[0]?.key_bbref || '';
-				console.log(`[Identity Cross-Ref] Resolved BBRef code: ${bbrefId}`);
+
+				const profile = info?.people?.[0];
+				if (profile?.mlbDebutDate) {
+					const rawStartYear = new Date(profile.mlbDebutDate).getFullYear();
+					const startYear = Math.max(rawStartYear, 2015);
+					const endYear = profile.lastPlayedDate
+						? new Date(profile.lastPlayedDate).getFullYear()
+						: new Date().getFullYear();
+
+					if (endYear >= 2015 && startYear <= endYear) {
+						const currentYearStr = new Date().getFullYear().toString();
+						const years = [];
+						for (let y = endYear; y >= startYear; y--) {
+							years.push(y.toString());
+						}
+						if (years.includes(currentYearStr)) {
+							userSelectedYear = currentYearStr;
+						} else {
+							userSelectedYear = years[0];
+						}
+					}
+				}
 			} catch (err) {
-				console.error('[Profile Effect] Failure in data pipeline:', err);
 				errorMsg = err.message;
 			} finally {
 				loading = false;
@@ -63,23 +87,40 @@
 	});
 
 	let playerProfile = $derived(playerData?.people?.[0] || null);
+
 	let teamLogoUrl = $derived.by(() => {
 		const teamId = playerProfile?.currentTeam?.id;
 		return teamId ? getTeamLogo(teamId) : '';
 	});
 
-	let battingStats = $state(null);
-	let isBattingStatsLoading = $state(false);
-	let userSelectedYear = $state('2026');
+	let availableSeasons = $derived.by(() => {
+		if (!playerProfile?.mlbDebutDate) return [];
+
+		const rawStartYear = new Date(playerProfile.mlbDebutDate).getFullYear();
+		const startYear = Math.max(rawStartYear, 2015);
+
+		const endYear = playerProfile.lastPlayedDate
+			? new Date(playerProfile.lastPlayedDate).getFullYear()
+			: new Date().getFullYear();
+
+		if (endYear < 2015 || startYear > endYear) return [];
+
+		const years = [];
+		for (let y = endYear; y >= startYear; y--) {
+			years.push(y.toString());
+		}
+		return years;
+	});
 
 	$effect(() => {
 		const id = $page.params.id;
+		const targetYear = userSelectedYear;
 		if (!id) return;
 
 		async function loadBattingStats() {
 			isBattingStatsLoading = true;
 			try {
-				battingStats = await getPlayerBattingStatsBref(id, userSelectedYear);
+				battingStats = await getPlayerBattingStatsBref(id, targetYear);
 			} catch (err) {
 				battingStats = null;
 			} finally {
@@ -90,17 +131,15 @@
 		loadBattingStats();
 	});
 
-	let isBattingPercentileStatsLoading = $state(false);
-	let battingPercentileStats = $state(null);
-
 	$effect(() => {
 		const id = $page.params.id;
+		const targetYear = userSelectedYear;
 		if (!id) return;
 
 		async function loadPercentiles() {
 			isBattingPercentileStatsLoading = true;
 			try {
-				battingPercentileStats = await getPlayerBattingPercentileStats(id, userSelectedYear);
+				battingPercentileStats = await getPlayerBattingPercentileStats(id, targetYear);
 			} catch (err) {
 				battingPercentileStats = null;
 			} finally {
@@ -112,7 +151,6 @@
 	});
 
 	const battingStatConfig = [
-		// --- 1. Statcast Profile (Power & Batted Ball) ---
 		{
 			key: 'exit_velocity',
 			label: 'Exit Velocity',
@@ -164,8 +202,6 @@
 			description:
 				'The percentage of possible exit velocity achieved based on the player’s bat speed.'
 		},
-
-		// --- 2. Plate Discipline & Contact ---
 		{
 			key: 'bb_percent',
 			label: 'Walk Percentage',
@@ -190,8 +226,6 @@
 			category: 'discipline',
 			description: 'The rate at which a batter swings and misses completely on a pitch.'
 		},
-
-		// --- 3. Expected Metrics ---
 		{
 			key: 'xba',
 			label: 'Expected BA',
@@ -350,64 +384,116 @@
 
 		<wa-tab-panel name="batting">
 			<wa-tooltip for="battingExplanation">
-				For example: 93 means that player is in the top 93 percent of MLB players in that category.
+				93 would mean a player is in the top 93 percent of MLB players in that category. 50 is
+				always going to be the league average.
 			</wa-tooltip>
-			<div class="horizontal-wrapper" id="battingExplanation">
-				<h3>Batting Percentiles</h3>
+			<div class="horizontal-wrapper">
+				<h3 id="battingExplanation" style="cursor: help;">Batting Percentiles</h3>
 				<wa-divider orientation="vertical"></wa-divider>
 				<wa-badge variant="brand" appearance="filled">Higher number is better</wa-badge>
+				<wa-divider orientation="vertical"></wa-divider>
+				<wa-tooltip for="percentileYearSelector">
+					{availableSeasons.length === 0
+						? 'No Statcast tracking era data available'
+						: 'Percentile data only goes back to 2015'}
+				</wa-tooltip>
+
+				<!-- Present all the time, disabled dynamically if 0 or 1 total options exist -->
+				<wa-select
+					id="percentileYearSelector"
+					value={userSelectedYear}
+					disabled={availableSeasons.length <= 1 || null}
+					size="small"
+					style="width: 120px;"
+					onchange={(e) => {
+						userSelectedYear = e.target.value;
+						console.log(`[UI Control] Dropdown picked new year: ${userSelectedYear}`);
+					}}
+				>
+					{#if availableSeasons.length === 0}
+						<wa-option value={userSelectedYear}>{userSelectedYear}</wa-option>
+					{:else}
+						{#each availableSeasons as season}
+							<wa-option value={season}>{season}</wa-option>
+						{/each}
+					{/if}
+				</wa-select>
 			</div>
 
-			<div class="stats-grid-container">
-				<div class="stats-column">
-					<h4 class="category-heading">Power Profile</h4>
-					<div class="wa-stack">
-						{#each battingStatConfig.filter((s) => s.category === 'profile') as stat}
-							{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
-								<StatBar
-									label={stat.label}
-									percentile={battingPercentileStats[stat.key]}
-									tooltipText={stat.description}
-								/>
-							{/if}
-						{/each}
+			{#if availableSeasons.length > 0}
+				<div class="stats-grid-container">
+					<!-- Column 1: Power Profile -->
+					<div class="stats-column">
+						<div class="category-heading-wrapper">
+							<h4 class="category-heading">Power Profile</h4>
+						</div>
+						<div class="wa-stack">
+							{#each battingStatConfig.filter((s) => s.category === 'profile') as stat}
+								{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
+									<StatBar
+										label={stat.label}
+										percentile={battingPercentileStats[stat.key]}
+										tooltipText={stat.description}
+									/>
+								{/if}
+							{/each}
+						</div>
+					</div>
+
+					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+
+					<!-- Column 2: Plate Discipline -->
+					<div class="stats-column">
+						<div class="category-heading-wrapper">
+							<h4 class="category-heading">Plate Discipline</h4>
+						</div>
+						<div class="wa-stack">
+							{#each battingStatConfig.filter((s) => s.category === 'discipline') as stat}
+								{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
+									<StatBar
+										label={stat.label}
+										percentile={battingPercentileStats[stat.key]}
+										tooltipText={stat.description}
+									/>
+								{/if}
+							{/each}
+						</div>
+					</div>
+
+					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+
+					<!-- Column 3: Expected Metrics -->
+					<div class="stats-column">
+						<wa-tooltip for="expectedHeading"
+							>Calculates what a player's numbers should look like based entirely on exit velocity
+							and launch angle, completely removing defense.</wa-tooltip
+						>
+						<div class="category-heading-wrapper">
+							<h4 class="category-heading" id="expectedHeading" style="cursor: help;">
+								Expected Metrics
+							</h4>
+						</div>
+						<div class="wa-stack">
+							{#each battingStatConfig.filter((s) => s.category === 'expected') as stat}
+								{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
+									<StatBar
+										label={stat.label}
+										percentile={battingPercentileStats[stat.key]}
+										tooltipText={stat.description}
+									/>
+								{/if}
+							{/each}
+						</div>
 					</div>
 				</div>
-
-				<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-
-				<div class="stats-column">
-					<h4 class="category-heading">Plate Discipline</h4>
-					<div class="wa-stack">
-						{#each battingStatConfig.filter((s) => s.category === 'discipline') as stat}
-							{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
-								<StatBar
-									label={stat.label}
-									percentile={battingPercentileStats[stat.key]}
-									tooltipText={stat.description}
-								/>
-							{/if}
-						{/each}
-					</div>
+			{:else}
+				<div style="padding: 2rem 0; color: var(--wa-color-neutral-text-weak);">
+					<p>
+						Statcast advanced percentile metrics are unavailable for this player because their
+						career concluded prior to the introduction of modern tracking systems in 2015.
+					</p>
 				</div>
-
-				<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-
-				<div class="stats-column">
-					<h4 class="category-heading">Expected Metrics</h4>
-					<div class="wa-stack">
-						{#each battingStatConfig.filter((s) => s.category === 'expected') as stat}
-							{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
-								<StatBar
-									label={stat.label}
-									percentile={battingPercentileStats[stat.key]}
-									tooltipText={stat.description}
-								/>
-							{/if}
-						{/each}
-					</div>
-				</div>
-			</div>
+			{/if}
 		</wa-tab-panel>
 
 		<wa-tab-panel name="advanced">This is the advanced tab panel.</wa-tab-panel>
@@ -525,8 +611,14 @@
 		color: var(--wa-color-brand-on-quiet);
 		text-transform: uppercase;
 		letter-spacing: 0.5px;
-		border-bottom: 1px dashed var(--wa-color-border-quiet);
 		padding-bottom: 0.5rem;
+		width: min-content;
+		white-space: nowrap;
+	}
+
+	.category-heading-wrapper {
+		border-bottom: 1px dashed var(--wa-color-border-quiet);
+		width: 100%;
 	}
 
 	@media (min-width: 1024px) {
@@ -544,7 +636,7 @@
 	.horizontal-wrapper {
 		display: flex;
 		align-items: center;
-		margin: 2rem 0 2rem 0;
+		margin: 1rem 0 2rem 0;
 		width: min-content;
 	}
 
