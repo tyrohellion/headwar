@@ -57,23 +57,12 @@
 
 				const profile = info?.people?.[0];
 				if (profile?.mlbDebutDate) {
-					const rawStartYear = new Date(profile.mlbDebutDate).getFullYear();
-					const startYear = Math.max(rawStartYear, 2015);
-					const endYear = profile.lastPlayedDate
-						? new Date(profile.lastPlayedDate).getFullYear()
-						: new Date().getFullYear();
-
-					if (endYear >= 2015 && startYear <= endYear) {
-						const currentYearStr = new Date().getFullYear().toString();
-						const years = [];
-						for (let y = endYear; y >= startYear; y--) {
-							years.push(y.toString());
-						}
-						if (years.includes(currentYearStr)) {
-							userSelectedYear = currentYearStr;
-						} else {
-							userSelectedYear = years[0];
-						}
+					// Check if they are officially retired/inactive via lastPlayedDate
+					if (profile.lastPlayedDate) {
+						userSelectedYear = new Date(profile.lastPlayedDate).getFullYear().toString();
+					} else {
+						// Default to current year for active players
+						userSelectedYear = new Date().getFullYear().toString();
 					}
 				}
 			} catch (err) {
@@ -134,7 +123,11 @@
 	$effect(() => {
 		const id = $page.params.id;
 		const targetYear = userSelectedYear;
-		if (!id) return;
+		// Don't even hit Statcast API if the year being viewed sits outside Statcast metrics window
+		if (!id || availableSeasons.length === 0 || !availableSeasons.includes(targetYear)) {
+			battingPercentileStats = null;
+			return;
+		}
 
 		async function loadPercentiles() {
 			isBattingPercentileStatsLoading = true;
@@ -392,13 +385,12 @@
 				<wa-divider orientation="vertical"></wa-divider>
 				<wa-badge variant="brand" appearance="filled">Higher number is better</wa-badge>
 				<wa-divider orientation="vertical"></wa-divider>
-				<wa-tooltip for="percentileYearSelector">
-					{availableSeasons.length === 0
-						? 'No Statcast tracking era data available'
-						: 'Percentile data only goes back to 2015'}
-				</wa-tooltip>
+				{#if availableSeasons.length === 0}
+					<wa-tooltip for="percentileYearSelector">
+						No Statcast tracking era data available
+					</wa-tooltip>
+				{/if}
 
-				<!-- Present all the time, disabled dynamically if 0 or 1 total options exist -->
 				<wa-select
 					id="percentileYearSelector"
 					value={userSelectedYear}
@@ -422,7 +414,6 @@
 
 			{#if availableSeasons.length > 0}
 				<div class="stats-grid-container">
-					<!-- Column 1: Power Profile -->
 					<div class="stats-column">
 						<div class="category-heading-wrapper">
 							<h4 class="category-heading">Power Profile</h4>
@@ -435,6 +426,8 @@
 										percentile={battingPercentileStats[stat.key]}
 										tooltipText={stat.description}
 									/>
+								{:else}
+									<StatBar label="No data yet" percentile="N/A" />
 								{/if}
 							{/each}
 						</div>
@@ -442,7 +435,6 @@
 
 					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
 
-					<!-- Column 2: Plate Discipline -->
 					<div class="stats-column">
 						<div class="category-heading-wrapper">
 							<h4 class="category-heading">Plate Discipline</h4>
@@ -455,6 +447,8 @@
 										percentile={battingPercentileStats[stat.key]}
 										tooltipText={stat.description}
 									/>
+								{:else}
+									<StatBar label="No data yet" percentile="N/A" />
 								{/if}
 							{/each}
 						</div>
@@ -462,7 +456,6 @@
 
 					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
 
-					<!-- Column 3: Expected Metrics -->
 					<div class="stats-column">
 						<wa-tooltip for="expectedHeading"
 							>Calculates what a player's numbers should look like based entirely on exit velocity
@@ -481,18 +474,19 @@
 										percentile={battingPercentileStats[stat.key]}
 										tooltipText={stat.description}
 									/>
+								{:else}
+									<StatBar label="No data yet" percentile="N/A" />
 								{/if}
 							{/each}
 						</div>
 					</div>
 				</div>
 			{:else}
-				<div style="padding: 2rem 0; color: var(--wa-color-neutral-text-weak);">
-					<p>
-						Statcast advanced percentile metrics are unavailable for this player because their
-						career concluded prior to the introduction of modern tracking systems in 2015.
-					</p>
-				</div>
+				<p>
+					Statcast advanced percentile metrics are unavailable for this player because their career
+					either concluded prior to the introduction of modern tracking systems in 2015, or they
+					have no Major League debut yet.
+				</p>
 			{/if}
 		</wa-tab-panel>
 
