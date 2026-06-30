@@ -67,10 +67,7 @@
 
 {#if loading}
 	<div class="skeleton-overview">
-		<wa-skeleton
-			effect="sheen"
-			style="width: 150px; height: 225px; border-radius: var(--wa-border-radius-m); z-index: 2;"
-		></wa-skeleton>
+		<div class="img-loading"></div>
 		<wa-skeleton effect="sheen"></wa-skeleton>
 		<wa-skeleton effect="sheen"></wa-skeleton>
 		<wa-skeleton effect="sheen"></wa-skeleton>
@@ -90,11 +87,7 @@
 	<div class="player-info-box">
 		<div class="image-container">
 			{#if imgLoading}
-				<wa-skeleton
-					effect="sheen"
-					class="square"
-					style="width: 150px; height: 225px; border-radius: var(--wa-border-radius-m); position: absolute; top: 0; left: 0; z-index: 2;"
-				></wa-skeleton>
+				<div class="img-loading"></div>
 			{/if}
 
 			<img
@@ -222,6 +215,8 @@
 		max-width: 150px;
 		height: auto;
 		max-height: 225px;
+		border-radius: var(--wa-border-radius-m);
+		box-shadow: var(--wa-shadow-l);
 	}
 
 	a {
@@ -235,6 +230,15 @@
 		height: 225px;
 		flex-shrink: 0;
 		box-shadow: var(--wa-shadow-l);
+	}
+
+	.img-loading {
+		width: 150px;
+		height: 225px;
+		border-radius: var(--wa-border-radius-m);
+		background-color: var(--wa-color-gray-80);
+		z-index: 2;
+		margin-bottom: 2rem;
 	}
 
 	.team-logo {

@@ -87,22 +87,16 @@
 	<div class="wa-heading-m">We couldn't find that team :(</div>
 {:else if teamProfile}
 	<div class="player-info-box">
-		<div class="img-status-wrapper">
-			<img
-				src={getTeamLogo($page.params.id)}
-				alt="teamLogo"
-				class="player-thumb"
-				loading="lazy"
-				onerror={(e) =>
-					(e.target.src =
-						'https://img.mlbstatic.com/mlb-photos/image/upload/w_50,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current')}
-			/>
-			{#if teamProfile.active == true}
-				<wa-badge pill variant="success">active</wa-badge>
-			{:else}
-				<wa-badge pill variant="disabled">inactive</wa-badge>
-			{/if}
-		</div>
+		<img
+			src={getTeamLogo($page.params.id)}
+			alt="teamLogo"
+			class="player-thumb"
+			loading="lazy"
+			onerror={(e) =>
+				(e.target.src =
+					'https://img.mlbstatic.com/mlb-photos/image/upload/w_50,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current')}
+		/>
+
 		<div class="player-text-box">
 			<div class="wa-heading-xl">{teamProfile.name}</div>
 			<div class="small-details-wrapper">
