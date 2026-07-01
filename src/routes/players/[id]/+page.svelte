@@ -289,8 +289,8 @@
 
 		<wa-tab-panel name="batting">
 			<wa-tooltip for="battingExplanation">
-				93 would mean a player is in the top 93 percent of MLB players in that category. 50 is
-				always going to be the league average.
+				93 would mean a player is in the top 7 percent of MLB players in that category. 50 is always
+				going to be the league average.
 			</wa-tooltip>
 			<div class="horizontal-wrapper">
 				<h3 id="battingExplanation" style="cursor: help;">Batting Percentiles</h3>
@@ -405,8 +405,8 @@
 
 			<!-- basic batting stats -->
 			<wa-tooltip for="battingExplanationStandard">
-				Basic batting stats. Unlike percentage, some of these stats are a linear number. Think HRs
-				or Triples
+				Basic batting stats. Unlike percentage, some of these stats are linear numbers. Think Home
+				runs or Triples.
 			</wa-tooltip>
 			<div class="horizontal-wrapper">
 				<h3 id="battingExplanationStandard" style="cursor: help;">Batting Stats</h3>
