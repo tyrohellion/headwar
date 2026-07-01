@@ -307,7 +307,7 @@
 					id="percentileYearSelector"
 					value={userSelectedYear}
 					disabled={availableSeasons.length <= 1 || null}
-					size="small"
+					size="s"
 					style="width: 6rem;"
 					onchange={(e) => {
 						userSelectedYear = e.target.value;
@@ -371,7 +371,8 @@
 					<div class="stats-column">
 						<wa-tooltip for="expectedHeading"
 							>Calculates what a player's numbers should look like based entirely on exit velocity
-							and launch angle, completely removing defense.</wa-tooltip
+							and launch angle, completely removing defense. If a player's real stats are much lower
+							than the expected, they have arguably been getting unlucky.</wa-tooltip
 						>
 						<div class="category-heading-wrapper">
 							<h4 class="category-heading" id="expectedHeading" style="cursor: help;">
@@ -422,7 +423,7 @@
 					id="battingYearSelector"
 					value={userSelectedYearStandard}
 					disabled={availableSeasonsStandard.length <= 1 || null}
-					size="small"
+					size="s"
 					style="width: 6rem;"
 					onchange={(e) => {
 						userSelectedYearStandard = e.target.value;
@@ -490,6 +491,7 @@
 									{#if battingStats?.[stat.key] !== undefined && battingStats?.[stat.key] !== null}
 										<StatPill
 											label={stat.label}
+											abbr={stat.key}
 											percentile={stat.key === 'BA' || stat.key === 'OBP' || stat.key === 'SLG'
 												? battingStats[stat.key].toFixed(3).replace(/^0/, '') // Formats as .297 instead of 0.297
 												: stat.key === 'OPS'
@@ -514,12 +516,13 @@
 								{#each standardBattingConfig.filter((s) => s.category === 'counting') as stat}
 									{#if battingStats?.[stat.key] !== undefined && battingStats?.[stat.key] !== null}
 										<StatPill
+											abbr={stat.key}
 											label={stat.label}
 											percentile={battingStats[stat.key]}
 											tooltipText={stat.description}
 										/>
 									{:else}
-										<StatBar label="No data" percentile="N/A" />
+										<StatPill label="No data" percentile="N/A" />
 									{/if}
 								{/each}
 							</div>
@@ -535,6 +538,7 @@
 								{#each standardBattingConfig.filter((s) => s.category === 'situational') as stat}
 									{#if battingStats?.[stat.key] !== undefined && battingStats?.[stat.key] !== null}
 										<StatPill
+											abbr={stat.key}
 											label={stat.label}
 											percentile={battingStats[stat.key]}
 											tooltipText={stat.description}

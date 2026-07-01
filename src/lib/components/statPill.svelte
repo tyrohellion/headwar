@@ -1,5 +1,5 @@
 <script>
-	let { percentile = 0, label = '', stat = 0, tooltipText = '' } = $props();
+	let { percentile = 0, label = '', abbr = '', stat = 0, tooltipText = '' } = $props();
 	const tooltipId = `tooltip-${label.toLowerCase().replace(/\s+/g, '-')}`;
 </script>
 
@@ -31,9 +31,12 @@
 		<div class="stat-bar-container">
 			<div class="stat-bar-content">
 				<span class="stat-label" id={tooltipId}>{label}</span>
-				<span class="stat-value">
-					{percentile}
-				</span>
+				<div class="name-badge-wrapper">
+					<span class="stat-value">
+						{percentile}
+					</span>
+					<wa-badge appearance="filled" size="m" variant="neutral">{abbr}</wa-badge>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -46,8 +49,17 @@
 		flex-direction: column;
 		align-items: start;
 		width: 100%;
-		max-width: 320px;
 		height: min-content;
+	}
+
+	.name-badge-wrapper {
+		display: flex;
+		gap: 0.5rem;
+	}
+
+	wa-badge {
+		width: 42px;
+		height: 26px;
 	}
 
 	.stat-molucule-disabled {
@@ -56,7 +68,6 @@
 		flex-direction: column;
 		align-items: start;
 		width: 100%;
-		max-width: 320px;
 		opacity: 0.25;
 	}
 
@@ -65,7 +76,7 @@
 		position: relative;
 		width: 100%;
 		height: 100%;
-		border-radius: var(--wa-border-radius-m);
+		border-radius: var(--wa-border-radius-s);
 		overflow: hidden;
 		transition: all 100ms ease;
 	}

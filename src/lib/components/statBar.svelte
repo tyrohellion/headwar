@@ -50,7 +50,9 @@
 {:else}
 	<div class="stat-molucule">
 		<div class="horizontal-wrapper">
-			<span class="stat-label" id={tooltipId}>{label}</span>
+			<div class="name-badge-wrapper">
+				<span class="stat-label" id={tooltipId}>{label}</span>
+			</div>
 			<span class="stat-value" style="color: {activeColor};">
 				{percentile}
 			</span>
@@ -78,7 +80,6 @@
 		flex-direction: column;
 		align-items: start;
 		width: 100%;
-		max-width: 320px;
 	}
 
 	.stat-molucule-disabled {
@@ -87,7 +88,6 @@
 		flex-direction: column;
 		align-items: start;
 		width: 100%;
-		max-width: 320px;
 		opacity: 0.25;
 	}
 
