@@ -25,27 +25,51 @@
 	});
 </script>
 
-<div class="stat-molucule">
-	<div class="horizontal-wrapper">
-		<span class="stat-label" id={tooltipId}>{label}</span>
-		<span class="stat-value" style="color: {activeColor};">
-			{percentile}
-		</span>
+{#if label === 'No data'}
+	<div class="stat-molucule-disabled">
+		<div class="horizontal-wrapper">
+			<span class="stat-label" id={tooltipId}>{label}</span>
+			<span class="stat-value" style="color: {activeColor};">
+				{percentile}
+			</span>
+		</div>
+
+		{#if tooltipText}
+			<wa-tooltip for={tooltipId}>{tooltipText}</wa-tooltip>
+		{/if}
+
+		<div class="stat-bar-container-disabled">
+			<div
+				class="stat-bar-fill"
+				style="width: {widthPercent()}%; background-color: {activeColor}; opacity: {fillOpacity};"
+			></div>
+
+			<div class="stat-bar-content"></div>
+		</div>
 	</div>
+{:else}
+	<div class="stat-molucule">
+		<div class="horizontal-wrapper">
+			<span class="stat-label" id={tooltipId}>{label}</span>
+			<span class="stat-value" style="color: {activeColor};">
+				{percentile}
+			</span>
+		</div>
 
-	{#if tooltipText}
-		<wa-tooltip for={tooltipId}>{tooltipText}</wa-tooltip>
-	{/if}
+		{#if tooltipText}
+			<wa-tooltip for={tooltipId}>{tooltipText}</wa-tooltip>
+		{/if}
 
-	<div class="stat-bar-container">
-		<div
-			class="stat-bar-fill"
-			style="width: {widthPercent()}%; background-color: {activeColor}; opacity: {fillOpacity};"
-		></div>
+		<div class="stat-bar-container">
+			<div
+				class="stat-bar-fill"
+				style="width: {widthPercent()}%; background-color: {activeColor}; opacity: {fillOpacity};"
+			></div>
 
-		<div class="stat-bar-content"></div>
+			<div class="stat-bar-content"></div>
+		</div>
 	</div>
-</div>
+{/if}
 
 <style>
 	.stat-molucule {
@@ -57,7 +81,20 @@
 		max-width: 320px;
 		height: 3rem;
 	}
-	.stat-bar-container {
+
+	.stat-molucule-disabled {
+		display: flex;
+		justify-content: center;
+		flex-direction: column;
+		align-items: start;
+		width: 100%;
+		max-width: 320px;
+		height: 3rem;
+		opacity: 0.25;
+	}
+
+	.stat-bar-container,
+	.stat-bar-container-disabled {
 		position: relative;
 		width: 100%;
 		height: 100%;
