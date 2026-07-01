@@ -1,6 +1,47 @@
 export const standardBattingConfig = [
 	// --- Counting Stats ---
 	{
+		key: 'BA',
+		label: 'Batting Average',
+		category: 'standard',
+		description: 'The ratio of safe hits to total official At Bats (H / AB).'
+	},
+	{
+		key: 'OBP',
+		label: 'On-Base Percentage',
+		category: 'standard',
+		description:
+			'How frequently a batter reaches base safely via hits, walks, or hit by pitches per plate appearance.'
+	},
+	{
+		key: 'SLG',
+		label: 'Slugging Percentage',
+		category: 'standard',
+		description:
+			'The average number of total bases gained per official At Bat, measuring raw power capacity.'
+	},
+	{
+		key: 'OPS',
+		label: 'On-Base Plus Slugging',
+		category: 'standard',
+		description:
+			'The mathematical sum of the player’s On-Base Percentage and Slugging Percentage (OBP + SLG).'
+	},
+	{
+		key: 'HR',
+		label: 'Home Runs',
+		category: 'standard',
+		description:
+			'Total number of hits where the batter safely touched all four bases, typically over the outfield wall.'
+	},
+	{
+		key: 'RBI',
+		label: 'Runs Batted In',
+		category: 'standard',
+		description:
+			'Number of runs driven in by the batter via hits, walks, sacrifices, or groundouts.'
+	},
+	{
 		key: 'G',
 		label: 'Games',
 		category: 'counting',
@@ -45,60 +86,19 @@ export const standardBattingConfig = [
 		category: 'counting',
 		description: 'Total number of safe base hits where the batter advanced to third base.'
 	},
-	{
-		key: 'HR',
-		label: 'Home Runs',
-		category: 'counting',
-		description:
-			'Total number of hits where the batter safely touched all four bases, typically over the outfield wall.'
-	},
-	{
-		key: 'RBI',
-		label: 'Runs Batted In',
-		category: 'counting',
-		description:
-			'Number of runs driven in by the batter via hits, walks, sacrifices, or groundouts.'
-	},
 
 	// --- Slash Line & Percentages ---
 	{
-		key: 'BA',
-		label: 'Batting Average',
-		category: 'rates',
-		description: 'The ratio of safe hits to total official At Bats (H / AB).'
-	},
-	{
-		key: 'OBP',
-		label: 'On-Base Percentage',
-		category: 'rates',
-		description:
-			'How frequently a batter reaches base safely via hits, walks, or hit by pitches per plate appearance.'
-	},
-	{
-		key: 'SLG',
-		label: 'Slugging Percentage',
-		category: 'rates',
-		description:
-			'The average number of total bases gained per official At Bat, measuring raw power capacity.'
-	},
-	{
-		key: 'OPS',
-		label: 'On-Base Plus Slugging',
-		category: 'rates',
-		description:
-			'The mathematical sum of the player’s On-Base Percentage and Slugging Percentage (OBP + SLG).'
-	},
-	{
 		key: 'BB',
 		label: 'Walks',
-		category: 'rates',
+		category: 'counting',
 		description:
 			'Total times the batter was awarded first base after receiving four pitches outside the strike zone.'
 	},
 	{
 		key: 'SO',
 		label: 'Strikeouts',
-		category: 'rates',
+		category: 'counting',
 		description: 'Total times the batter accumulated three strikes, resulting in an out.'
 	},
 

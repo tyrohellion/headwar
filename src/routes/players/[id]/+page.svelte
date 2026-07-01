@@ -18,8 +18,11 @@
 	import WaIcon from '@awesome.me/webawesome/dist/components/icon/icon.js';
 	import WaTooltip from '@awesome.me/webawesome/dist/components/tooltip/tooltip.js';
 	import WaSelect from '@awesome.me/webawesome/dist/components/select/select.js';
+	import WaSpinner from '@awesome.me/webawesome/dist/components/spinner/spinner.js';
+	import WaProgressBar from '@awesome.me/webawesome/dist/components/progress-bar/progress-bar.js';
 
 	import StatBar from '$lib/components/statBar.svelte';
+	import StatPill from '$lib/components/statPill.svelte';
 
 	let playerData = $state(null);
 	let loading = $state(true);
@@ -33,6 +36,7 @@
 	let isBattingPercentileStatsLoading = $state(false);
 
 	let userSelectedYear = $state(new Date().getFullYear().toString());
+	let userSelectedYearStandard = $state(new Date().getFullYear().toString());
 
 	$effect(() => {
 		if ($page.params.id) {
@@ -60,9 +64,13 @@
 				const profile = info?.people?.[0];
 				if (profile?.mlbDebutDate) {
 					if (profile.lastPlayedDate) {
-						userSelectedYear = new Date(profile.lastPlayedDate).getFullYear().toString();
+						const finalYear = new Date(profile.lastPlayedDate).getFullYear().toString();
+						userSelectedYear = finalYear;
+						userSelectedYearStandard = finalYear;
 					} else {
-						userSelectedYear = new Date().getFullYear().toString();
+						const currentYear = new Date().getFullYear().toString();
+						userSelectedYear = currentYear;
+						userSelectedYearStandard = currentYear;
 					}
 				}
 			} catch (err) {
@@ -101,10 +109,28 @@
 		return years;
 	});
 
+	let availableSeasonsStandard = $derived.by(() => {
+		if (!playerProfile?.mlbDebutDate) return [];
+
+		const rawStartYear = new Date(playerProfile.mlbDebutDate).getFullYear();
+		const startYear = Math.max(rawStartYear, 2008);
+
+		const endYear = playerProfile.lastPlayedDate
+			? new Date(playerProfile.lastPlayedDate).getFullYear()
+			: new Date().getFullYear();
+
+		if (endYear < 2008 || startYear > endYear) return [];
+
+		const years = [];
+		for (let y = endYear; y >= startYear; y--) {
+			years.push(y.toString());
+		}
+		return years;
+	});
+
 	$effect(() => {
 		const id = $page.params.id;
-		const targetYear = userSelectedYear;
-		if (!id) return;
+		const targetYear = userSelectedYearStandard;
 
 		async function loadBattingStats() {
 			isBattingStatsLoading = true;
@@ -256,7 +282,7 @@
 		<wa-tab panel="accolades">Accolades</wa-tab>
 
 		<wa-tab-panel name="general">
-			<h3>Player Profile Info</h3>
+			<h3>Overview</h3>
 			<p>Bats: {playerProfile.batSide?.description || 'N/A'}</p>
 			<p>Throws: {playerProfile.pitchHand?.description || 'N/A'}</p>
 		</wa-tab-panel>
@@ -273,7 +299,7 @@
 				<wa-divider orientation="vertical"></wa-divider>
 				{#if availableSeasons.length === 0}
 					<wa-tooltip for="percentileYearSelector">
-						No Statcast tracking era data available
+						Only 2015-Present data available for statcast percentiles or player has no data to show
 					</wa-tooltip>
 				{/if}
 
@@ -282,7 +308,7 @@
 					value={userSelectedYear}
 					disabled={availableSeasons.length <= 1 || null}
 					size="small"
-					style="width: 120px;"
+					style="width: 6rem;"
 					onchange={(e) => {
 						userSelectedYear = e.target.value;
 						console.log(`[UI Control] Dropdown picked new year: ${userSelectedYear}`);
@@ -378,110 +404,154 @@
 			<wa-divider style="margin: 3rem 0 3em 0;"></wa-divider>
 
 			<!-- basic batting stats -->
-			<wa-tooltip for="battingExplanation">
+			<wa-tooltip for="battingExplanationStandard">
 				Basic batting stats. Unlike percentage, some of these stats are a linear number. Think HRs
 				or Triples
 			</wa-tooltip>
 			<div class="horizontal-wrapper">
-				<h3 id="battingExplanation" style="cursor: help;">Batting Stats</h3>
+				<h3 id="battingExplanationStandard" style="cursor: help;">Batting Stats</h3>
 				<wa-divider orientation="vertical"></wa-divider>
 
-				{#if availableSeasons.length === 0}
-					<wa-tooltip for="percentileYearSelector">No data available</wa-tooltip>
+				{#if availableSeasonsStandard.length === 0}
+					<wa-tooltip for="battingYearSelector"
+						>Only 2008-Present data available or player has no data to show</wa-tooltip
+					>
 				{/if}
 
 				<wa-select
-					id="percentileYearSelector"
-					value={userSelectedYear}
-					disabled={availableSeasons.length <= 1 || null}
+					id="battingYearSelector"
+					value={userSelectedYearStandard}
+					disabled={availableSeasonsStandard.length <= 1 || null}
 					size="small"
-					style="width: 120px;"
+					style="width: 6rem;"
 					onchange={(e) => {
-						userSelectedYear = e.target.value;
-						console.log(`[UI Control] Dropdown picked new year: ${userSelectedYear}`);
+						userSelectedYearStandard = e.target.value;
+						console.log(`[UI Control] Dropdown picked new year: ${userSelectedYearStandard}`);
 					}}
 				>
-					{#if availableSeasons.length === 0}
-						<wa-option value={userSelectedYear}>{userSelectedYear}</wa-option>
+					{#if availableSeasonsStandard.length === 0}
+						<wa-option value={userSelectedYearStandard}>{userSelectedYearStandard}</wa-option>
 					{:else}
-						{#each availableSeasons as season}
+						{#each availableSeasonsStandard as season}
 							<wa-option value={season}>{season}</wa-option>
 						{/each}
 					{/if}
 				</wa-select>
 			</div>
 
-			{#if availableSeasons.length > 0}
-				<div class="stats-grid-container">
-					<div class="stats-column">
-						<div class="category-heading-wrapper">
-							<h4 class="category-heading">Impact</h4>
+			{#if availableSeasonsStandard.length > 0}
+				{#if isBattingStatsLoading == true}
+					<div class="stats-grid-container">
+						<div class="stats-column">
+							<div class="category-heading-wrapper">
+								<h4 class="category-heading">Standard</h4>
+							</div>
+							<div class="wa-stack">
+								{#each standardBattingConfig.filter((s) => s.category === 'standard') as stat}
+									<wa-progress-bar indeterminate style="margin-bottom: 0.5rem;"></wa-progress-bar>
+								{/each}
+							</div>
 						</div>
-						<div class="wa-stack">
-							{#each battingStatConfig.filter((s) => s.category === 'profile') as stat}
-								{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
-									<StatBar
-										label={stat.label}
-										percentile={battingPercentileStats[stat.key]}
-										tooltipText={stat.description}
-									/>
-								{:else}
-									<StatBar label="No data" percentile="N/A" />
-								{/if}
-							{/each}
+
+						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+
+						<div class="stats-column">
+							<div class="category-heading-wrapper">
+								<h4 class="category-heading">Counting</h4>
+							</div>
+							<div class="wa-stack">
+								{#each standardBattingConfig.filter((s) => s.category === 'counting') as stat}
+									<wa-progress-bar indeterminate style="margin-bottom: 0.5rem;"></wa-progress-bar>
+								{/each}
+							</div>
+						</div>
+
+						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+
+						<div class="stats-column">
+							<div class="category-heading-wrapper">
+								<h4 class="category-heading">Situational</h4>
+							</div>
+							<div class="wa-stack">
+								{#each standardBattingConfig.filter((s) => s.category === 'situational') as stat}
+									<wa-progress-bar indeterminate style="margin-bottom: 0.5rem;"></wa-progress-bar>
+								{/each}
+							</div>
 						</div>
 					</div>
-
-					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-
-					<div class="stats-column">
-						<div class="category-heading-wrapper">
-							<h4 class="category-heading">Plate Discipline</h4>
+				{:else}
+					<div class="stats-grid-container">
+						<div class="stats-column">
+							<div class="category-heading-wrapper">
+								<h4 class="category-heading">Standard</h4>
+							</div>
+							<div class="wa-stack">
+								{#each standardBattingConfig.filter((s) => s.category === 'standard') as stat}
+									{#if battingStats?.[stat.key] !== undefined && battingStats?.[stat.key] !== null}
+										<StatPill
+											label={stat.label}
+											percentile={stat.key === 'BA' || stat.key === 'OBP' || stat.key === 'SLG'
+												? battingStats[stat.key].toFixed(3).replace(/^0/, '') // Formats as .297 instead of 0.297
+												: stat.key === 'OPS'
+													? battingStats[stat.key].toFixed(3)
+													: battingStats[stat.key]}
+											tooltipText={stat.description}
+										/>
+									{:else}
+										<StatPill label="No data" percentile="N/A" />
+									{/if}
+								{/each}
+							</div>
 						</div>
-						<div class="wa-stack">
-							{#each battingStatConfig.filter((s) => s.category === 'discipline') as stat}
-								{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
-									<StatBar
-										label={stat.label}
-										percentile={battingPercentileStats[stat.key]}
-										tooltipText={stat.description}
-									/>
-								{:else}
-									<StatBar label="No data" percentile="N/A" />
-								{/if}
-							{/each}
+
+						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+
+						<div class="stats-column">
+							<div class="category-heading-wrapper">
+								<h4 class="category-heading">Counting</h4>
+							</div>
+							<div class="wa-stack">
+								{#each standardBattingConfig.filter((s) => s.category === 'counting') as stat}
+									{#if battingStats?.[stat.key] !== undefined && battingStats?.[stat.key] !== null}
+										<StatPill
+											label={stat.label}
+											percentile={battingStats[stat.key]}
+											tooltipText={stat.description}
+										/>
+									{:else}
+										<StatBar label="No data" percentile="N/A" />
+									{/if}
+								{/each}
+							</div>
+						</div>
+
+						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+
+						<div class="stats-column">
+							<div class="category-heading-wrapper">
+								<h4 class="category-heading">Situational</h4>
+							</div>
+							<div class="wa-stack">
+								{#each standardBattingConfig.filter((s) => s.category === 'situational') as stat}
+									{#if battingStats?.[stat.key] !== undefined && battingStats?.[stat.key] !== null}
+										<StatPill
+											label={stat.label}
+											percentile={battingStats[stat.key]}
+											tooltipText={stat.description}
+										/>
+									{:else}
+										<StatPill label="No data" percentile="N/A" />
+									{/if}
+								{/each}
+							</div>
 						</div>
 					</div>
-
-					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-
-					<div class="stats-column">
-						<wa-tooltip for="expectedHeading"
-							>Calculates what a player's numbers should look like based entirely on exit velocity
-							and launch angle, completely removing defense.</wa-tooltip
-						>
-						<div class="category-heading-wrapper">
-							<h4 class="category-heading" id="expectedHeading" style="cursor: help;">
-								Expected Metrics
-							</h4>
-						</div>
-						<div class="wa-stack">
-							{#each battingStatConfig.filter((s) => s.category === 'expected') as stat}
-								{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
-									<StatBar
-										label={stat.label}
-										percentile={battingPercentileStats[stat.key]}
-										tooltipText={stat.description}
-									/>
-								{:else}
-									<StatBar label="No data" percentile="N/A" />
-								{/if}
-							{/each}
-						</div>
-					</div>
-				</div>
+				{/if}
 			{:else}
-				<p>Error or not enough data</p>
+				<p>
+					Player either has no MLB debut yet or their career ended before 2008. Only data from
+					2008-Present is available.
+				</p>
 			{/if}
 		</wa-tab-panel>
 
