@@ -294,7 +294,7 @@
 		<wa-tab panel="batting">Batting</wa-tab>
 		<wa-tab panel="advanced">Pitching</wa-tab>
 		<wa-tab panel="advanced">Fielding</wa-tab>
-		<wa-tab panel="accolades">Accolades</wa-tab>
+		<wa-tab panel="awards">Awards</wa-tab>
 
 		<wa-tab-panel name="general">
 			<div class="horizontal-wrapper">
@@ -522,9 +522,9 @@
 
 		<wa-tab-panel name="advanced">This is the advanced tab panel.</wa-tab-panel>
 		<wa-tab-panel name="schedule">Schedule panels content.</wa-tab-panel>
-		<wa-tab-panel name="accolades">
+		<wa-tab-panel name="awards">
 			<div class="horizontal-wrapper">
-				<h3>Player Accolades</h3>
+				<h3>Player Awards</h3>
 			</div>
 			{#if processedAccolades.length > 0}
 				<div class="accolades-list">

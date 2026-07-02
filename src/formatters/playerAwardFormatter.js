@@ -1,10 +1,15 @@
 export const AWARD_PRESTIGE = {
+	MLBHOF: { label: 'Hall of Fame', rank: 1 },
 	ALMVP: { label: 'AL MVP', rank: 1 },
 	NLMVP: { label: 'NL MVP', rank: 1 },
 	ALCY: { label: 'AL Cy Young', rank: 2 },
 	NLCY: { label: 'NL Cy Young', rank: 2 },
-	WSCHAMP: { label: 'World Series Champion', rank: 3 },
-	WBCMVP: { label: 'WBC MVP', rank: 4 },
+	WSMVP: { label: 'World Series MVP', rank: 3 },
+	WSCHAMP: { label: 'World Series Champion', rank: 4 },
+	WBCMVP: { label: 'WBC MVP', rank: 5 },
+	ALCSMVP: { label: 'ALCS MVP', rank: 6 },
+	NLCSMVP: { label: 'NLCS MVP', rank: 7 },
+	ANASMVPA: { label: 'All-Star Game MVP', rank: 8 },
 
 	MLBAFIRST: { label: 'All-MLB First Team', rank: 10 },
 	ALSS: { label: 'Silver Slugger', rank: 11 },
@@ -41,16 +46,17 @@ export const AWARD_PRESTIGE = {
 	NLHAA: { label: 'Hank Aaron Award', rank: 53 },
 	DHOY: { label: 'Edgar Martinez Outstanding DH', rank: 54 },
 	BAMLPOY: { label: 'Baseball America Player of the Year', rank: 55 },
-	MLBPCPOY: { label: 'Players Choice Player of the Year', rank: 55 },
-	WSMVP: { label: 'World Series MVP', rank: 56 },
-	ALCSMVP: { label: 'ALCS MVP', rank: 57 },
-	NLCSMVP: { label: 'NLCS MVP', rank: 57 },
-	ANASMVPA: { label: 'All-Star Game MVP', rank: 58 }
+	MLBPCPOY: { label: 'Players Choice Player of the Year', rank: 55 }
 };
 
 function getFallbackConfig(awardId, awardName) {
 	const lowerId = awardId.toLowerCase();
 	const lowerName = awardName.toLowerCase();
+
+	// Catch all retired numbers (e.g., RETIREDUNI_147)
+	if (lowerId.startsWith('retireduni')) {
+		return { label: awardName, rank: 3 };
+	}
 
 	if (lowerId.includes('leader') || lowerName.includes('leader')) {
 		return { label: awardName, rank: 25 };
@@ -79,6 +85,9 @@ export function processPlayerAwards(rawAwards = []) {
 		const name = award.name || 'Unknown Honor';
 		const season = award.season;
 
+		// Extract team data if it exists on the individual award record
+		const teamInfo = award.team ? { id: award.team.id, name: award.team.name } : null;
+
 		const config = AWARD_PRESTIGE[id] || getFallbackConfig(id, name);
 
 		if (!aggregated[id]) {
@@ -87,14 +96,21 @@ export function processPlayerAwards(rawAwards = []) {
 				label: config.label,
 				rank: config.rank,
 				count: 0,
-				seasons: []
+				seasons: [],
+				team: teamInfo // Store team metadata here
 			};
 		}
 
 		aggregated[id].count += 1;
 
+		// Retired numbers use a precise full date rather than just a season year string sometimes
 		if (season && !aggregated[id].seasons.includes(season)) {
 			aggregated[id].seasons.push(season);
+		} else if (award.date && !season) {
+			const parsedYear = new Date(award.date).getFullYear().toString();
+			if (!aggregated[id].seasons.includes(parsedYear)) {
+				aggregated[id].seasons.push(parsedYear);
+			}
 		}
 	});
 

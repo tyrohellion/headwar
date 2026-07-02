@@ -80,6 +80,7 @@
 		flex-direction: column;
 		align-items: start;
 		width: 100%;
+		transition: all 100ms ease;
 	}
 
 	.stat-molecule-disabled {

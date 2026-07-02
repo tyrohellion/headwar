@@ -3,7 +3,7 @@
 	const tooltipId = `tooltip-${label.toLowerCase().replace(/\s+/g, '-')}`;
 </script>
 
-{#if label === 'No data'}
+{#if percentile === 'N/A'}
 	<div class="stat-molucule-disabled">
 		<div class="horizontal-wrapper"></div>
 
@@ -83,7 +83,11 @@
 	.stat-bar-container:hover {
 		transform: scale(1.03);
 		transition: all 100ms ease;
-		background-color: var(--wa-color-surface-raised);
+		background-color: var(--wa-color-fill-normal);
+
+		.name-badge-wrapper wa-badge {
+			border-color: var(--wa-color-border-loud, var(--wa-color-brand-border-loud));
+		}
 	}
 
 	.stat-bar-content {
