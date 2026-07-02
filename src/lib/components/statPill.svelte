@@ -22,7 +22,7 @@
 	</div>
 {:else}
 	{#if tooltipText}
-		<wa-tooltip for={tooltipId} trigger="click">{tooltipText}</wa-tooltip>
+		<wa-tooltip for={tooltipId} placement="left">{tooltipText}</wa-tooltip>
 	{/if}
 	<div class="stat-molucule" id={tooltipId}>
 		<div class="horizontal-wrapper"></div>

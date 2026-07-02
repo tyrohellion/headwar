@@ -224,6 +224,7 @@
 
 		loadPercentiles();
 	});
+
 	let fieldingStatsBlock = $derived.by(() => {
 		if (!playerProfile?.stats) return null;
 		return playerProfile.stats.find((s) => {
@@ -246,8 +247,22 @@
 			? fieldingStatsBlock.splits
 			: fieldingStatsBlock.splits.filter((s) => s.season === userSelectedYearFielding);
 
+		const positionMap = {
+			LF: 'Left Field',
+			CF: 'Center Field',
+			RF: 'Right Field',
+			OF: 'Outfielder'
+		};
+
 		const positions = targetSplits
-			.map((s) => s.position?.name || s.position?.displayName)
+			.map((s) => {
+				const abbrev = s.position?.abbreviation;
+				if (positionMap[abbrev]) {
+					return positionMap[abbrev];
+				}
+
+				return s.position?.name || s.position?.displayName;
+			})
 			.filter((posName) => posName && posName !== 'Designated Hitter');
 
 		return [...new Set(positions)];
@@ -257,12 +272,9 @@
 		const positions = availableFieldingPositions;
 
 		untrack(() => {
-			// SCENARIO 1: There's exactly ONE position available (e.g., Ohtani in 2026 -> Pitcher)
 			if (positions.length === 1) {
 				userSelectedFieldingPosition = positions[0];
-			}
-			// SCENARIO 2: "All" or a specific position is selected, but it's no longer valid for the new year
-			else if (
+			} else if (
 				userSelectedFieldingPosition !== 'ALL' &&
 				!positions.includes(userSelectedFieldingPosition)
 			) {
@@ -278,10 +290,27 @@
 			? fieldingStatsBlock.splits
 			: fieldingStatsBlock.splits.filter((s) => s.season === userSelectedYearFielding);
 
+		targetSplits = targetSplits.filter(
+			(s) =>
+				(s.position?.name || s.position?.displayName) !== 'Designated Hitter' &&
+				s.position?.abbreviation !== 'DH'
+		);
+
 		if (userSelectedFieldingPosition !== 'ALL') {
-			targetSplits = targetSplits.filter(
-				(s) => (s.position?.name || s.position?.displayName) === userSelectedFieldingPosition
-			);
+			const positionAbbrevMap = {
+				'Left Field': 'LF',
+				'Center Field': 'CF',
+				'Right Field': 'RF',
+				Outfielder: 'OF'
+			};
+			const targetAbbrev = positionAbbrevMap[userSelectedFieldingPosition];
+
+			targetSplits = targetSplits.filter((s) => {
+				const name = s.position?.name || s.position?.displayName;
+				const abbrev = s.position?.abbreviation;
+
+				return name === userSelectedFieldingPosition || (targetAbbrev && abbrev === targetAbbrev);
+			});
 		}
 
 		if (targetSplits.length === 0) return null;
@@ -369,7 +398,6 @@
 			aggregated.catcherERA = 'N/A';
 		}
 
-		// Clean sweep: If they have no catcher innings, force 'N/A' strings across the board
 		if (totalCatcherInnings === 0) {
 			aggregated.catcherERA = 'N/A';
 			aggregated.passedBall = 'N/A';
