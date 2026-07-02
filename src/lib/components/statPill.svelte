@@ -2,10 +2,10 @@
 	import AnimatedCounter from './animatedCounter.svelte';
 
 	let { percentile = 0, label = '', abbr = '', stat = 0, tooltipText = '' } = $props();
-	const tooltipId = `tooltip-${label.toLowerCase().replace(/\s+/g, '-')}`;
+	const tooltipId = `pill-tip-${Math.random().toString(36).substring(2, 9)}`;
 </script>
 
-{#if percentile === 'N/A' || percentile === '-.--'}
+{#if percentile === 'N/A' || percentile === '-.--' || percentile === 'NaN' || !percentile || String(percentile).includes('NaN')}
 	<div class="stat-molucule-disabled">
 		<div class="horizontal-wrapper"></div>
 
@@ -16,15 +16,13 @@
 		<div class="stat-bar-container-disabled">
 			<div class="stat-bar-content">
 				<span class="stat-label" id={tooltipId}>{label}</span>
-				<span class="stat-value">
-					{percentile}
-				</span>
+				<span class="stat-value">0</span>
 			</div>
 		</div>
 	</div>
 {:else}
 	{#if tooltipText}
-		<wa-tooltip for={tooltipId}>{tooltipText}</wa-tooltip>
+		<wa-tooltip for={tooltipId} trigger="click">{tooltipText}</wa-tooltip>
 	{/if}
 	<div class="stat-molucule" id={tooltipId}>
 		<div class="horizontal-wrapper"></div>
@@ -33,7 +31,6 @@
 				<span class="stat-label">{label}</span>
 				<div class="name-badge-wrapper">
 					<span class="stat-value">
-						<!-- Animate the changes to the number safely here -->
 						<AnimatedCounter value={percentile} />
 					</span>
 					<wa-badge appearance="filled" size="m" variant="neutral">{abbr}</wa-badge>
@@ -51,6 +48,7 @@
 		align-items: start;
 		width: 100%;
 		height: min-content;
+		cursor: help;
 	}
 
 	.name-badge-wrapper {
@@ -114,7 +112,6 @@
 		font-weight: var(--wa-font-weight-semibold, 700);
 		color: var(--wa-color-filled-on-normal);
 		font-size: var(--wa-font-size-s);
-		cursor: help;
 		white-space: nowrap;
 	}
 

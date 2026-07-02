@@ -8,7 +8,9 @@
 	import { battingStatConfig } from '../../../formatters/battingStatsConfig';
 	import { processPlayerAwards } from '../../../formatters/playerAwardFormatter';
 	import { standardPitchingConfig } from '../../../formatters/standardPitchingStatsConfig';
+	import { standardFieldingStatsConfig } from '../../../formatters/fieldingStatsConfig';
 	import { page } from '$app/stores';
+	import { untrack } from 'svelte';
 
 	import WaTabGroup from '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
 	import WaTabPanel from '@awesome.me/webawesome/dist/components/tab-panel/tab-panel.js';
@@ -39,8 +41,9 @@
 	let userSelectedYear = $state(new Date().getFullYear().toString());
 	let userSelectedYearStandard = $state(new Date().getFullYear().toString());
 	let userSelectedYearPitching = $state(new Date().getFullYear().toString());
+	let userSelectedYearFielding = $state(new Date().getFullYear().toString());
+	let userSelectedFieldingPosition = $state('ALL');
 
-	// Toggle state for career mode vs individual season splits
 	let isCareerMode = $state(false);
 
 	$effect(() => {
@@ -64,15 +67,14 @@
 
 				const profile = info?.people?.[0];
 				if (profile?.mlbDebutDate) {
-					if (profile.lastPlayedDate) {
-						const finalYear = new Date(profile.lastPlayedDate).getFullYear().toString();
-						userSelectedYear = finalYear;
-						userSelectedYearStandard = finalYear;
-					} else {
-						const currentYear = new Date().getFullYear().toString();
-						userSelectedYear = currentYear;
-						userSelectedYearStandard = currentYear;
-					}
+					const finalYear = profile.lastPlayedDate
+						? new Date(profile.lastPlayedDate).getFullYear().toString()
+						: new Date().getFullYear().toString();
+
+					userSelectedYear = finalYear;
+					userSelectedYearStandard = finalYear;
+					userSelectedYearPitching = finalYear;
+					userSelectedYearFielding = finalYear;
 				}
 			} catch (err) {
 				errorMsg = err.message;
@@ -93,7 +95,6 @@
 
 	let processedAccolades = $derived(processPlayerAwards(playerProfile?.awards || []));
 
-	// Pulls year by year stats split rows
 	let hittingStatsBlock = $derived.by(() => {
 		if (!playerProfile?.stats) {
 			console.log('DEBUG 2 -> No stats array found on player profile object.');
@@ -111,7 +112,6 @@
 		return block;
 	});
 
-	// Pulls total career summarized block directly from MLB profile data array
 	let careerStatsBlock = $derived.by(() => {
 		if (!playerProfile?.stats) return null;
 		return playerProfile.stats.find((s) => {
@@ -121,7 +121,6 @@
 		});
 	});
 
-	// Unified reactive filter targeting either chosen season splits or total career calculations
 	let activeSeasonStats = $derived.by(() => {
 		if (isCareerMode) {
 			const careerSplit = careerStatsBlock?.splits?.[0];
@@ -224,6 +223,168 @@
 		}
 
 		loadPercentiles();
+	});
+	let fieldingStatsBlock = $derived.by(() => {
+		if (!playerProfile?.stats) return null;
+		return playerProfile.stats.find((s) => {
+			const groupName = (s.group?.name || s.group?.displayName || '').toLowerCase();
+			const typeName = (s.type?.code || s.type?.displayName || '').toLowerCase();
+			return groupName === 'fielding' && typeName === 'yearbyyear';
+		});
+	});
+
+	let availableSeasonsFielding = $derived.by(() => {
+		if (!fieldingStatsBlock?.splits) return [];
+		const years = fieldingStatsBlock.splits.map((split) => split.season);
+		return [...new Set(years)].sort((a, b) => parseInt(b) - parseInt(a));
+	});
+
+	let availableFieldingPositions = $derived.by(() => {
+		if (!fieldingStatsBlock?.splits) return [];
+
+		const targetSplits = isCareerMode
+			? fieldingStatsBlock.splits
+			: fieldingStatsBlock.splits.filter((s) => s.season === userSelectedYearFielding);
+
+		const positions = targetSplits
+			.map((s) => s.position?.name || s.position?.displayName)
+			.filter((posName) => posName && posName !== 'Designated Hitter');
+
+		return [...new Set(positions)];
+	});
+
+	$effect(() => {
+		const positions = availableFieldingPositions;
+
+		untrack(() => {
+			// SCENARIO 1: There's exactly ONE position available (e.g., Ohtani in 2026 -> Pitcher)
+			if (positions.length === 1) {
+				userSelectedFieldingPosition = positions[0];
+			}
+			// SCENARIO 2: "All" or a specific position is selected, but it's no longer valid for the new year
+			else if (
+				userSelectedFieldingPosition !== 'ALL' &&
+				!positions.includes(userSelectedFieldingPosition)
+			) {
+				userSelectedFieldingPosition = 'ALL';
+			}
+		});
+	});
+
+	let activeFieldingStats = $derived.by(() => {
+		if (!fieldingStatsBlock?.splits) return null;
+
+		let targetSplits = isCareerMode
+			? fieldingStatsBlock.splits
+			: fieldingStatsBlock.splits.filter((s) => s.season === userSelectedYearFielding);
+
+		if (userSelectedFieldingPosition !== 'ALL') {
+			targetSplits = targetSplits.filter(
+				(s) => (s.position?.name || s.position?.displayName) === userSelectedFieldingPosition
+			);
+		}
+
+		if (targetSplits.length === 0) return null;
+		if (targetSplits.length === 1) return targetSplits[0].stat;
+
+		const aggregated = {
+			games: 0,
+			gamesPlayed: 0,
+			gamesStarted: 0,
+			chances: 0,
+			putOuts: 0,
+			assists: 0,
+			errors: 0,
+			doublePlays: 0,
+			triplePlays: 0,
+			caughtStealing: 0,
+			stolenBases: 0,
+			passedBall: 0,
+			throwingErrors: 0,
+			innings: 0,
+			catcherERA: 0,
+			rangeFactorPerGame: 0,
+			rangeFactorPer9Inn: 0,
+			fielding: 0
+		};
+
+		let totalCatcherInnings = 0;
+
+		targetSplits.forEach(({ stat }) => {
+			if (!stat) return;
+			aggregated.games += stat.games || 0;
+			aggregated.gamesPlayed += stat.gamesPlayed || 0;
+			aggregated.gamesStarted += stat.gamesStarted || 0;
+			aggregated.chances += stat.chances || 0;
+			aggregated.putOuts += stat.putOuts || 0;
+			aggregated.assists += stat.assists || 0;
+			aggregated.errors += stat.errors || 0;
+			aggregated.doublePlays += stat.doublePlays || 0;
+			aggregated.triplePlays += stat.triplePlays || 0;
+			aggregated.caughtStealing += stat.caughtStealing || 0;
+			aggregated.stolenBases += stat.stolenBases || 0;
+			aggregated.passedBall += stat.passedBall || 0;
+			aggregated.throwingErrors += stat.throwingErrors || 0;
+
+			const innStr = String(stat.innings || '0');
+			const [whole, partial] = innStr.split('.');
+			let decimalInnings = parseInt(whole || 0);
+			if (partial === '1') decimalInnings += 0.333;
+			if (partial === '2') decimalInnings += 0.666;
+			aggregated.innings += decimalInnings;
+
+			if (stat.catcherERA && parseFloat(stat.catcherERA) > 0) {
+				const cInn = parseFloat(stat.innings || 0);
+				aggregated.catcherERA += parseFloat(stat.catcherERA) * cInn;
+				totalCatcherInnings += cInn;
+			}
+		});
+
+		if (aggregated.chances > 0) {
+			aggregated.fielding = (
+				(aggregated.putOuts + aggregated.assists) /
+				aggregated.chances
+			).toFixed(3);
+		} else {
+			aggregated.fielding = '.000';
+		}
+
+		if (aggregated.games > 0) {
+			aggregated.rangeFactorPerGame = (
+				(aggregated.putOuts + aggregated.assists) /
+				aggregated.games
+			).toFixed(2);
+		}
+
+		if (aggregated.innings > 0) {
+			aggregated.rangeFactorPer9Inn = (
+				((aggregated.putOuts + aggregated.assists) * 9) /
+				aggregated.innings
+			).toFixed(2);
+		}
+
+		if (totalCatcherInnings > 0 && !isNaN(aggregated.catcherERA)) {
+			aggregated.catcherERA = (aggregated.catcherERA / totalCatcherInnings).toFixed(2);
+		} else {
+			aggregated.catcherERA = 'N/A';
+		}
+
+		// Clean sweep: If they have no catcher innings, force 'N/A' strings across the board
+		if (totalCatcherInnings === 0) {
+			aggregated.catcherERA = 'N/A';
+			aggregated.passedBall = 'N/A';
+			aggregated.caughtStealing = 'N/A';
+			aggregated.stolenBases = 'N/A';
+		}
+
+		const wholeInnings = Math.floor(aggregated.innings);
+		const remainder = aggregated.innings - wholeInnings;
+		let partialStr = '0';
+		if (remainder > 0.2 && remainder < 0.5) partialStr = '1';
+		if (remainder > 0.5) partialStr = '2';
+		aggregated.innings = `${wholeInnings}.${partialStr}`;
+
+		return aggregated;
 	});
 </script>
 
@@ -334,7 +495,7 @@
 		<wa-tab panel="awards">Awards</wa-tab>
 		<wa-tab panel="schedule">Schedule</wa-tab>
 
-		<wa-tab-panel name="general">
+		<wa-tab-panel name="overview">
 			<div class="horizontal-wrapper">
 				<h3>Overview</h3>
 			</div>
@@ -343,110 +504,6 @@
 		</wa-tab-panel>
 
 		<wa-tab-panel name="batting">
-			<wa-tooltip for="battingExplanation">
-				93 would mean a player is in the top 7 percent of MLB players in that category. 50 is always
-				going to be the league average.
-			</wa-tooltip>
-			<div class="horizontal-wrapper">
-				<h3 id="battingExplanation" class="help-trigger">Batting Percentiles</h3>
-				<wa-divider orientation="vertical"></wa-divider>
-				<wa-badge variant="brand" appearance="filled">Higher number is better</wa-badge>
-				<wa-divider orientation="vertical"></wa-divider>
-				{#if availableSeasons.length === 0}
-					<wa-tooltip for="percentileYearSelector">
-						Only 2015-Present data available for statcast percentiles or player has no data to show
-					</wa-tooltip>
-				{/if}
-				<wa-select
-					id="percentileYearSelector"
-					value={userSelectedYear}
-					disabled={availableSeasons.length <= 1 || null}
-					size="s"
-					class="year-dropdown"
-					onchange={(e) => {
-						userSelectedYear = e.target.value;
-					}}
-				>
-					{#if availableSeasons.length === 0}
-						<wa-option value={userSelectedYear}>{userSelectedYear}</wa-option>
-					{:else}
-						{#each availableSeasons as season}
-							<wa-option value={season}>{season}</wa-option>
-						{/each}
-					{/if}
-				</wa-select>
-			</div>
-
-			{#if availableSeasons.length > 0}
-				<div class="stats-grid-container">
-					<div class="stats-column">
-						<div class="category-heading-wrapper">
-							<h4 class="category-heading">Power Profile</h4>
-						</div>
-						<div class="wa-stack">
-							{#each battingStatConfig.filter((s) => s.category === 'profile') as stat}
-								{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
-									<StatBar
-										label={stat.label}
-										percentile={battingPercentileStats[stat.key]}
-										tooltipText={stat.description}
-									/>
-								{:else}
-									<StatBar label="No data" percentile="N/A" />
-								{/if}
-							{/each}
-						</div>
-					</div>
-					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-					<div class="stats-column">
-						<div class="category-heading-wrapper">
-							<h4 class="category-heading">Plate Discipline</h4>
-						</div>
-						<div class="wa-stack">
-							{#each battingStatConfig.filter((s) => s.category === 'discipline') as stat}
-								{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
-									<StatBar
-										label={stat.label}
-										percentile={battingPercentileStats[stat.key]}
-										tooltipText={stat.description}
-									/>
-								{:else}
-									<StatBar label="No data" percentile="N/A" />
-								{/if}
-							{/each}
-						</div>
-					</div>
-					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-					<div class="stats-column">
-						<div class="category-heading-wrapper">
-							<wa-tooltip for="expectedHeading"
-								>Calculates what a player's numbers should look like based entirely on exit velocity
-								and launch angle, completely removing defense. If a player's real stats are much
-								lower than the expected, they have arguably been getting unlucky.</wa-tooltip
-							>
-							<h4 class="category-heading help-trigger" id="expectedHeading">Expected Metrics</h4>
-						</div>
-						<div class="wa-stack">
-							{#each battingStatConfig.filter((s) => s.category === 'expected') as stat}
-								{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
-									<StatBar
-										label={stat.label}
-										percentile={battingPercentileStats[stat.key]}
-										tooltipText={stat.description}
-									/>
-								{:else}
-									<StatBar label="No data" percentile="N/A" />
-								{/if}
-							{/each}
-						</div>
-					</div>
-				</div>
-			{:else}
-				<p>Statcast advanced percentile metrics are unavailable for this player.</p>
-			{/if}
-
-			<wa-divider class="section-divider"></wa-divider>
-
 			<div class="horizontal-wrapper">
 				<h3 id="battingExplanationStandard">Batting Stats</h3>
 				<wa-divider orientation="vertical"></wa-divider>
@@ -556,6 +613,110 @@
 			{:else}
 				<p>No hitting records found for this player.</p>
 			{/if}
+
+			<wa-divider class="section-divider"></wa-divider>
+
+			<wa-tooltip for="battingExplanation">
+				93 would mean a player is in the top 7 percent of MLB players in that category. 50 is always
+				going to be the league average.
+			</wa-tooltip>
+			<div class="horizontal-wrapper">
+				<h3 id="battingExplanation" class="help-trigger">Batting Percentiles</h3>
+				<wa-divider orientation="vertical"></wa-divider>
+				<wa-badge variant="brand" appearance="filled">Higher number is better</wa-badge>
+				<wa-divider orientation="vertical"></wa-divider>
+				{#if availableSeasons.length === 0}
+					<wa-tooltip for="percentileYearSelector">
+						Only 2015-Present data available for statcast percentiles or player has no data to show
+					</wa-tooltip>
+				{/if}
+				<wa-select
+					id="percentileYearSelector"
+					value={userSelectedYear}
+					disabled={availableSeasons.length <= 1 || null}
+					size="s"
+					class="year-dropdown"
+					onchange={(e) => {
+						userSelectedYear = e.target.value;
+					}}
+				>
+					{#if availableSeasons.length === 0}
+						<wa-option value={userSelectedYear}>{userSelectedYear}</wa-option>
+					{:else}
+						{#each availableSeasons as season}
+							<wa-option value={season}>{season}</wa-option>
+						{/each}
+					{/if}
+				</wa-select>
+			</div>
+
+			{#if availableSeasons.length > 0}
+				<div class="stats-grid-container">
+					<div class="stats-column">
+						<div class="category-heading-wrapper">
+							<h4 class="category-heading">Power Profile</h4>
+						</div>
+						<div class="wa-stack">
+							{#each battingStatConfig.filter((s) => s.category === 'profile') as stat}
+								{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
+									<StatBar
+										label={stat.label}
+										percentile={battingPercentileStats[stat.key]}
+										tooltipText={stat.description}
+									/>
+								{:else}
+									<StatBar label="No data" percentile="N/A" />
+								{/if}
+							{/each}
+						</div>
+					</div>
+					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+					<div class="stats-column">
+						<div class="category-heading-wrapper">
+							<h4 class="category-heading">Plate Discipline</h4>
+						</div>
+						<div class="wa-stack">
+							{#each battingStatConfig.filter((s) => s.category === 'discipline') as stat}
+								{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
+									<StatBar
+										label={stat.label}
+										percentile={battingPercentileStats[stat.key]}
+										tooltipText={stat.description}
+									/>
+								{:else}
+									<StatBar label="No data" percentile="N/A" />
+								{/if}
+							{/each}
+						</div>
+					</div>
+					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+					<div class="stats-column">
+						<div class="category-heading-wrapper">
+							<wa-tooltip for="expectedHeading"
+								>Calculates what a player's numbers should look like based entirely on exit velocity
+								and launch angle, completely removing defense. If a player's real stats are much
+								lower than the expected, they have arguably been getting unlucky.</wa-tooltip
+							>
+							<h4 class="category-heading help-trigger" id="expectedHeading">Expected Metrics</h4>
+						</div>
+						<div class="wa-stack">
+							{#each battingStatConfig.filter((s) => s.category === 'expected') as stat}
+								{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
+									<StatBar
+										label={stat.label}
+										percentile={battingPercentileStats[stat.key]}
+										tooltipText={stat.description}
+									/>
+								{:else}
+									<StatBar label="No data" percentile="N/A" />
+								{/if}
+							{/each}
+						</div>
+					</div>
+				</div>
+			{:else}
+				<p>Statcast advanced percentile metrics are unavailable for this player.</p>
+			{/if}
 		</wa-tab-panel>
 
 		<wa-tab-panel name="pitching">
@@ -654,7 +815,116 @@
 			{/if}
 		</wa-tab-panel>
 
-		<wa-tab-panel name="advanced">This is the advanced tab panel.</wa-tab-panel>
+		<wa-tab-panel name="fielding">
+			<div class="horizontal-wrapper">
+				<h3 id="fieldingExplanationStandard">Fielding Stats</h3>
+				<wa-divider orientation="vertical"></wa-divider>
+
+				<div class="dropdown-and-switch-wrapper">
+					<wa-select
+						id="fieldingPositionSelector"
+						value={userSelectedFieldingPosition}
+						disabled={availableFieldingPositions.length <= 1 || null}
+						class="position-dropdown"
+						size="s"
+						onchange={(e) => {
+							userSelectedFieldingPosition = e.target.value;
+						}}
+					>
+						<wa-option value="ALL"> All </wa-option>
+						{#each availableFieldingPositions as pos}
+							<wa-option value={pos}>
+								{pos}
+							</wa-option>
+						{/each}
+					</wa-select>
+
+					<wa-select
+						id="fieldingYearSelector"
+						value={userSelectedYearFielding}
+						disabled={isCareerMode || availableSeasonsFielding.length <= 1 || null}
+						class="year-dropdown"
+						size="s"
+						onchange={(e) => {
+							userSelectedYearFielding = e.target.value;
+						}}
+					>
+						{#if availableSeasonsFielding.length === 0}
+							<wa-option value={userSelectedYearFielding} selected={true}>
+								{userSelectedYearFielding}
+							</wa-option>
+						{:else}
+							{#each availableSeasonsFielding as season}
+								<wa-option value={season} selected={season === userSelectedYearFielding || null}>
+									{season}
+								</wa-option>
+							{/each}
+						{/if}
+					</wa-select>
+
+					<wa-switch
+						class="no-wrap-switch"
+						checked={isCareerMode || null}
+						onchange={(e) => {
+							isCareerMode = e.target.checked;
+						}}
+					>
+						Career Stats
+					</wa-switch>
+				</div>
+			</div>
+
+			{#if isCareerMode || availableSeasonsFielding.length > 0}
+				<div class="stats-grid-container">
+					<div class="stats-column">
+						<div class="category-heading-wrapper"><h4 class="category-heading">Standard</h4></div>
+						<div class="wa-stack" style="gap: 0px">
+							{#each standardFieldingStatsConfig.filter((s) => s.category === 'standard') as stat}
+								{@const rawValue = activeFieldingStats?.[stat.key]}
+								{#if rawValue !== undefined && rawValue !== null}
+									{@const formattedValue =
+										stat.key === 'fielding'
+											? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue)).toFixed(3)
+											: (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue)).toFixed(2)}
+									<div id="stat-pill-{stat.key}">
+										<StatPill
+											label={stat.label}
+											abbr={stat.abbr}
+											percentile={formattedValue}
+											tooltipText={stat.description}
+										/>
+									</div>
+								{:else}
+									<StatPill label={stat.label} abbr={stat.abbr} percentile="-.--" />
+								{/if}
+							{/each}
+						</div>
+					</div>
+
+					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+
+					<div class="stats-column">
+						<div class="category-heading-wrapper"><h4 class="category-heading">Counting</h4></div>
+						<div class="wa-stack" style="gap: 0px">
+							{#each standardFieldingStatsConfig.filter((s) => s.category === 'counting') as stat}
+								{#if activeFieldingStats?.[stat.key] !== undefined && activeFieldingStats?.[stat.key] !== null}
+									<StatPill
+										abbr={stat.abbr}
+										label={stat.label}
+										percentile={activeFieldingStats[stat.key]}
+										tooltipText={stat.description}
+									/>
+								{:else}
+									<StatPill label={stat.label} abbr={stat.abbr} percentile="N/A" />
+								{/if}
+							{/each}
+						</div>
+					</div>
+				</div>
+			{:else}
+				<p>No fielding records found for this player.</p>
+			{/if}
+		</wa-tab-panel>
 		<wa-tab-panel name="schedule">Schedule panels content.</wa-tab-panel>
 		<wa-tab-panel name="awards">
 			<div class="horizontal-wrapper">
@@ -807,7 +1077,6 @@
 		display: flex;
 		align-items: center;
 		margin: 1rem 0 2rem 0;
-		width: min-content;
 	}
 	h3 {
 		margin: 0;

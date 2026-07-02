@@ -4,7 +4,7 @@ export async function getPlayerInfo(id) {
 		'awards',
 		'social',
 		// Request year-by-year logs AND lifetime career stats for both groups
-		'stats(group=[hitting,pitching],type=[yearByYear,career])'
+		'stats(group=[hitting,pitching,fielding],type=[yearByYear,career])'
 	].join(',');
 
 	const res = await fetch(`https://statsapi.mlb.com/api/v1/people/${id}?hydrate=${hydrations}`, {
