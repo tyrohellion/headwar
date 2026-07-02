@@ -2,6 +2,7 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import Navbar from '$lib/components/navbar.svelte';
 	import '@awesome.me/webawesome/dist/styles/webawesome.css';
+	import Footer from '$lib/components/footer.svelte';
 	import '@fontsource-variable/jetbrains-mono/wght.css';
 
 	let { children } = $props();
@@ -15,6 +16,7 @@
 <div class="main">
 	{@render children()}
 </div>
+<Footer />
 
 <style>
 	:root {
