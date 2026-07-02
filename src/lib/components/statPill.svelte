@@ -21,16 +21,14 @@
 		</div>
 	</div>
 {:else}
-	<div class="stat-molucule">
+	{#if tooltipText}
+		<wa-tooltip for={tooltipId}>{tooltipText}</wa-tooltip>
+	{/if}
+	<div class="stat-molucule" id={tooltipId}>
 		<div class="horizontal-wrapper"></div>
-
-		{#if tooltipText}
-			<wa-tooltip for={tooltipId}>{tooltipText}</wa-tooltip>
-		{/if}
-
 		<div class="stat-bar-container">
 			<div class="stat-bar-content">
-				<span class="stat-label" id={tooltipId}>{label}</span>
+				<span class="stat-label">{label}</span>
 				<div class="name-badge-wrapper">
 					<span class="stat-value">
 						{percentile}

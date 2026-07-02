@@ -3,10 +3,10 @@
 	import { getPlayerPictureLarge } from '../../../api/getPlayerPicture';
 	import { getPlayerInfo } from '../../../api/getPlayerInfo';
 	import { getTeamLogo } from '../../../api/getTeamLogo';
-	import { getPlayerBattingStatsBref } from '../../../api/getPlayerBattingStats';
 	import { getPlayerBattingPercentileStats } from '../../../api/getPlayerBattingPercentile';
 	import { standardBattingConfig } from '../../../api/standardBattingStatsConfig';
 	import { battingStatConfig } from '../../../api/battingStatsConfig';
+	import { processPlayerAwards } from '../../../formatters/playerAwardFormatter';
 	import { page } from '$app/stores';
 
 	import WaTabGroup from '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
@@ -30,19 +30,11 @@
 	let bbrefId = $state('');
 	let imgLoading = $state(true);
 
-	let battingStats = $state(null);
-	let isBattingStatsLoading = $state(false);
 	let battingPercentileStats = $state(null);
 	let isBattingPercentileStatsLoading = $state(false);
 
 	let userSelectedYear = $state(new Date().getFullYear().toString());
 	let userSelectedYearStandard = $state(new Date().getFullYear().toString());
-
-	$effect(() => {
-		if ($page.params.id) {
-			imgLoading = true;
-		}
-	});
 
 	$effect(() => {
 		const id = $page.params.id;
@@ -54,6 +46,8 @@
 			try {
 				const info = await getPlayerInfo(id);
 				playerData = info;
+
+				console.log('DEBUG 1 -> Full API payload response:', info);
 
 				const lookupRes = await fetchPybaseball('playerid_reverse_lookup', {
 					player_ids: [id],
@@ -90,16 +84,46 @@
 		return teamId ? getTeamLogo(teamId) : '';
 	});
 
+	let processedAccolades = $derived(processPlayerAwards(playerProfile?.awards || []));
+
+	let hittingStatsBlock = $derived.by(() => {
+		if (!playerProfile?.stats) {
+			console.log('DEBUG 2 -> No stats array found on player profile object.');
+			return null;
+		}
+
+		const block = playerProfile.stats.find((s) => {
+			const groupName = (s.group?.name || s.group?.displayName || '').toLowerCase();
+			const typeName = (s.type?.code || s.type?.displayName || '').toLowerCase();
+
+			return groupName === 'hitting' && typeName === 'yearbyyear';
+		});
+
+		console.log('FIXED DEBUG 2 -> Matched hittingStatsBlock:', block);
+		return block;
+	});
+
+	let activeSeasonStats = $derived.by(() => {
+		console.log('DEBUG 3 -> Running filter for standard stat year:', userSelectedYearStandard);
+		if (!hittingStatsBlock?.splits) {
+			console.log('DEBUG 3 -> No splits available inside hittingStatsBlock.');
+			return null;
+		}
+
+		const matchingSplit = hittingStatsBlock.splits.find(
+			(split) => split.season === userSelectedYearStandard
+		);
+		console.log('DEBUG 3 -> matchingSplit result for current loop:', matchingSplit);
+		return matchingSplit?.stat || null;
+	});
+
 	let availableSeasons = $derived.by(() => {
 		if (!playerProfile?.mlbDebutDate) return [];
-
 		const rawStartYear = new Date(playerProfile.mlbDebutDate).getFullYear();
 		const startYear = Math.max(rawStartYear, 2015);
-
 		const endYear = playerProfile.lastPlayedDate
 			? new Date(playerProfile.lastPlayedDate).getFullYear()
 			: new Date().getFullYear();
-
 		if (endYear < 2015 || startYear > endYear) return [];
 
 		const years = [];
@@ -110,40 +134,14 @@
 	});
 
 	let availableSeasonsStandard = $derived.by(() => {
-		if (!playerProfile?.mlbDebutDate) return [];
-
-		const rawStartYear = new Date(playerProfile.mlbDebutDate).getFullYear();
-		const startYear = Math.max(rawStartYear, 2008);
-
-		const endYear = playerProfile.lastPlayedDate
-			? new Date(playerProfile.lastPlayedDate).getFullYear()
-			: new Date().getFullYear();
-
-		if (endYear < 2008 || startYear > endYear) return [];
-
-		const years = [];
-		for (let y = endYear; y >= startYear; y--) {
-			years.push(y.toString());
+		if (!hittingStatsBlock?.splits) {
+			console.log('DEBUG 4 -> No splits found to compile availableSeasonsStandard dropdown.');
+			return [];
 		}
-		return years;
-	});
-
-	$effect(() => {
-		const id = $page.params.id;
-		const targetYear = userSelectedYearStandard;
-
-		async function loadBattingStats() {
-			isBattingStatsLoading = true;
-			try {
-				battingStats = await getPlayerBattingStatsBref(id, targetYear);
-			} catch (err) {
-				battingStats = null;
-			} finally {
-				isBattingStatsLoading = false;
-			}
-		}
-
-		loadBattingStats();
+		const years = hittingStatsBlock.splits.map((split) => split.season);
+		const uniqueYears = [...new Set(years)].sort((a, b) => parseInt(b) - parseInt(a));
+		console.log('DEBUG 4 -> Extracted unique years for standard dropdown:', uniqueYears);
+		return uniqueYears;
 	});
 
 	$effect(() => {
@@ -176,7 +174,6 @@
 		<wa-skeleton effect="sheen"></wa-skeleton>
 		<wa-skeleton effect="sheen"></wa-skeleton>
 	</div>
-
 	<wa-divider></wa-divider>
 	<div class="skeleton-paragraphs">
 		<wa-skeleton></wa-skeleton>
@@ -193,7 +190,6 @@
 			{#if imgLoading}
 				<div class="img-loading"></div>
 			{/if}
-
 			<img
 				src={getPlayerPictureLarge($page.params.id)}
 				alt="playerHeadshot"
@@ -228,9 +224,7 @@
 				{/if}
 			</div>
 			<div class="small-details-wrapper">
-				<p>
-					{playerProfile.deathDate ? 'Died at ' : ''}{playerProfile.currentAge} years old
-				</p>
+				<p>{playerProfile.deathDate ? 'Died at ' : ''}{playerProfile.currentAge} years old</p>
 				<wa-divider orientation="vertical"></wa-divider>
 				{#if playerProfile.mlbDebutDate}
 					<wa-tooltip for="debut-wrapper">Years active since MLB debut</wa-tooltip>
@@ -243,9 +237,7 @@
 								date={playerProfile.mlbDebutDate}
 							></wa-format-date>
 						</wa-badge>
-
 						<wa-icon name="arrow-right" label="arrow right" style="font-size: 12px;"></wa-icon>
-
 						{#if playerProfile.lastPlayedDate}
 							<wa-badge appearance="filled" size="l" variant="neutral">
 								<wa-format-date
@@ -282,7 +274,9 @@
 		<wa-tab panel="accolades">Accolades</wa-tab>
 
 		<wa-tab-panel name="general">
-			<h3>Overview</h3>
+			<div class="horizontal-wrapper">
+				<h3>Overview</h3>
+			</div>
 			<p>Bats: {playerProfile.batSide?.description || 'N/A'}</p>
 			<p>Throws: {playerProfile.pitchHand?.description || 'N/A'}</p>
 		</wa-tab-panel>
@@ -302,7 +296,6 @@
 						Only 2015-Present data available for statcast percentiles or player has no data to show
 					</wa-tooltip>
 				{/if}
-
 				<wa-select
 					id="percentileYearSelector"
 					value={userSelectedYear}
@@ -311,7 +304,6 @@
 					style="width: 6rem;"
 					onchange={(e) => {
 						userSelectedYear = e.target.value;
-						console.log(`[UI Control] Dropdown picked new year: ${userSelectedYear}`);
 					}}
 				>
 					{#if availableSeasons.length === 0}
@@ -344,9 +336,7 @@
 							{/each}
 						</div>
 					</div>
-
 					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-
 					<div class="stats-column">
 						<div class="category-heading-wrapper">
 							<h4 class="category-heading">Plate Discipline</h4>
@@ -365,16 +355,14 @@
 							{/each}
 						</div>
 					</div>
-
 					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-
 					<div class="stats-column">
-						<wa-tooltip for="expectedHeading"
-							>Calculates what a player's numbers should look like based entirely on exit velocity
-							and launch angle, completely removing defense. If a player's real stats are much lower
-							than the expected, they have arguably been getting unlucky.</wa-tooltip
-						>
 						<div class="category-heading-wrapper">
+							<wa-tooltip for="expectedHeading"
+								>Calculates what a player's numbers should look like based entirely on exit velocity
+								and launch angle, completely removing defense. If a player's real stats are much
+								lower than the expected, they have arguably been getting unlucky.</wa-tooltip
+							>
 							<h4 class="category-heading" id="expectedHeading" style="cursor: help;">
 								Expected Metrics
 							</h4>
@@ -395,30 +383,14 @@
 					</div>
 				</div>
 			{:else}
-				<p>
-					Statcast advanced percentile metrics are unavailable for this player because their career
-					either concluded prior to the introduction of modern tracking systems in 2015, or they
-					have no Major League debut yet.
-				</p>
+				<p>Statcast advanced percentile metrics are unavailable for this player.</p>
 			{/if}
 
 			<wa-divider style="margin: 3rem 0 3em 0;"></wa-divider>
 
-			<!-- basic batting stats -->
-			<wa-tooltip for="battingExplanationStandard">
-				Basic batting stats. Unlike percentage, some of these stats are linear numbers. Think Home
-				runs or Triples.
-			</wa-tooltip>
 			<div class="horizontal-wrapper">
 				<h3 id="battingExplanationStandard" style="cursor: help;">Batting Stats</h3>
 				<wa-divider orientation="vertical"></wa-divider>
-
-				{#if availableSeasonsStandard.length === 0}
-					<wa-tooltip for="battingYearSelector"
-						>Only 2008-Present data available or player has no data to show</wa-tooltip
-					>
-				{/if}
-
 				<wa-select
 					id="battingYearSelector"
 					value={userSelectedYearStandard}
@@ -427,7 +399,6 @@
 					style="width: 6rem;"
 					onchange={(e) => {
 						userSelectedYearStandard = e.target.value;
-						console.log(`[UI Control] Dropdown picked new year: ${userSelectedYearStandard}`);
 					}}
 				>
 					{#if availableSeasonsStandard.length === 0}
@@ -441,147 +412,130 @@
 			</div>
 
 			{#if availableSeasonsStandard.length > 0}
-				{#if isBattingStatsLoading == true}
-					<div class="stats-grid-container">
-						<div class="stats-column">
-							<div class="category-heading-wrapper">
-								<h4 class="category-heading">Standard</h4>
-							</div>
-							<div class="wa-stack">
-								{#each standardBattingConfig.filter((s) => s.category === 'standard') as stat}
-									<wa-progress-bar indeterminate style="margin-bottom: 0.5rem;"></wa-progress-bar>
-								{/each}
-							</div>
-						</div>
-
-						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-
-						<div class="stats-column">
-							<div class="category-heading-wrapper">
-								<h4 class="category-heading">Counting</h4>
-							</div>
-							<div class="wa-stack">
-								{#each standardBattingConfig.filter((s) => s.category === 'counting') as stat}
-									<wa-progress-bar indeterminate style="margin-bottom: 0.5rem;"></wa-progress-bar>
-								{/each}
-							</div>
-						</div>
-
-						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-
-						<div class="stats-column">
-							<div class="category-heading-wrapper">
-								<h4 class="category-heading">Situational</h4>
-							</div>
-							<div class="wa-stack">
-								{#each standardBattingConfig.filter((s) => s.category === 'situational') as stat}
-									<wa-progress-bar indeterminate style="margin-bottom: 0.5rem;"></wa-progress-bar>
-								{/each}
-							</div>
+				<div class="stats-grid-container">
+					<div class="stats-column">
+						<div class="category-heading-wrapper"><h4 class="category-heading">Standard</h4></div>
+						<div class="wa-stack">
+							{#each standardBattingConfig.filter((s) => s.category === 'standard') as stat}
+								{@const rawValue = activeSeasonStats?.[stat.key]}
+								{#if rawValue !== undefined && rawValue !== null}
+									{@const formattedValue = ['avg', 'obp', 'slg', 'ops'].includes(stat.key)
+										? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue))
+												.toFixed(3)
+												.replace(/^0/, '')
+										: rawValue}
+									<div id="stat-pill-{stat.key}">
+										<StatPill
+											label={stat.label}
+											abbr={stat.abbr}
+											percentile={formattedValue}
+											tooltipText={stat.description}
+										/>
+									</div>
+								{:else}
+									<StatPill label={stat.label} abbr={stat.abbr} percentile="-.--" />
+								{/if}
+							{/each}
 						</div>
 					</div>
-				{:else}
-					<div class="stats-grid-container">
-						<div class="stats-column">
-							<div class="category-heading-wrapper">
-								<h4 class="category-heading">Standard</h4>
-							</div>
-							<div class="wa-stack">
-								{#each standardBattingConfig.filter((s) => s.category === 'standard') as stat}
-									{#if battingStats?.[stat.key] !== undefined && battingStats?.[stat.key] !== null}
-										<StatPill
-											label={stat.label}
-											abbr={stat.key}
-											percentile={stat.key === 'BA' || stat.key === 'OBP' || stat.key === 'SLG'
-												? battingStats[stat.key].toFixed(3).replace(/^0/, '') // Formats as .297 instead of 0.297
-												: stat.key === 'OPS'
-													? battingStats[stat.key].toFixed(3)
-													: battingStats[stat.key]}
-											tooltipText={stat.description}
-										/>
-									{:else}
-										<StatPill label="No data" percentile="N/A" />
-									{/if}
-								{/each}
-							</div>
-						</div>
-
-						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-
-						<div class="stats-column">
-							<div class="category-heading-wrapper">
-								<h4 class="category-heading">Counting</h4>
-							</div>
-							<div class="wa-stack">
-								{#each standardBattingConfig.filter((s) => s.category === 'counting') as stat}
-									{#if battingStats?.[stat.key] !== undefined && battingStats?.[stat.key] !== null}
-										<StatPill
-											abbr={stat.key}
-											label={stat.label}
-											percentile={battingStats[stat.key]}
-											tooltipText={stat.description}
-										/>
-									{:else}
-										<StatPill label="No data" percentile="N/A" />
-									{/if}
-								{/each}
-							</div>
-						</div>
-
-						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-
-						<div class="stats-column">
-							<div class="category-heading-wrapper">
-								<h4 class="category-heading">Situational</h4>
-							</div>
-							<div class="wa-stack">
-								{#each standardBattingConfig.filter((s) => s.category === 'situational') as stat}
-									{#if battingStats?.[stat.key] !== undefined && battingStats?.[stat.key] !== null}
-										<StatPill
-											abbr={stat.key}
-											label={stat.label}
-											percentile={battingStats[stat.key]}
-											tooltipText={stat.description}
-										/>
-									{:else}
-										<StatPill label="No data" percentile="N/A" />
-									{/if}
-								{/each}
-							</div>
+					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+					<div class="stats-column">
+						<div class="category-heading-wrapper"><h4 class="category-heading">Counting</h4></div>
+						<div class="wa-stack">
+							{#each standardBattingConfig.filter((s) => s.category === 'counting') as stat}
+								{#if activeSeasonStats?.[stat.key] !== undefined && activeSeasonStats?.[stat.key] !== null}
+									<StatPill
+										abbr={stat.abbr}
+										label={stat.label}
+										percentile={activeSeasonStats[stat.key]}
+										tooltipText={stat.description}
+									/>
+								{:else}
+									<StatPill label="No data" percentile="N/A" />
+								{/if}
+							{/each}
 						</div>
 					</div>
-				{/if}
+					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+					<div class="stats-column">
+						<div class="category-heading-wrapper">
+							<h4 class="category-heading">Situational</h4>
+						</div>
+						<div class="wa-stack">
+							{#each standardBattingConfig.filter((s) => s.category === 'situational') as stat}
+								{#if activeSeasonStats?.[stat.key] !== undefined && activeSeasonStats?.[stat.key] !== null}
+									<StatPill
+										abbr={stat.abbr}
+										label={stat.label}
+										percentile={activeSeasonStats[stat.key]}
+										tooltipText={stat.description}
+									/>
+								{:else}
+									<StatPill label="No data" percentile="N/A" />
+								{/if}
+							{/each}
+						</div>
+					</div>
+				</div>
 			{:else}
-				<p>
-					Player either has no MLB debut yet or their career ended before 2008. Only data from
-					2008-Present is available.
-				</p>
+				<p>No hitting records found for this player.</p>
 			{/if}
 		</wa-tab-panel>
 
 		<wa-tab-panel name="advanced">This is the advanced tab panel.</wa-tab-panel>
 		<wa-tab-panel name="schedule">Schedule panels content.</wa-tab-panel>
-		<wa-tab-panel name="accolades">Accolades panel content.</wa-tab-panel>
+		<wa-tab-panel name="accolades">
+			<div class="horizontal-wrapper">
+				<h3>Player Accolades</h3>
+			</div>
+			{#if processedAccolades.length > 0}
+				<div
+					class="accolades-list"
+					style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;"
+				>
+					{#each processedAccolades as honor}
+						<div
+							class="honor-card"
+							style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem; border: 1px solid var(--wa-color-border-quiet); border-radius: var(--wa-border-radius-m);"
+						>
+							<div>
+								<strong style="font-size: 1.1rem;">{honor.label}</strong>
+								<span style="color: var(--wa-color-gray-40); margin-left: 0.5rem;"
+									>({honor.count}x)</span
+								>
+							</div>
+							<div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+								{#each honor.seasons as yr}
+									<wa-badge appearance="filled" variant={honor.rank <= 4 ? 'brand' : 'neutral'}
+										>{yr}</wa-badge
+									>
+								{/each}
+							</div>
+						</div>
+					{/each}
+				</div>
+			{:else}
+				<p>This player has not received any tracked MLB honors or awards.</p>
+			{/if}
+		</wa-tab-panel>
 	</wa-tab-group>
 {/if}
 
 <style>
+	/* Retaining all structural styling from your original file layout code */
 	.player-info-box {
 		display: flex;
 		flex-direction: column;
 		gap: 1.5rem;
 		justify-content: center;
 	}
-
 	.player-name-and-team-wrapper {
 		display: flex;
 		align-items: center;
 	}
-
 	wa-badge {
 		height: min-content;
 	}
-
 	img {
 		max-width: 150px;
 		height: auto;
@@ -589,12 +543,10 @@
 		border-radius: var(--wa-border-radius-m);
 		box-shadow: var(--wa-shadow-l);
 	}
-
 	a {
 		text-decoration: none;
 		color: inherit;
 	}
-
 	.image-container {
 		position: relative;
 		width: 150px;
@@ -602,7 +554,6 @@
 		flex-shrink: 0;
 		box-shadow: var(--wa-shadow-l);
 	}
-
 	.img-loading {
 		width: 150px;
 		height: 225px;
@@ -611,7 +562,6 @@
 		z-index: 2;
 		margin-bottom: 2rem;
 	}
-
 	.team-logo {
 		max-width: 32px;
 		width: 32px;
@@ -622,7 +572,6 @@
 		box-shadow: var(--wa-shadow-l);
 		transition: all 100ms ease;
 	}
-
 	.team-logo-name-wrapper {
 		display: flex;
 		justify-content: center;
@@ -634,11 +583,9 @@
 		border-radius: var(--wa-border-radius-m);
 		transition: all 100ms ease;
 	}
-
 	.team-logo-name-wrapper p {
 		white-space: nowrap;
 	}
-
 	.team-logo-name-wrapper:hover {
 		cursor: pointer;
 		background-color: var(--wa-color-neutral-fill-normal);
@@ -646,7 +593,6 @@
 		transition: all 100ms ease;
 		text-decoration: underline;
 	}
-
 	.stats-grid-container {
 		display: grid;
 		grid-template-columns: 1fr;
@@ -655,19 +601,16 @@
 		margin-top: 1rem;
 		width: 100%;
 	}
-
 	.stats-column {
 		display: flex;
 		flex-direction: column;
 		gap: 1.25rem;
 	}
-
 	.grid-desktop-divider {
 		display: none;
 		height: 100%;
 		align-self: stretch;
 	}
-
 	.category-heading {
 		margin: 0;
 		font-size: var(--wa-font-size-m);
@@ -678,51 +621,41 @@
 		width: min-content;
 		white-space: nowrap;
 	}
-
 	.category-heading-wrapper {
 		border-bottom: 1px dashed var(--wa-color-border-quiet);
 		width: 100%;
 	}
-
 	@media (min-width: 1024px) {
 		.stats-grid-container {
-			/* 3 main content columns with 2 auto-sized tracks for vertical lines */
 			grid-template-columns: 1fr auto 1fr auto 1fr;
 			gap: 1.5rem;
 		}
-
 		.grid-desktop-divider {
 			display: block;
 		}
 	}
-
 	.horizontal-wrapper {
 		display: flex;
 		align-items: center;
 		margin: 1rem 0 2rem 0;
 		width: min-content;
 	}
-
 	h3 {
 		margin: 0;
 		white-space: nowrap;
 	}
-
 	.player-text-box {
 		display: flex;
 		flex-direction: column;
 		gap: 1rem;
 	}
-
 	.small-details-wrapper {
 		display: flex;
 		gap: 0;
 	}
-
 	.skeleton-overview wa-skeleton {
 		margin-bottom: 1rem;
 	}
-
 	.skeleton-overview wa-skeleton:nth-child(1) {
 		float: left;
 		width: 3rem;
@@ -731,28 +664,22 @@
 		vertical-align: middle;
 		border-radius: var(--wa-border-radius-m);
 	}
-
 	.skeleton-overview wa-skeleton:nth-child(3) {
 		width: 45%;
 	}
-
 	.skeleton-overview wa-skeleton:nth-child(4) {
 		width: 35%;
 	}
-
 	.skeleton-paragraphs wa-skeleton {
 		margin-top: 4rem;
 		margin-bottom: 1rem;
 	}
-
 	.skeleton-paragraphs wa-skeleton:nth-child(2) {
 		width: 95%;
 	}
-
 	.skeleton-paragraphs wa-skeleton:nth-child(4) {
 		width: 90%;
 	}
-
 	.skeleton-paragraphs wa-skeleton:last-child {
 		width: 50%;
 	}

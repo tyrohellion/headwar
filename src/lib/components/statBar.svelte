@@ -26,7 +26,7 @@
 </script>
 
 {#if label === 'No data'}
-	<div class="stat-molucule-disabled">
+	<div class="stat-molecule-disabled">
 		<div class="horizontal-wrapper">
 			<span class="stat-label" id={tooltipId}>{label}</span>
 			<span class="stat-value" style="color: {activeColor};">
@@ -48,7 +48,7 @@
 		</div>
 	</div>
 {:else}
-	<div class="stat-molucule">
+	<div class="stat-molecule">
 		<div class="horizontal-wrapper">
 			<div class="name-badge-wrapper">
 				<span class="stat-label" id={tooltipId}>{label}</span>
@@ -74,7 +74,7 @@
 {/if}
 
 <style>
-	.stat-molucule {
+	.stat-molecule {
 		display: flex;
 		justify-content: center;
 		flex-direction: column;
@@ -82,7 +82,7 @@
 		width: 100%;
 	}
 
-	.stat-molucule-disabled {
+	.stat-molecule-disabled {
 		display: flex;
 		justify-content: center;
 		flex-direction: column;
@@ -104,7 +104,7 @@
 		transition: all 100ms ease;
 	}
 
-	.stat-bar-container:hover {
+	.stat-molecule:hover {
 		transform: scale(1.03);
 		transition: all 100ms ease;
 	}
