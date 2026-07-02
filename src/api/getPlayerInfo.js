@@ -1,5 +1,13 @@
 export async function getPlayerInfo(id) {
-	const res = await fetch(`https://statsapi.mlb.com/api/v1/people/${id}?hydrate=currentTeam`, {
+	const hydrations = [
+		'currentTeam',
+		'awards',
+		'social',
+		// Request year-by-year logs AND lifetime career stats for both groups
+		'stats(group=[hitting,pitching],type=[yearByYear,career])'
+	].join(',');
+
+	const res = await fetch(`https://statsapi.mlb.com/api/v1/people/${id}?hydrate=${hydrations}`, {
 		next: {
 			revalidate: 60
 		}
