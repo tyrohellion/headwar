@@ -1,9 +1,11 @@
 <script>
+	import AnimatedCounter from './animatedCounter.svelte';
+
 	let { percentile = 0, label = '', abbr = '', stat = 0, tooltipText = '' } = $props();
 	const tooltipId = `tooltip-${label.toLowerCase().replace(/\s+/g, '-')}`;
 </script>
 
-{#if percentile === 'N/A'}
+{#if percentile === 'N/A' || percentile === '-.--'}
 	<div class="stat-molucule-disabled">
 		<div class="horizontal-wrapper"></div>
 
@@ -31,7 +33,8 @@
 				<span class="stat-label">{label}</span>
 				<div class="name-badge-wrapper">
 					<span class="stat-value">
-						{percentile}
+						<!-- Animate the changes to the number safely here -->
+						<AnimatedCounter value={percentile} />
 					</span>
 					<wa-badge appearance="filled" size="m" variant="neutral">{abbr}</wa-badge>
 				</div>
@@ -116,7 +119,7 @@
 	}
 
 	.stat-value {
-		font-family: 'JetBrains Mono Variable', monospace;
+		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
 		font-weight: var(--wa-font-weight-bold, 600);
 		font-size: var(--wa-font-size-m);

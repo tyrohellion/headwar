@@ -148,7 +148,7 @@
 	}
 
 	.stat-value {
-		font-family: 'JetBrains Mono Variable', monospace;
+		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
 		font-weight: var(--wa-font-weight-bold, 600);
 		font-size: var(--wa-font-size-m);

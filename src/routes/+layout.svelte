@@ -20,7 +20,7 @@
 
 <style>
 	:root {
-		--font-mono: font-family: 'JetBrains Mono Variable', monospace;
+		--font-mono: 'JetBrains Mono Variable', monospace;
 	}
 
 	.main {

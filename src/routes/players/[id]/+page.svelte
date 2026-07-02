@@ -4,9 +4,10 @@
 	import { getPlayerInfo } from '../../../api/getPlayerInfo';
 	import { getTeamLogo } from '../../../api/getTeamLogo';
 	import { getPlayerBattingPercentileStats } from '../../../api/getPlayerBattingPercentile';
-	import { standardBattingConfig } from '../../../api/standardBattingStatsConfig';
-	import { battingStatConfig } from '../../../api/battingStatsConfig';
+	import { standardBattingConfig } from '../../../formatters/standardBattingStatsConfig';
+	import { battingStatConfig } from '../../../formatters/battingStatsConfig';
 	import { processPlayerAwards } from '../../../formatters/playerAwardFormatter';
+	import { standardPitchingConfig } from '../../../formatters/standardPitchingStatsConfig';
 	import { page } from '$app/stores';
 
 	import WaTabGroup from '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
@@ -37,6 +38,7 @@
 
 	let userSelectedYear = $state(new Date().getFullYear().toString());
 	let userSelectedYearStandard = $state(new Date().getFullYear().toString());
+	let userSelectedYearPitching = $state(new Date().getFullYear().toString());
 
 	// Toggle state for career mode vs individual season splits
 	let isCareerMode = $state(false);
@@ -138,6 +140,41 @@
 		);
 		console.log('DEBUG 3 -> matchingSplit result for current loop:', matchingSplit);
 		return matchingSplit?.stat || null;
+	});
+
+	let pitchingStatsBlock = $derived.by(() => {
+		if (!playerProfile?.stats) return null;
+		return playerProfile.stats.find((s) => {
+			const groupName = (s.group?.name || s.group?.displayName || '').toLowerCase();
+			const typeName = (s.type?.code || s.type?.displayName || '').toLowerCase();
+			return groupName === 'pitching' && typeName === 'yearbyyear';
+		});
+	});
+
+	let careerPitchingStatsBlock = $derived.by(() => {
+		if (!playerProfile?.stats) return null;
+		return playerProfile.stats.find((s) => {
+			const groupName = (s.group?.name || s.group?.displayName || '').toLowerCase();
+			const typeName = (s.type?.code || s.type?.displayName || '').toLowerCase();
+			return groupName === 'pitching' && typeName === 'career';
+		});
+	});
+
+	let activePitchingStats = $derived.by(() => {
+		if (isCareerMode) {
+			return careerPitchingStatsBlock?.splits?.[0]?.stat || null;
+		}
+		if (!pitchingStatsBlock?.splits) return null;
+		const matchingSplit = pitchingStatsBlock.splits.find(
+			(split) => split.season === userSelectedYearPitching
+		);
+		return matchingSplit?.stat || null;
+	});
+
+	let availableSeasonsPitching = $derived.by(() => {
+		if (!pitchingStatsBlock?.splits) return [];
+		const years = pitchingStatsBlock.splits.map((split) => split.season);
+		return [...new Set(years)].sort((a, b) => parseInt(b) - parseInt(a));
 	});
 
 	let availableSeasons = $derived.by(() => {
@@ -290,11 +327,12 @@
 	<wa-divider></wa-divider>
 
 	<wa-tab-group placement="start">
-		<wa-tab panel="general">Overview</wa-tab>
+		<wa-tab panel="overview">Overview</wa-tab>
 		<wa-tab panel="batting">Batting</wa-tab>
-		<wa-tab panel="advanced">Pitching</wa-tab>
-		<wa-tab panel="advanced">Fielding</wa-tab>
+		<wa-tab panel="pitching">Pitching</wa-tab>
+		<wa-tab panel="fielding">Fielding</wa-tab>
 		<wa-tab panel="awards">Awards</wa-tab>
+		<wa-tab panel="schedule">Schedule</wa-tab>
 
 		<wa-tab-panel name="general">
 			<div class="horizontal-wrapper">
@@ -410,7 +448,7 @@
 			<wa-divider class="section-divider"></wa-divider>
 
 			<div class="horizontal-wrapper">
-				<h3 id="battingExplanationStandard" class="help-trigger">Batting Stats</h3>
+				<h3 id="battingExplanationStandard">Batting Stats</h3>
 				<wa-divider orientation="vertical"></wa-divider>
 
 				<div class="dropdown-and-switch-wrapper">
@@ -517,6 +555,102 @@
 				</div>
 			{:else}
 				<p>No hitting records found for this player.</p>
+			{/if}
+		</wa-tab-panel>
+
+		<wa-tab-panel name="pitching">
+			<div class="horizontal-wrapper">
+				<h3 id="pitchingExplanationStandard">Pitching Stats</h3>
+				<wa-divider orientation="vertical"></wa-divider>
+
+				<div class="dropdown-and-switch-wrapper">
+					<wa-select
+						id="pitchingYearSelector"
+						value={userSelectedYearPitching}
+						disabled={isCareerMode || availableSeasonsPitching.length <= 1 || null}
+						class="year-dropdown"
+						size="s"
+						onchange={(e) => {
+							userSelectedYearPitching = e.target.value;
+						}}
+					>
+						{#if availableSeasonsPitching.length === 0}
+							<wa-option value={userSelectedYearPitching} selected={true}>
+								{userSelectedYearPitching}
+							</wa-option>
+						{:else}
+							{#each availableSeasonsPitching as season}
+								<wa-option value={season} selected={season === userSelectedYearPitching || null}>
+									{season}
+								</wa-option>
+							{/each}
+						{/if}
+					</wa-select>
+
+					<wa-switch
+						class="no-wrap-switch"
+						checked={isCareerMode || null}
+						onchange={(e) => {
+							isCareerMode = e.target.checked;
+						}}
+					>
+						Career Stats
+					</wa-switch>
+				</div>
+			</div>
+
+			{#if isCareerMode || availableSeasonsPitching.length > 0}
+				<div class="stats-grid-container">
+					<div class="stats-column">
+						<div class="category-heading-wrapper"><h4 class="category-heading">Standard</h4></div>
+						<div class="wa-stack" style="gap: 0px">
+							{#each standardPitchingConfig.filter((s) => s.category === 'standard') as stat}
+								{@const rawValue = activePitchingStats?.[stat.key]}
+								{#if rawValue !== undefined && rawValue !== null}
+									{@const formattedValue = ['era', 'whip', 'ops', 'obp'].includes(stat.key)
+										? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue))
+												.toFixed(3)
+												.replace(/^0/, '')
+										: ['strikeoutsPer9Inn', 'walksPer9Inn'].includes(stat.key)
+											? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue)).toFixed(2)
+											: rawValue}
+									<div id="stat-pill-{stat.key}">
+										<StatPill
+											label={stat.label}
+											abbr={stat.abbr}
+											percentile={formattedValue}
+											tooltipText={stat.description}
+										/>
+									</div>
+								{:else}
+									<StatPill label={stat.label} abbr={stat.abbr} percentile="-.--" />
+								{/if}
+							{/each}
+						</div>
+					</div>
+
+					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+
+					<div class="stats-column">
+						<div class="category-heading-wrapper"><h4 class="category-heading">Counting</h4></div>
+						<div class="wa-stack" style="gap: 0px">
+							{#each standardPitchingConfig.filter((s) => s.category === 'counting') as stat}
+								{#if activePitchingStats?.[stat.key] !== undefined && activePitchingStats?.[stat.key] !== null}
+									<StatPill
+										abbr={stat.abbr}
+										label={stat.label}
+										percentile={activePitchingStats[stat.key]}
+										tooltipText={stat.description}
+									/>
+								{:else}
+									<StatPill label={stat.label} abbr={stat.abbr} percentile="N/A" />
+								{/if}
+							{/each}
+						</div>
+					</div>
+				</div>
+			{:else}
+				<p>No pitching records found for this player.</p>
 			{/if}
 		</wa-tab-panel>
 
