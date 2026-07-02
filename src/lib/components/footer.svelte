@@ -40,6 +40,8 @@
 
 <style>
 	.footer {
+		position: absolute;
+		bottom: 0;
 		display: flex;
 		flex-direction: column;
 		padding: 1rem 2rem 1rem 2rem;
