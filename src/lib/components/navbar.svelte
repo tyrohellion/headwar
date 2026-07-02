@@ -1,5 +1,5 @@
 <script>
-	import { getPlayerHeadshot, teams, searchPlayers } from '../../api/universalSearch';
+	import { searchEverything } from '../../api/universalSearch';
 	import { theme } from '$lib/theme.svelte.js';
 	import { afterNavigate } from '$app/navigation';
 
@@ -14,23 +14,15 @@
 
 	let query = $state('');
 	let matchedPlayers = $state([]);
+	let matchedTeams = $state([]);
 	let isSearching = $state(false);
 	let searchWrapperEl = $state(null);
 	let debounceTimer;
 
-	let matchedTeams = $derived.by(() => {
-		const cleanQuery = query.trim().toLowerCase();
-		if (cleanQuery.length < 2) return [];
-		return teams.filter(
-			(t) =>
-				t.name.toLowerCase().includes(cleanQuery) ||
-				t.abbreviation.toLowerCase().includes(cleanQuery)
-		);
-	});
-
 	afterNavigate(() => {
 		query = '';
 		matchedPlayers = [];
+		matchedTeams = [];
 	});
 
 	async function handleInput(e) {
@@ -41,6 +33,7 @@
 
 		if (cleanQuery.length < 2) {
 			matchedPlayers = [];
+			matchedTeams = [];
 			isSearching = false;
 			return;
 		}
@@ -48,8 +41,9 @@
 		debounceTimer = setTimeout(async () => {
 			isSearching = true;
 			try {
-				const people = await searchPlayers(cleanQuery);
-				matchedPlayers = people.slice(0, 8);
+				const results = await searchEverything(cleanQuery);
+				matchedPlayers = results.players;
+				matchedTeams = results.teams;
 			} catch (err) {
 				console.error('Universal lookup failed:', err);
 			} finally {
@@ -63,6 +57,7 @@
 	onclick={(e) => {
 		if (searchWrapperEl && !searchWrapperEl.contains(e.target)) {
 			matchedPlayers = [];
+			matchedTeams = [];
 		}
 	}}
 />
@@ -136,7 +131,7 @@
 				<wa-skeleton effect="pulse"></wa-skeleton>
 				<wa-skeleton effect="pulse"></wa-skeleton>
 			</div>
-		{:else if matchedPlayers.length > 0 || matchedTeams.length > 0 || isSearching}
+		{:else if matchedPlayers.length > 0 || matchedTeams.length > 0}
 			<div class="search-dropdown">
 				{#if matchedTeams.length > 0}
 					<div class="category-header">Teams</div>
@@ -144,8 +139,16 @@
 					{#each matchedTeams as team}
 						<a href="/teams/{team.id}">
 							<button class="dropdown-item">
-								<span class="team-abbr">{team.abbreviation}</span>
-								<span class="item-name">{team.name}</span>
+								<img
+									src={team.logo}
+									alt="{team.name} logo"
+									class="team-logo-thumb"
+									loading="lazy"
+								/>
+								<span class="item-name">
+									{team.name}
+									{#if team.abbreviation}<span class="sub-text">({team.abbreviation})</span>{/if}
+								</span>
 							</button>
 						</a>
 					{/each}
@@ -158,7 +161,7 @@
 						<a href="/players/{player.id}">
 							<button class="dropdown-item">
 								<img
-									src={getPlayerHeadshot(player.id)}
+									src={player.headshot}
 									alt="playerHeadshot"
 									class="player-thumb"
 									loading="lazy"
@@ -166,7 +169,10 @@
 										(e.target.src =
 											'https://img.mlbstatic.com/mlb-photos/image/upload/w_50,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current')}
 								/>
-								<span class="item-name">{player.fullName}</span>
+								<span class="item-name">
+									{player.name}
+									<span class="sub-text"> - {player.position}</span>
+								</span>
 							</button>
 						</a>
 					{/each}
@@ -213,14 +219,18 @@
 		display: flex;
 		gap: 0.5rem;
 		position: relative;
-		width: 280px;
+		max-width: 368px;
+	}
+
+	wa-input {
+		width: 320px;
 	}
 
 	.search-dropdown {
 		position: absolute;
 		top: calc(100% + 0.5rem);
 		left: 0;
-		width: 100%;
+		width: 320px;
 		padding: 0 1rem 1rem 1rem;
 		background: var(--wa-color-surface-raised);
 		border: 1px solid var(--wa-color-border-quiet);
@@ -236,7 +246,7 @@
 		position: absolute;
 		top: calc(100% + 0.5rem);
 		left: 0;
-		width: 100%;
+		width: 320px;
 		padding: 0 1rem 1rem 1rem;
 		background: var(--wa-color-surface-raised);
 		border: 1px solid var(--wa-color-border-quiet);
@@ -265,10 +275,10 @@
 	.dropdown-item {
 		display: flex;
 		align-items: center;
-		gap: 0.5rem;
+		gap: 0.75rem;
 		width: 100%;
 		height: min-content;
-		padding: 0.5rem 1rem 0.5rem 1rem;
+		padding: 0.5rem 1rem;
 		border: none;
 		border-radius: var(--wa-border-radius-m);
 		background: transparent;
@@ -278,6 +288,7 @@
 		cursor: pointer;
 		color: var(--wa-color-primary-on-quiet);
 		transition: all 100ms ease;
+		overflow: hidden;
 	}
 
 	.dropdown-item:hover {
@@ -291,24 +302,36 @@
 		height: 32px;
 		object-fit: cover;
 		border-radius: 50%;
+		flex-shrink: 0;
 	}
 
-	.team-abbr {
-		font-size: 0.75rem;
-		font-weight: bold;
-		background: #333;
-		color: #fff;
-		padding: 0.2rem 0.3rem 0.2rem 0.3rem;
-		border-radius: 3px;
-		min-width: 32px;
-		text-align: center;
-	}
-
-	.nav-buttons :global(a) {
-		text-decoration: none;
+	.team-logo-thumb {
+		max-width: 32px;
+		width: 32px;
+		height: auto;
+		max-height: 32px;
+		background-color: var(--wa-color-gray-70);
+		padding: 6px;
+		box-shadow: var(--wa-shadow-l);
+		object-fit: contain;
+		flex-shrink: 0;
 	}
 
 	.item-name {
 		flex-grow: 1;
+		white-space: nowrap;
+		overflow: hidden;
+		mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+		-webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+	}
+
+	.sub-text {
+		font-size: 0.8rem;
+		color: var(--wa-color-neutral-text-weak, #777);
+		margin-left: 0.25rem;
+	}
+
+	.nav-buttons :global(a) {
+		text-decoration: none;
 	}
 </style>
