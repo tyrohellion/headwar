@@ -76,12 +76,14 @@
 		height: 100%;
 		border-radius: var(--wa-border-radius-s);
 		overflow: hidden;
+		padding: 0.5rem;
 		transition: all 100ms ease;
 	}
 
 	.stat-bar-container:hover {
 		transform: scale(1.03);
 		transition: all 100ms ease;
+		background-color: var(--wa-color-surface-raised);
 	}
 
 	.stat-bar-content {

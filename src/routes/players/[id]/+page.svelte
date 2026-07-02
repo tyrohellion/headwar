@@ -20,6 +20,8 @@
 	import WaSelect from '@awesome.me/webawesome/dist/components/select/select.js';
 	import WaSpinner from '@awesome.me/webawesome/dist/components/spinner/spinner.js';
 	import WaProgressBar from '@awesome.me/webawesome/dist/components/progress-bar/progress-bar.js';
+	import WaButton from '@awesome.me/webawesome/dist/components/button/button.js';
+	import WaSwitch from '@awesome.me/webawesome/dist/components/switch/switch.js';
 
 	import StatBar from '$lib/components/statBar.svelte';
 	import StatPill from '$lib/components/statPill.svelte';
@@ -35,6 +37,9 @@
 
 	let userSelectedYear = $state(new Date().getFullYear().toString());
 	let userSelectedYearStandard = $state(new Date().getFullYear().toString());
+
+	// Toggle state for career mode vs individual season splits
+	let isCareerMode = $state(false);
 
 	$effect(() => {
 		const id = $page.params.id;
@@ -86,6 +91,7 @@
 
 	let processedAccolades = $derived(processPlayerAwards(playerProfile?.awards || []));
 
+	// Pulls year by year stats split rows
 	let hittingStatsBlock = $derived.by(() => {
 		if (!playerProfile?.stats) {
 			console.log('DEBUG 2 -> No stats array found on player profile object.');
@@ -103,7 +109,24 @@
 		return block;
 	});
 
+	// Pulls total career summarized block directly from MLB profile data array
+	let careerStatsBlock = $derived.by(() => {
+		if (!playerProfile?.stats) return null;
+		return playerProfile.stats.find((s) => {
+			const groupName = (s.group?.name || s.group?.displayName || '').toLowerCase();
+			const typeName = (s.type?.code || s.type?.displayName || '').toLowerCase();
+			return groupName === 'hitting' && typeName === 'career';
+		});
+	});
+
+	// Unified reactive filter targeting either chosen season splits or total career calculations
 	let activeSeasonStats = $derived.by(() => {
+		if (isCareerMode) {
+			const careerSplit = careerStatsBlock?.splits?.[0];
+			console.log('DEBUG CAREER -> Loading compiled lifetime stat array:', careerSplit);
+			return careerSplit?.stat || null;
+		}
+
 		console.log('DEBUG 3 -> Running filter for standard stat year:', userSelectedYearStandard);
 		if (!hittingStatsBlock?.splits) {
 			console.log('DEBUG 3 -> No splits available inside hittingStatsBlock.');
@@ -237,7 +260,7 @@
 								date={playerProfile.mlbDebutDate}
 							></wa-format-date>
 						</wa-badge>
-						<wa-icon name="arrow-right" label="arrow right" style="font-size: 12px;"></wa-icon>
+						<wa-icon name="arrow-right" label="arrow right" class="debut-arrow"></wa-icon>
 						{#if playerProfile.lastPlayedDate}
 							<wa-badge appearance="filled" size="l" variant="neutral">
 								<wa-format-date
@@ -287,7 +310,7 @@
 				going to be the league average.
 			</wa-tooltip>
 			<div class="horizontal-wrapper">
-				<h3 id="battingExplanation" style="cursor: help;">Batting Percentiles</h3>
+				<h3 id="battingExplanation" class="help-trigger">Batting Percentiles</h3>
 				<wa-divider orientation="vertical"></wa-divider>
 				<wa-badge variant="brand" appearance="filled">Higher number is better</wa-badge>
 				<wa-divider orientation="vertical"></wa-divider>
@@ -301,7 +324,7 @@
 					value={userSelectedYear}
 					disabled={availableSeasons.length <= 1 || null}
 					size="s"
-					style="width: 6rem;"
+					class="year-dropdown"
 					onchange={(e) => {
 						userSelectedYear = e.target.value;
 					}}
@@ -363,9 +386,7 @@
 								and launch angle, completely removing defense. If a player's real stats are much
 								lower than the expected, they have arguably been getting unlucky.</wa-tooltip
 							>
-							<h4 class="category-heading" id="expectedHeading" style="cursor: help;">
-								Expected Metrics
-							</h4>
+							<h4 class="category-heading help-trigger" id="expectedHeading">Expected Metrics</h4>
 						</div>
 						<div class="wa-stack">
 							{#each battingStatConfig.filter((s) => s.category === 'expected') as stat}
@@ -386,36 +407,53 @@
 				<p>Statcast advanced percentile metrics are unavailable for this player.</p>
 			{/if}
 
-			<wa-divider style="margin: 3rem 0 3em 0;"></wa-divider>
+			<wa-divider class="section-divider"></wa-divider>
 
 			<div class="horizontal-wrapper">
-				<h3 id="battingExplanationStandard" style="cursor: help;">Batting Stats</h3>
+				<h3 id="battingExplanationStandard" class="help-trigger">Batting Stats</h3>
 				<wa-divider orientation="vertical"></wa-divider>
-				<wa-select
-					id="battingYearSelector"
-					value={userSelectedYearStandard}
-					disabled={availableSeasonsStandard.length <= 1 || null}
-					size="s"
-					style="width: 6rem;"
-					onchange={(e) => {
-						userSelectedYearStandard = e.target.value;
-					}}
-				>
-					{#if availableSeasonsStandard.length === 0}
-						<wa-option value={userSelectedYearStandard}>{userSelectedYearStandard}</wa-option>
-					{:else}
-						{#each availableSeasonsStandard as season}
-							<wa-option value={season}>{season}</wa-option>
-						{/each}
-					{/if}
-				</wa-select>
+
+				<div class="dropdown-and-switch-wrapper">
+					<wa-select
+						id="battingYearSelector"
+						value={userSelectedYearStandard}
+						disabled={isCareerMode || availableSeasonsStandard.length <= 1 || null}
+						class="year-dropdown"
+						size="s"
+						onchange={(e) => {
+							userSelectedYearStandard = e.target.value;
+						}}
+					>
+						{#if availableSeasonsStandard.length === 0}
+							<wa-option value={userSelectedYearStandard} selected={true}
+								>{userSelectedYearStandard}</wa-option
+							>
+						{:else}
+							{#each availableSeasonsStandard as season}
+								<wa-option value={season} selected={season === userSelectedYearStandard || null}>
+									{season}
+								</wa-option>
+							{/each}
+						{/if}
+					</wa-select>
+
+					<wa-switch
+						class="no-wrap-switch"
+						checked={isCareerMode || null}
+						onchange={(e) => {
+							isCareerMode = e.target.checked;
+						}}
+					>
+						Career Stats
+					</wa-switch>
+				</div>
 			</div>
 
-			{#if availableSeasonsStandard.length > 0}
+			{#if isCareerMode || availableSeasonsStandard.length > 0}
 				<div class="stats-grid-container">
 					<div class="stats-column">
 						<div class="category-heading-wrapper"><h4 class="category-heading">Standard</h4></div>
-						<div class="wa-stack">
+						<div class="wa-stack" style="gap: 0px">
 							{#each standardBattingConfig.filter((s) => s.category === 'standard') as stat}
 								{@const rawValue = activeSeasonStats?.[stat.key]}
 								{#if rawValue !== undefined && rawValue !== null}
@@ -441,7 +479,7 @@
 					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
 					<div class="stats-column">
 						<div class="category-heading-wrapper"><h4 class="category-heading">Counting</h4></div>
-						<div class="wa-stack">
+						<div class="wa-stack" style="gap: 0px">
 							{#each standardBattingConfig.filter((s) => s.category === 'counting') as stat}
 								{#if activeSeasonStats?.[stat.key] !== undefined && activeSeasonStats?.[stat.key] !== null}
 									<StatPill
@@ -451,7 +489,7 @@
 										tooltipText={stat.description}
 									/>
 								{:else}
-									<StatPill label="No data" percentile="N/A" />
+									<StatPill label={stat.label} abbr={stat.abbr} percentile="N/A" />
 								{/if}
 							{/each}
 						</div>
@@ -461,7 +499,7 @@
 						<div class="category-heading-wrapper">
 							<h4 class="category-heading">Situational</h4>
 						</div>
-						<div class="wa-stack">
+						<div class="wa-stack" style="gap: 0px">
 							{#each standardBattingConfig.filter((s) => s.category === 'situational') as stat}
 								{#if activeSeasonStats?.[stat.key] !== undefined && activeSeasonStats?.[stat.key] !== null}
 									<StatPill
@@ -471,7 +509,7 @@
 										tooltipText={stat.description}
 									/>
 								{:else}
-									<StatPill label="No data" percentile="N/A" />
+									<StatPill label={stat.label} abbr={stat.abbr} percentile="N/A" />
 								{/if}
 							{/each}
 						</div>
@@ -489,22 +527,14 @@
 				<h3>Player Accolades</h3>
 			</div>
 			{#if processedAccolades.length > 0}
-				<div
-					class="accolades-list"
-					style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem;"
-				>
+				<div class="accolades-list">
 					{#each processedAccolades as honor}
-						<div
-							class="honor-card"
-							style="display: flex; align-items: center; justify-content: space-between; padding: 0.75rem; border: 1px solid var(--wa-color-border-quiet); border-radius: var(--wa-border-radius-m);"
-						>
+						<div class="honor-card">
 							<div>
-								<strong style="font-size: 1.1rem;">{honor.label}</strong>
-								<span style="color: var(--wa-color-gray-40); margin-left: 0.5rem;"
-									>({honor.count}x)</span
-								>
+								<strong class="honor-label">{honor.label}</strong>
+								<span class="honor-count">({honor.count}x)</span>
 							</div>
-							<div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+							<div class="honor-badges-wrapper">
 								{#each honor.seasons as yr}
 									<wa-badge appearance="filled" variant={honor.rank <= 4 ? 'brand' : 'neutral'}
 										>{yr}</wa-badge
@@ -522,7 +552,6 @@
 {/if}
 
 <style>
-	/* Retaining all structural styling from your original file layout code */
 	.player-info-box {
 		display: flex;
 		flex-direction: column;
@@ -571,6 +600,12 @@
 		padding: 6px;
 		box-shadow: var(--wa-shadow-l);
 		transition: all 100ms ease;
+	}
+
+	.dropdown-and-switch-wrapper {
+		display: flex;
+		align-items: center;
+		gap: 1.5rem;
 	}
 	.team-logo-name-wrapper {
 		display: flex;
@@ -682,5 +717,46 @@
 	}
 	.skeleton-paragraphs wa-skeleton:last-child {
 		width: 50%;
+	}
+	.debut-arrow {
+		font-size: 12px;
+	}
+	.help-trigger {
+		cursor: help;
+	}
+	.year-dropdown {
+		width: 6rem;
+	}
+	.section-divider {
+		margin: 3rem 0 3rem 0;
+	}
+	.no-wrap-switch {
+		white-space: nowrap;
+	}
+	.accolades-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		margin-top: 1rem;
+	}
+	.honor-card {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.75rem;
+		border: 1px solid var(--wa-color-border-quiet);
+		border-radius: var(--wa-border-radius-m);
+	}
+	.honor-label {
+		font-size: 1.1rem;
+	}
+	.honor-count {
+		color: var(--wa-color-gray-40);
+		margin-left: 0.5rem;
+	}
+	.honor-badges-wrapper {
+		display: flex;
+		gap: 0.25rem;
+		flex-wrap: wrap;
 	}
 </style>
