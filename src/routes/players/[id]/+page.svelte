@@ -1,5 +1,6 @@
 <script>
 	import { fetchPybaseball } from '$lib/pybaseball.js';
+	import { advancedStats, loadAdvancedMetrics } from '$lib/warStore.svelte.js';
 	import { getPlayerPictureLarge } from '../../../api/getPlayerPicture';
 	import { getPlayerInfo } from '../../../api/getPlayerInfo';
 	import { getTeamLogo } from '../../../api/getTeamLogo';
@@ -43,6 +44,7 @@
 	let userSelectedYearPitching = $state(new Date().getFullYear().toString());
 	let userSelectedYearFielding = $state(new Date().getFullYear().toString());
 	let userSelectedFieldingPosition = $state('ALL');
+	let advancedYearSelection = $state('2026');
 
 	let isCareerMode = $state(false);
 
@@ -414,6 +416,17 @@
 
 		return aggregated;
 	});
+
+	$effect(() => {
+		const seasons = availableSeasons;
+		if (seasons.length > 0) {
+			untrack(() => {
+				if (!seasons.includes(advancedYearSelection)) {
+					advancedYearSelection = seasons[0];
+				}
+			});
+		}
+	});
 </script>
 
 {#if loading}
@@ -526,6 +539,13 @@
 		<wa-tab-panel name="overview">
 			<div class="horizontal-wrapper">
 				<h3>Overview</h3>
+			</div>
+			<div class="advanced-tab-panel">
+				<div class="metrics-grid">
+					<StatPill label="Career bWAR" value={advancedStats.careerWar} />
+					<StatPill label="Season bWAR" value={advancedStats.currentSeasonWar} />
+					<StatPill label="OPS+" value={advancedStats.currentSeasonOpsPlus} />
+				</div>
 			</div>
 			<p>Bats: {playerProfile.batSide?.description || 'N/A'}</p>
 			<p>Throws: {playerProfile.pitchHand?.description || 'N/A'}</p>

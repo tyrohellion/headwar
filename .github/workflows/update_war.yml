@@ -1,0 +1,44 @@
+name: Daily Baseball-Reference Data Sync
+
+on:
+  schedule:
+    # pulls every morning at 1am EST
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+jobs:
+  build-and-sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout Code Repository
+        uses: actions/checkout@v4
+
+      - name: Initialize Runtime Python Environment
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Resolve Application Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas pybaseball
+
+      - name: Build Local JSON Datastores
+        run: python scripts/update_war.py
+
+      - name: Publish Changes Directly to Main Branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add static/data/war_vault.json
+          if git diff --staged --quiet; then
+            echo "No historical metric updates recorded."
+          else
+            git commit -m "Automated Daily Data Sync: Updated advanced statistical tables"
+            git push
+          fi
