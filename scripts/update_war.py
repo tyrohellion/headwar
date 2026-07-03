@@ -34,15 +34,10 @@ def generate_compressed_war_vault():
         df['year_ID'] = df['year_ID'].astype(int)
         df['WAR'] = pd.to_numeric(df['WAR'], errors='coerce').fillna(0.0)
 
-    # Convert advanced metrics cleanly to numeric profiles
-    batters['OPS_plus'] = pd.to_numeric(batters['OPS_plus'], errors='coerce')
-    pitchers['ERA_plus'] = pd.to_numeric(pitchers['ERA_plus'], errors='coerce')
-
     # Filter down to legitimate MLB tracking IDs
     batters = batters[batters['mlb_ID'] > 0]
     pitchers = pitchers[pitchers['mlb_ID'] > 0]
 
-    # Pre-calculate the last active year for every player in the dataset
     print("Analyzing player activity time horizons...")
     max_year_bat = batters.groupby('mlb_ID')['year_ID'].max()
     max_year_pitch = pitchers.groupby('mlb_ID')['year_ID'].max()
@@ -72,15 +67,15 @@ def generate_compressed_war_vault():
         # Combine multi-stint or two-way player WAR totals incrementally
         target_vault[mlb_id]["seasons"][year]["war"] += war
         
-        # Safely extract advanced performance metrics without wiping existing fields
+        # Safely extract values directly matching your file structure
         if is_pitcher:
-            era_val = row['ERA_plus']
+            era_val = row.get('ERA')
             if pd.notna(era_val):
-                target_vault[mlb_id]["seasons"][year]["era"] = int(era_val)
+                target_vault[mlb_id]["seasons"][year]["era"] = int(float(era_val))
         else:
-            ops_val = row['OPS_plus']
+            ops_val = row.get('ops')
             if pd.notna(ops_val):
-                target_vault[mlb_id]["seasons"][year]["ops"] = int(ops_val)
+                target_vault[mlb_id]["seasons"][year]["ops"] = int(float(ops_val))
 
     print("Sorting batters into active vs. historical archives...")
     for _, row in batters.iterrows():
