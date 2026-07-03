@@ -46,6 +46,7 @@
 	let userSelectedYearFielding = $state(new Date().getFullYear().toString());
 	let userSelectedFieldingPosition = $state('ALL');
 	let advancedYearSelection = $state('2026');
+	let hasDefaultedViewMode = $state(false);
 
 	let isCareerMode = $state(false);
 
@@ -94,7 +95,7 @@
 
 	$effect(() => {
 		const id = $page.params.id;
-		const targetYear = userSelectedYear;
+		const targetYear = userSelectedYearStandard || new Date().getFullYear().toString();
 
 		if (id) {
 			loadAdvancedMetrics(id, targetYear);
@@ -447,12 +448,23 @@
 		}
 	});
 
-	// Auto-default the switch to 'career' mode if the store detects a retired player
 	$effect(() => {
-		if (advancedStats.isRetired) {
-			advancedDisplayMode = 'career';
-		} else {
-			advancedDisplayMode = 'season';
+		const id = $page.params.id;
+
+		// Reset our safety lock whenever the user navigates to a completely different player page
+		untrack(() => {
+			id;
+			hasDefaultedViewMode = false;
+		});
+	});
+
+	$effect(() => {
+		if (!advancedStats.loading && advancedStats.isRetired && !hasDefaultedViewMode) {
+			untrack(() => {
+				advancedDisplayMode = 'career';
+				isCareerMode = true; // Syncs up your standard stat blocks automatically
+				hasDefaultedViewMode = true;
+			});
 		}
 	});
 </script>
@@ -625,6 +637,7 @@
 						<StatBox
 							label="Career bWAR"
 							abbr="WAR"
+							careerSeasonLength={Object.keys(advancedStats.seasons).length}
 							percentile={advancedStats.careerWar}
 							isRetired={advancedStats.isRetired}
 							tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player. 60+ WAR is the standard benchmark for the Hall of Fame. Accumulated over {Object.keys(
@@ -635,6 +648,7 @@
 						<StatBox
 							label="Career bWAR"
 							abbr="WAR"
+							careerSeasonLength={Object.keys(advancedStats.seasons).length}
 							percentile={advancedStats.careerWar}
 							isRetired={advancedStats.isRetired}
 							tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player. 60+ WAR is the standard benchmark for the Hall of Fame. Accumulated over {Object.keys(
@@ -1218,6 +1232,13 @@
 		transform: scale(1.03);
 		transition: all 100ms ease;
 		text-decoration: underline;
+	}
+
+	#debut-wrapper {
+		cursor: default;
+		display: flex;
+		align-items: center;
+		gap: 4px;
 	}
 	.stats-grid-container {
 		display: grid;

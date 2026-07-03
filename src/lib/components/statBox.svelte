@@ -6,6 +6,7 @@
 		label = '',
 		abbr = '',
 		stat = 0,
+		careerSeasonLength = 0,
 		tooltipText = '',
 		isRetired = false
 	} = $props();
@@ -60,9 +61,17 @@
 	<div class="stat-molucule" id={tooltipId}>
 		<span class="stat-label">{label}</span>
 		<div class="name-badge-wrapper">
-			<span class="stat-value" style="color: {activeColor};">
-				<AnimatedCounter value={percentile} />
-			</span>
+			<div class="war-career-length-wrapper">
+				<span class="stat-value" style="color: {activeColor};">
+					<AnimatedCounter value={percentile} />
+				</span>
+				{#if !careerSeasonLength == 0}
+					<span class="season-count"> / </span>
+					<span class="season-count">
+						<AnimatedCounter value={careerSeasonLength} />
+					</span>
+				{/if}
+			</div>
 			<wa-badge appearance="filled" size="m" variant="neutral">{abbr}</wa-badge>
 		</div>
 
@@ -163,6 +172,19 @@
 		transition: color 0.3s ease;
 	}
 
+	.war-career-length-wrapper {
+		display: flex;
+		align-items: center;
+		gap: 0.2rem;
+	}
+
+	.season-count {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-weight: var(--wa-font-weight-bold, 600);
+		font-size: var(--wa-font-size-s);
+		color: var(--wa-color-neutral-on-quiet);
+	}
 	.context-track {
 		position: absolute;
 		bottom: 0;
