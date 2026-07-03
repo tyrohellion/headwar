@@ -29,6 +29,7 @@
 
 	import StatBar from '$lib/components/statBar.svelte';
 	import StatPill from '$lib/components/statPill.svelte';
+	import StatBox from '$lib/components/statBox.svelte';
 
 	let playerData = $state(null);
 	let loading = $state(true);
@@ -47,6 +48,9 @@
 	let advancedYearSelection = $state('2026');
 
 	let isCareerMode = $state(false);
+
+	let advancedDisplayMode = $state('season');
+	let advancedSelectedSeason = $state('2026');
 
 	$effect(() => {
 		const id = $page.params.id;
@@ -86,6 +90,15 @@
 		}
 
 		loadProfile();
+	});
+
+	$effect(() => {
+		const id = $page.params.id;
+		const targetYear = userSelectedYear;
+
+		if (id) {
+			loadAdvancedMetrics(id, targetYear);
+		}
 	});
 
 	let playerProfile = $derived(playerData?.people?.[0] || null);
@@ -427,6 +440,21 @@
 			});
 		}
 	});
+
+	$effect(() => {
+		if (userSelectedYearStandard) {
+			advancedSelectedSeason = userSelectedYearStandard;
+		}
+	});
+
+	// Auto-default the switch to 'career' mode if the store detects a retired player
+	$effect(() => {
+		if (advancedStats.isRetired) {
+			advancedDisplayMode = 'career';
+		} else {
+			advancedDisplayMode = 'season';
+		}
+	});
 </script>
 
 {#if loading}
@@ -519,6 +547,14 @@
 				<wa-divider orientation="vertical"></wa-divider>
 				<p>{playerProfile.primaryPosition?.name}</p>
 				<wa-divider orientation="vertical"></wa-divider>
+				<wa-badge appearance="filled" size="l" variant="neutral"
+					>Bats: {playerProfile.batSide?.description || 'N/A'}</wa-badge
+				>
+				<wa-divider orientation="vertical"></wa-divider>
+				<wa-badge appearance="filled" size="l" variant="neutral"
+					>Throws: {playerProfile.pitchHand?.description || 'N/A'}</wa-badge
+				>
+				<wa-divider orientation="vertical"></wa-divider>
 				<p>{playerProfile.weight} lbs</p>
 				<wa-divider orientation="vertical"></wa-divider>
 				<p>{playerProfile.height}</p>
@@ -534,21 +570,117 @@
 		<wa-tab panel="pitching">Pitching</wa-tab>
 		<wa-tab panel="fielding">Fielding</wa-tab>
 		<wa-tab panel="awards">Awards</wa-tab>
-		<wa-tab panel="schedule">Schedule</wa-tab>
 
 		<wa-tab-panel name="overview">
-			<div class="horizontal-wrapper">
-				<h3>Overview</h3>
-			</div>
 			<div class="advanced-tab-panel">
-				<div class="metrics-grid">
-					<StatPill label="Career bWAR" value={advancedStats.careerWar} />
-					<StatPill label="Season bWAR" value={advancedStats.currentSeasonWar} />
-					<StatPill label="OPS+" value={advancedStats.currentSeasonOpsPlus} />
+				<div class="horizontal-wrapper">
+					<h3 id="advancedExplanationStandard">Overview</h3>
+					<wa-divider orientation="vertical"></wa-divider>
+
+					<div class="dropdown-and-switch-wrapper">
+						<wa-select
+							id="advancedYearSelector"
+							value={advancedSelectedSeason}
+							disabled={advancedDisplayMode === 'career' ||
+								Object.keys(advancedStats.seasons).length <= 1 ||
+								null}
+							class="year-dropdown"
+							size="s"
+							onchange={(e) => {
+								advancedSelectedSeason = e.target.value;
+							}}
+						>
+							{#if Object.keys(advancedStats.seasons).length === 0}
+								<wa-option value={advancedSelectedSeason} selected={true}>
+									{advancedSelectedSeason}
+								</wa-option>
+							{:else}
+								{#each Object.keys(advancedStats.seasons)
+									.map(Number)
+									.sort((a, b) => b - a) as season}
+									<wa-option
+										value={season.toString()}
+										selected={season.toString() === advancedSelectedSeason || null}
+									>
+										{season}
+									</wa-option>
+								{/each}
+							{/if}
+						</wa-select>
+
+						<wa-switch
+							class="no-wrap-switch"
+							checked={advancedDisplayMode === 'career' || null}
+							onchange={(e) => {
+								advancedDisplayMode = e.target.checked ? 'career' : 'season';
+							}}
+						>
+							Career Stats
+						</wa-switch>
+					</div>
+				</div>
+
+				<div class="overview-boxes-wrapper">
+					{#if advancedDisplayMode === 'career'}
+						<StatBox
+							label="Career bWAR"
+							abbr="WAR"
+							percentile={advancedStats.careerWar}
+							isRetired={advancedStats.isRetired}
+							tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player. 60+ WAR is the standard benchmark for the Hall of Fame. Accumulated over {Object.keys(
+								advancedStats.seasons
+							).length} seasons"
+						/>
+					{:else}
+						<StatBox
+							label="Career bWAR"
+							abbr="WAR"
+							percentile={advancedStats.careerWar}
+							isRetired={advancedStats.isRetired}
+							tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player. 60+ WAR is the standard benchmark for the Hall of Fame. Accumulated over {Object.keys(
+								advancedStats.seasons
+							).length} seasons"
+						/>
+						<StatBox
+							label="{advancedSelectedSeason} bWAR"
+							abbr="WAR"
+							percentile={advancedStats.seasons[advancedSelectedSeason]?.war != null
+								? parseFloat(advancedStats.seasons[advancedSelectedSeason].war).toFixed(1)
+								: advancedStats.currentSeasonWar}
+							isRetired={advancedStats.isRetired}
+							tooltipText="Wins added over a replacement-level backup this season. 2.0+ is a solid starter, 5.0+ is an All-Star, and 8.0+ is an MVP-caliber performance."
+						/>
+					{/if}
+
+					<StatBox
+						label={advancedDisplayMode === 'career'
+							? 'Career OPS+'
+							: `${advancedSelectedSeason} OPS+`}
+						abbr="OPS+"
+						percentile={advancedDisplayMode === 'career'
+							? advancedStats.careerOpsPlus
+							: (advancedStats.seasons[advancedSelectedSeason]?.ops ?? 'N/A')}
+						isRetired={advancedStats.isRetired}
+						tooltipText={advancedDisplayMode === 'career'
+							? 'Park-adjusted offensive production over their career. 100 is league average; a 150 score means the hitter was 50% better than the rest of the league.'
+							: 'Park-adjusted offensive production for this season. 100 is league average; a 150 score means the hitter was 50% better than the rest of the league.'}
+					/>
+
+					<StatBox
+						label={advancedDisplayMode === 'career'
+							? 'Career ERA+'
+							: `${advancedSelectedSeason} ERA+`}
+						abbr="ERA+"
+						percentile={advancedDisplayMode === 'career'
+							? advancedStats.careerEraPlus
+							: (advancedStats.seasons[advancedSelectedSeason]?.era ?? 'N/A')}
+						isRetired={advancedStats.isRetired}
+						tooltipText={advancedDisplayMode === 'career'
+							? 'Park and league-adjusted pitching efficiency for their career. 100 is perfectly average; higher numbers are better (e.g., 125 means 25% better at preventing runs).'
+							: 'Park and league-adjusted pitching efficiency for this season. 100 is perfectly average; higher numbers are better (e.g., 125 means 25% better at preventing runs).'}
+					/>
 				</div>
 			</div>
-			<p>Bats: {playerProfile.batSide?.description || 'N/A'}</p>
-			<p>Throws: {playerProfile.pitchHand?.description || 'N/A'}</p>
 		</wa-tab-panel>
 
 		<wa-tab-panel name="batting">
@@ -973,7 +1105,7 @@
 				<p>No fielding records found for this player.</p>
 			{/if}
 		</wa-tab-panel>
-		<wa-tab-panel name="schedule">Schedule panels content.</wa-tab-panel>
+
 		<wa-tab-panel name="awards">
 			<div class="horizontal-wrapper">
 				<h3>Player Awards</h3>
@@ -1042,6 +1174,13 @@
 		background-color: var(--wa-color-gray-80);
 		z-index: 2;
 		margin-bottom: 2rem;
+	}
+
+	.overview-boxes-wrapper {
+		display: flex;
+		justify-content: flex-start;
+		flex-wrap: wrap;
+		gap: 1rem;
 	}
 	.team-logo {
 		max-width: 32px;
@@ -1137,7 +1276,12 @@
 	}
 	.small-details-wrapper {
 		display: flex;
+		align-items: center;
 		gap: 0;
+	}
+
+	.small-details-wrapper p {
+		margin: 0px;
 	}
 	.skeleton-overview wa-skeleton {
 		margin-bottom: 1rem;
