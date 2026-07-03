@@ -123,11 +123,12 @@
 	.stat-molucule {
 		position: relative;
 		display: flex;
+		flex: 1;
 		justify-content: center;
 		flex-direction: column;
 		align-items: start;
 		gap: 1rem;
-		width: 160px;
+		min-width: 160px;
 		cursor: help;
 		padding: 1rem 3rem 1.25rem 1rem;
 		transition: all 100ms ease;

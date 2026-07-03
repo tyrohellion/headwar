@@ -30,6 +30,7 @@
 	import StatBar from '$lib/components/statBar.svelte';
 	import StatPill from '$lib/components/statPill.svelte';
 	import StatBox from '$lib/components/statBox.svelte';
+	import StatBoxStandard from '$lib/components/statBoxStandard.svelte';
 
 	let playerData = $state(null);
 	let loading = $state(true);
@@ -290,10 +291,7 @@
 		untrack(() => {
 			if (positions.length === 1) {
 				userSelectedFieldingPosition = positions[0];
-			} else if (
-				userSelectedFieldingPosition !== 'ALL' &&
-				!positions.includes(userSelectedFieldingPosition)
-			) {
+			} else {
 				userSelectedFieldingPosition = 'ALL';
 			}
 		});
@@ -451,10 +449,16 @@
 	$effect(() => {
 		const id = $page.params.id;
 
-		// Reset our safety lock whenever the user navigates to a completely different player page
 		untrack(() => {
 			id;
 			hasDefaultedViewMode = false;
+			isCareerMode = false;
+			advancedDisplayMode = 'season';
+
+			const currentYearFallback = new Date().getFullYear().toString();
+			userSelectedYearStandard = currentYearFallback;
+			userSelectedYearPitching = currentYearFallback;
+			userSelectedYearFielding = currentYearFallback;
 		});
 	});
 
@@ -462,7 +466,7 @@
 		if (!advancedStats.loading && advancedStats.isRetired && !hasDefaultedViewMode) {
 			untrack(() => {
 				advancedDisplayMode = 'career';
-				isCareerMode = true; // Syncs up your standard stat blocks automatically
+				isCareerMode = true;
 				hasDefaultedViewMode = true;
 			});
 		}
@@ -591,39 +595,32 @@
 
 					<div class="dropdown-and-switch-wrapper">
 						<wa-select
-							id="advancedYearSelector"
-							value={advancedSelectedSeason}
-							disabled={advancedDisplayMode === 'career' ||
-								Object.keys(advancedStats.seasons).length <= 1 ||
-								null}
+							id="battingYearSelector"
+							value={userSelectedYearStandard}
+							disabled={isCareerMode || availableSeasonsStandard.length <= 1 || null}
 							class="year-dropdown"
 							size="s"
 							onchange={(e) => {
-								advancedSelectedSeason = e.target.value;
+								userSelectedYearStandard = e.target.value;
 							}}
 						>
-							{#if Object.keys(advancedStats.seasons).length === 0}
-								<wa-option value={advancedSelectedSeason} selected={true}>
-									{advancedSelectedSeason}
-								</wa-option>
+							{#if availableSeasonsStandard.length === 0}
+								<wa-option value={userSelectedYearStandard} selected={true}
+									>{userSelectedYearStandard}</wa-option
+								>
 							{:else}
-								{#each Object.keys(advancedStats.seasons)
-									.map(Number)
-									.sort((a, b) => b - a) as season}
-									<wa-option
-										value={season.toString()}
-										selected={season.toString() === advancedSelectedSeason || null}
-									>
+								{#each availableSeasonsStandard as season}
+									<wa-option value={season} selected={season === userSelectedYearStandard || null}>
 										{season}
 									</wa-option>
 								{/each}
 							{/if}
 						</wa-select>
-
 						<wa-switch
 							class="no-wrap-switch"
-							checked={advancedDisplayMode === 'career' || null}
+							checked={isCareerMode || (null && advancedDisplayMode === 'career') || null}
 							onchange={(e) => {
+								isCareerMode = e.target.checked;
 								advancedDisplayMode = e.target.checked ? 'career' : 'season';
 							}}
 						>
@@ -694,6 +691,28 @@
 							: 'Park and league-adjusted pitching efficiency for this season. 100 is perfectly average; higher numbers are better (e.g., 125 means 25% better at preventing runs).'}
 					/>
 				</div>
+				<wa-divider></wa-divider>
+				{#if isCareerMode || availableSeasonsStandard.length > 0}
+					<div class="overview-boxes-wrapper-standard">
+						{#each standardBattingConfig.filter((s) => s.category === 'standard') as stat}
+							{@const rawValue = activeSeasonStats?.[stat.key]}
+							{#if rawValue !== undefined && rawValue !== null}
+								{@const formattedValue = ['avg', 'obp', 'slg', 'ops'].includes(stat.key)
+									? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue))
+											.toFixed(3)
+											.replace(/^0/, '')
+									: rawValue}
+
+								<StatBoxStandard
+									label={stat.label}
+									abbr={stat.abbr}
+									stat={formattedValue}
+									tooltipText={stat.description}
+								/>
+							{/if}
+						{/each}
+					</div>
+				{/if}
 			</div>
 		</wa-tab-panel>
 
@@ -738,7 +757,7 @@
 				</div>
 			</div>
 
-			{#if isCareerMode || availableSeasonsStandard.length > 0}
+			{#if availableSeasonsStandard.length > 0}
 				<div class="stats-grid-container">
 					<div class="stats-column">
 						<div class="category-heading-wrapper"><h4 class="category-heading">Standard</h4></div>
@@ -954,7 +973,7 @@
 				</div>
 			</div>
 
-			{#if isCareerMode || availableSeasonsPitching.length > 0}
+			{#if availableSeasonsPitching.length > 0}
 				<div class="stats-grid-container">
 					<div class="stats-column">
 						<div class="category-heading-wrapper"><h4 class="category-heading">Standard</h4></div>
@@ -1068,7 +1087,7 @@
 				</div>
 			</div>
 
-			{#if isCareerMode || availableSeasonsFielding.length > 0}
+			{#if availableSeasonsFielding.length > 0}
 				<div class="stats-grid-container">
 					<div class="stats-column">
 						<div class="category-heading-wrapper"><h4 class="category-heading">Standard</h4></div>
@@ -1205,6 +1224,15 @@
 		padding: 6px;
 		box-shadow: var(--wa-shadow-l);
 		transition: all 100ms ease;
+	}
+
+	.overview-boxes-wrapper-standard {
+		display: flex;
+		justify-content: flex-start;
+		align-items: center;
+		width: 100%;
+		flex-wrap: wrap;
+		gap: 1rem;
 	}
 
 	.dropdown-and-switch-wrapper {
