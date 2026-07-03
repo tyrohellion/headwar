@@ -28,11 +28,15 @@ def generate_compressed_war_vault():
         print(f"Error executing pybaseball network request: {e}")
         return
 
-    # Clean missing variables & structural types
+    # Clean missing variables & structural types safely upfront
     for df in [batters, pitchers]:
         df['mlb_ID'] = df['mlb_ID'].fillna(0).astype(int)
         df['year_ID'] = df['year_ID'].astype(int)
         df['WAR'] = pd.to_numeric(df['WAR'], errors='coerce').fillna(0.0)
+
+    # Convert advanced metrics cleanly to numeric profiles
+    batters['OPS_plus'] = pd.to_numeric(batters['OPS_plus'], errors='coerce')
+    pitchers['ERA_plus'] = pd.to_numeric(pitchers['ERA_plus'], errors='coerce')
 
     # Filter down to legitimate MLB tracking IDs
     batters = batters[batters['mlb_ID'] > 0]
@@ -57,11 +61,7 @@ def generate_compressed_war_vault():
         
         # Determine if this player belongs in the static archive or active pool
         last_year_played = last_active_map.get(int(mlb_id), 0)
-        
-        if last_year_played < YEAR_THRESHOLD:
-            target_vault = war_archive
-        else:
-            target_vault = war_active
+        target_vault = war_archive if last_year_played < YEAR_THRESHOLD else war_active
 
         if mlb_id not in target_vault:
             target_vault[mlb_id] = {"career_total": 0.0, "seasons": {}}
@@ -69,17 +69,18 @@ def generate_compressed_war_vault():
         if year not in target_vault[mlb_id]["seasons"]:
             target_vault[mlb_id]["seasons"][year] = {"war": 0.0}
             
+        # Combine multi-stint or two-way player WAR totals incrementally
         target_vault[mlb_id]["seasons"][year]["war"] += war
         
-        # Extract advanced performance metric indexes
+        # Safely extract advanced performance metrics without wiping existing fields
         if is_pitcher:
-            era_plus = row.get('ERA_plus') or row.get('era_plus')
-            if pd.notna(era_plus):
-                target_vault[mlb_id]["seasons"][year]["era"] = int(era_plus)
+            era_val = row['ERA_plus']
+            if pd.notna(era_val):
+                target_vault[mlb_id]["seasons"][year]["era"] = int(era_val)
         else:
-            ops_plus = row.get('OPS_plus') or row.get('ops_plus')
-            if pd.notna(ops_plus):
-                target_vault[mlb_id]["seasons"][year]["ops"] = int(ops_plus)
+            ops_val = row['OPS_plus']
+            if pd.notna(ops_val):
+                target_vault[mlb_id]["seasons"][year]["ops"] = int(ops_val)
 
     print("Sorting batters into active vs. historical archives...")
     for _, row in batters.iterrows():

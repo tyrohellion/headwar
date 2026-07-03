@@ -48,6 +48,8 @@ export const advancedStats = {
 };
 
 function extractMetricsFromRecord(playerRecord, id, year) {
+	console.log(`[warStore DEBUG] Found record for ID: ${id}`, playerRecord);
+
 	if (!playerRecord) {
 		console.warn(`[warStore] No player record found in vaults for ID: ${id}`);
 		state.careerWar = '0.0';
@@ -69,6 +71,9 @@ function extractMetricsFromRecord(playerRecord, id, year) {
 	const seasonsMap = playerRecord.seasons || {};
 	state.seasons = seasonsMap;
 
+	console.log(`[warStore DEBUG] Full Seasons Map for ID: ${id}`, seasonsMap);
+	console.log(`[warStore DEBUG] Targeting Year: ${year}`, seasonsMap[String(year)]);
+
 	// Detect retirement status by looking at maximum recorded season against current year 2026
 	const seasonKeys = Object.keys(seasonsMap).map(Number);
 	const maxSeason = seasonKeys.length ? Math.max(...seasonKeys) : 2026;
@@ -88,8 +93,13 @@ function extractMetricsFromRecord(playerRecord, id, year) {
 			totalOpsWeight += data.ops * weight;
 			totalOpsWarWeight += weight;
 		}
-		if (data.era != null && !isNaN(data.era)) {
-			totalEraWeight += data.era * weight;
+
+		console.log(`[warStore DEBUG] Season ${sYear} data payload keys:`, Object.keys(data), data);
+
+		// Dynamic fallback array checking potential key names for ERA+
+		const eraValue = data.era_plus ?? data.era ?? data.era_p;
+		if (eraValue != null && !isNaN(eraValue)) {
+			totalEraWeight += eraValue * weight;
 			totalEraWarWeight += weight;
 		}
 	}
@@ -105,12 +115,22 @@ function extractMetricsFromRecord(playerRecord, id, year) {
 		state.currentSeasonWar =
 			seasonStats.war != null ? parseFloat(seasonStats.war).toFixed(1) : '0.0';
 		state.currentSeasonOpsPlus = seasonStats.ops ?? 'N/A';
-		state.currentSeasonEraPlus = seasonStats.era ?? 'N/A';
+
+		// Check potential key variants for current single season view as well
+		state.currentSeasonEraPlus =
+			seasonStats.era_plus ?? seasonStats.era ?? seasonStats.era_p ?? 'N/A';
 	} else {
 		state.currentSeasonWar = '0.0';
 		state.currentSeasonOpsPlus = 'N/A';
 		state.currentSeasonEraPlus = 'N/A';
 	}
+
+	console.log('[warStore DEBUG] Final structural metrics evaluation:', {
+		currentSeasonEraPlus: state.currentSeasonEraPlus,
+		careerEraPlus: state.careerEraPlus,
+		currentSeasonOpsPlus: state.currentSeasonOpsPlus,
+		careerOpsPlus: state.careerOpsPlus
+	});
 }
 
 export async function loadAdvancedMetrics(playerMlbId, selectedYear) {
