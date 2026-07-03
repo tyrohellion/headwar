@@ -11,14 +11,10 @@ def generate_compressed_war_vault():
     archive_path = 'static/data/war_archive.json'
     active_path = 'static/data/war_active.json'
 
-    # Load existing archive if it exists to preserve historical data
-    if os.path.exists(archive_path):
-        print("Loading historical archive data...")
-        with open(archive_path, 'r') as f:
-            war_archive = json.load(f)
-    else:
-        print("No historical archive found. Creating from scratch...")
-        war_archive = {}
+    # ALWAYS start both vaults completely fresh to prevent historical 
+    # data from compounding and duplicating on subsequent script runs.
+    war_archive = {}
+    war_active = {}
 
     print("Downloading massive Baseball-Reference source archives...")
     try:
@@ -44,9 +40,6 @@ def generate_compressed_war_vault():
     max_year_bat = batters.groupby('mlb_ID')['year_ID'].max()
     max_year_pitch = pitchers.groupby('mlb_ID')['year_ID'].max()
     last_active_map = pd.concat([max_year_bat, max_year_pitch]).groupby(level=0).max().to_dict()
-
-    # Active data pipeline map
-    war_active = {}
 
     # 1. COMPILE BATTER DATA (WAR & OPS+)
     print("Processing historical batter metrics...")
