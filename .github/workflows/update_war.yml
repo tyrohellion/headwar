@@ -2,8 +2,8 @@ name: Daily Baseball-Reference Data Sync
 
 on:
   schedule:
-    # Pulls every morning at 6am EST (10am UTC)
-    - cron: '0 10 * * *'
+    # Pulls every morning at 6:14am EST
+    - cron: '14 10 * * *'
   workflow_dispatch:
 
 jobs:
