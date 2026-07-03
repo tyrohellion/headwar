@@ -13,11 +13,12 @@
 	const tooltipId = `pill-tip-${Math.random().toString(36).substring(2, 9)}`;
 
 	const isCareer = $derived(label.toLowerCase().includes('career'));
-
-	const disableVisuals = $derived(isNaN(parseFloat(percentile)));
-
 	const isNormalizedStat = $derived(abbr === 'OPS+' || abbr === 'ERA+');
 	const isWarStat = $derived(abbr === 'WAR');
+
+	const isCareerWar = $derived(isCareer && isWarStat);
+
+	const disableVisuals = $derived(isNaN(parseFloat(percentile)));
 
 	let numericValue = $derived.by(() => {
 		const num = parseFloat(percentile);
@@ -27,7 +28,8 @@
 	let activeColor = $derived.by(() => {
 		if (isNaN(parseFloat(percentile))) return 'var(--wa-color-neutral-text)';
 
-		if (disableVisuals) return 'var(--wa-color-filled-on-normal);';
+		if (isCareerWar) return 'var(--wa-color-filled-on-normal)';
+		if (disableVisuals) return 'var(--wa-color-filled-on-normal)';
 
 		if (isNormalizedStat) {
 			if (numericValue >= 140) return 'var(--wa-color-success-60)';
@@ -35,6 +37,7 @@
 			if (numericValue >= 90) return 'var(--wa-color-neutral-50)';
 			return 'var(--wa-color-danger-70)';
 		} else {
+			// Single-season WAR thresholds
 			if (numericValue >= 5.0) return 'var(--wa-color-success-60)';
 			if (numericValue >= 2.5) return 'var(--wa-color-success-80)';
 			if (numericValue >= 0.5) return 'var(--wa-color-neutral-50)';
@@ -49,7 +52,7 @@
 </script>
 
 {#if percentile === 'N/A' || percentile === '-.--' || percentile === 'NaN' || !percentile || String(percentile).includes('NaN')}
-	<!-- Kept empty placeholder handler intact -->
+	<!-- empty placeholder -->
 {:else}
 	{#if tooltipText}
 		<wa-tooltip for={tooltipId}>{tooltipText}</wa-tooltip>
@@ -73,7 +76,7 @@
 			</div>
 		{/if}
 
-		{#if isWarStat && !disableVisuals}
+		{#if isWarStat && !disableVisuals && !isCareerWar}
 			<div class="segmented-track">
 				<div
 					class="track-segment"

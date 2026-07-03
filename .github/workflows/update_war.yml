@@ -2,8 +2,8 @@ name: Daily Baseball-Reference Data Sync
 
 on:
   schedule:
-    # pulls every morning at 1am EST
-    - cron: '0 5 * * *'
+    # Pulls every morning at 6am EST (10am UTC)
+    - cron: '0 10 * * *'
   workflow_dispatch:
 
 jobs:
@@ -13,11 +13,13 @@ jobs:
       contents: write
 
     steps:
+      # Bumped to v4 latest patch or v6 to support the Node 24 runtime natively
       - name: Checkout Code Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
+      # Bumped to v6 for full Node 24 runner compliance
       - name: Initialize Runtime Python Environment
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
           cache: 'pip'

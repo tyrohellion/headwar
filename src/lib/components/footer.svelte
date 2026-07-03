@@ -40,8 +40,7 @@
 
 <style>
 	.footer {
-		position: absolute;
-		bottom: 0;
+		/* CHANGED: Removed absolute layout so it naturally aligns below min-height view blocks */
 		display: flex;
 		flex-direction: column;
 		padding: 1rem 2rem 1rem 2rem;
@@ -49,7 +48,8 @@
 		background-color: var(--wa-color-fill-normal, var(--wa-color-brand-fill-normal));
 		border-top: 1px solid var(--wa-color-surface-border);
 		width: 100%;
-		z-index: 9;
+		box-sizing: border-box;
+		flex-shrink: 0; /* Prevents compression layout calculations */
 	}
 
 	.main-section-wrapper {

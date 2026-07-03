@@ -12,21 +12,33 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<Navbar />
-<div class="main">
-	{@render children()}
+<div class="app-layout">
+	<Navbar />
+
+	<main class="main">
+		{@render children()}
+	</main>
+
+	<Footer />
 </div>
-<Footer />
 
 <style>
 	:root {
 		--font-mono: 'JetBrains Mono Variable', monospace;
 	}
 
+	.app-layout {
+		display: flex;
+		flex-direction: column;
+		min-height: 100vh;
+	}
+
 	.main {
 		margin-top: 6rem;
 		width: 100%;
-		height: 100%;
-		padding: 0 2rem 20rem 2rem;
+		box-sizing: border-box;
+		padding: 0 2rem 4rem 2rem;
+		flex: 1 0 auto;
+		min-height: calc(100vh - 6rem);
 	}
 </style>
