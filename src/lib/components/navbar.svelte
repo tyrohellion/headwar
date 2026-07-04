@@ -11,18 +11,21 @@
 	import WaDivider from '@awesome.me/webawesome/dist/components/divider/divider.js';
 	import WaTooltip from '@awesome.me/webawesome/dist/components/tooltip/tooltip.js';
 	import WaSkeleton from '@awesome.me/webawesome/dist/components/skeleton/skeleton.js';
+	import WaDrawer from '@awesome.me/webawesome/dist/components/drawer/drawer.js';
 
 	let query = $state('');
 	let matchedPlayers = $state([]);
 	let matchedTeams = $state([]);
 	let isSearching = $state(false);
 	let searchWrapperEl = $state(null);
+	let isMenuOpen = $state(false);
 	let debounceTimer;
 
 	afterNavigate(() => {
 		query = '';
 		matchedPlayers = [];
 		matchedTeams = [];
+		isMenuOpen = false;
 	});
 
 	async function handleInput(e) {
@@ -63,7 +66,12 @@
 />
 
 <div class="nav">
-	<div class="nav-buttons">
+	<wa-button class="hamburger-btn" size="s" appearance="filled" onclick={() => (isMenuOpen = true)}>
+		<wa-icon name="bars" label="Open Menu"></wa-icon>
+	</wa-button>
+
+	<!-- Desktop Menu (Hidden below 768px) -->
+	<div class="nav-buttons desktop-only">
 		<a href="/" aria-label="Home">
 			<wa-button size="s" variant="brand" appearance="filled">
 				<wa-icon name="house" label="Home"></wa-icon>
@@ -112,79 +120,111 @@
 		</wa-button-group>
 	</div>
 
-	<div class="search-wrapper" bind:this={searchWrapperEl}>
-		<wa-input
-			value={query}
-			oninput={handleInput}
-			placeholder="Search players or teams"
-			size="s"
-			clearable
-		>
-			<wa-icon name="magnifying-glass" slot="start"></wa-icon>
-		</wa-input>
+	<div class="float-right-wrapper">
+		<div class="search-wrapper" bind:this={searchWrapperEl}>
+			<wa-input
+				value={query}
+				oninput={handleInput}
+				placeholder="Search players or teams..."
+				size="s"
+				clearable
+			>
+				<wa-icon name="magnifying-glass" slot="start"></wa-icon>
+			</wa-input>
 
-		{#if isSearching}
-			<div class="search-dropdown-skeleton">
-				<wa-skeleton effect="pulse"></wa-skeleton>
-				<wa-skeleton effect="pulse"></wa-skeleton>
-				<wa-skeleton effect="pulse"></wa-skeleton>
-				<wa-skeleton effect="pulse"></wa-skeleton>
-				<wa-skeleton effect="pulse"></wa-skeleton>
-			</div>
-		{:else if matchedPlayers.length > 0 || matchedTeams.length > 0}
-			<div class="search-dropdown">
-				{#if matchedTeams.length > 0}
-					<div class="category-header">Teams</div>
-					<wa-divider></wa-divider>
-					{#each matchedTeams as team}
-						<a href="/teams/{team.id}">
-							<button class="dropdown-item">
-								<img
-									src={team.logo}
-									alt="{team.name} logo"
-									class="team-logo-thumb"
-									loading="lazy"
-								/>
-								<span class="item-name">
-									{team.name}
-									{#if team.abbreviation}<span class="sub-text">({team.abbreviation})</span>{/if}
-								</span>
-							</button>
-						</a>
-					{/each}
-				{/if}
+			{#if isSearching}
+				<div class="search-dropdown-skeleton">
+					<wa-skeleton effect="pulse"></wa-skeleton>
+					<wa-skeleton effect="pulse"></wa-skeleton>
+					<wa-skeleton effect="pulse"></wa-skeleton>
+					<wa-skeleton effect="pulse"></wa-skeleton>
+					<wa-skeleton effect="pulse"></wa-skeleton>
+				</div>
+			{:else if matchedPlayers.length > 0 || matchedTeams.length > 0}
+				<div class="search-dropdown">
+					{#if matchedTeams.length > 0}
+						<div class="category-header">Teams</div>
+						<wa-divider></wa-divider>
+						{#each matchedTeams as team}
+							<a href="/teams/{team.id}">
+								<button class="dropdown-item">
+									<img
+										src={team.logo}
+										alt="{team.name} logo"
+										class="team-logo-thumb"
+										loading="lazy"
+									/>
+									<span class="item-name">
+										{team.name}
+										{#if team.abbreviation}<span class="sub-text">({team.abbreviation})</span>{/if}
+									</span>
+								</button>
+							</a>
+						{/each}
+					{/if}
 
-				{#if matchedPlayers.length > 0}
-					<div class="category-header">Players</div>
-					<wa-divider></wa-divider>
-					{#each matchedPlayers as player}
-						<a href="/players/{player.id}">
-							<button class="dropdown-item">
-								<img
-									src={player.headshot}
-									alt="playerHeadshot"
-									class="player-thumb"
-									loading="lazy"
-									onerror={(e) =>
-										(e.target.src =
-											'https://img.mlbstatic.com/mlb-photos/image/upload/w_50,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current')}
-								/>
-								<span class="item-name">
-									{player.name}
-									<span class="sub-text"> - {player.position}</span>
-								</span>
-							</button>
-						</a>
-					{/each}
-				{/if}
-			</div>
-		{/if}
+					{#if matchedPlayers.length > 0}
+						<div class="category-header">Players</div>
+						<wa-divider></wa-divider>
+						{#each matchedPlayers as player}
+							<a href="/players/{player.id}">
+								<button class="dropdown-item">
+									<img
+										src={player.headshot}
+										alt="playerHeadshot"
+										class="player-thumb"
+										loading="lazy"
+										onerror={(e) =>
+											(e.target.src =
+												'https://img.mlbstatic.com/mlb-photos/image/upload/w_50,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current')}
+									/>
+									<span class="item-name">
+										{player.name}
+										<span class="sub-text"> - {player.position}</span>
+									</span>
+								</button>
+							</a>
+						{/each}
+					{/if}
+				</div>
+			{/if}
+		</div>
 		<wa-tooltip for="color-scheme-button">toggle theme</wa-tooltip>
 		<wa-button id="color-scheme-button" size="s" onclick={() => theme.toggle()}>
 			<wa-icon name={theme.isDark ? 'sun' : 'moon'} label="Toggle Theme"></wa-icon>
 		</wa-button>
 	</div>
 </div>
+
+<!-- Mobile Drawer Sidebar (Web Awesome) -->
+<wa-drawer
+	label="Navigation"
+	open={isMenuOpen}
+	onwa-hide={() => (isMenuOpen = false)}
+	placement="start"
+	class="mobile-drawer"
+>
+	<div class="mobile-nav-links">
+		<a href="/">Home</a>
+		<wa-divider></wa-divider>
+		<div class="drawer-section-title">Players</div>
+		<a href="/players">All Players</a>
+		<a href="/players?tab=war">WAR Leaders</a>
+		<a href="/players?tab=ops">OPS Leaders</a>
+		<a href="/players?tab=era">ERA Leaders</a>
+		<wa-divider></wa-divider>
+		<div class="drawer-section-title">Teams</div>
+		<a href="/teams">All Teams</a>
+		<a href="/teams?tab=records">Record Leaders</a>
+		<a href="/teams?tab=nl">National League</a>
+		<a href="/teams?tab=al">American League</a>
+		<wa-divider></wa-divider>
+		<div class="drawer-section-title">Games</div>
+		<a href="/games">All Games</a>
+		<a href="/games?tab=live">Live Games</a>
+		<a href="/games?tab=finished">Finished Games</a>
+	</div>
+</wa-drawer>
 
 <style>
 	a {
@@ -208,11 +248,17 @@
 		background-color: color-mix(in srgb, var(--wa-color-surface-default) 85%, transparent);
 		box-sizing: border-box;
 		z-index: 100;
+		align-items: center;
+		gap: 1rem;
 	}
 
 	.nav-buttons {
 		display: flex;
 		gap: 0.5rem;
+	}
+
+	wa-button-group {
+		flex-shrink: 0;
 	}
 
 	.search-wrapper {
@@ -223,14 +269,14 @@
 	}
 
 	wa-input {
-		width: 320px;
+		width: 100%;
 	}
 
 	.search-dropdown {
 		position: absolute;
 		top: calc(100% + 0.5rem);
 		left: 0;
-		width: 320px;
+		width: 100%;
 		padding: 0 1rem 1rem 1rem;
 		background: var(--wa-color-surface-raised);
 		border: 1px solid var(--wa-color-border-quiet);
@@ -240,13 +286,14 @@
 		overflow-y: auto;
 		display: flex;
 		flex-direction: column;
+		box-sizing: border-box;
 	}
 
 	.search-dropdown-skeleton {
 		position: absolute;
 		top: calc(100% + 0.5rem);
 		left: 0;
-		width: 320px;
+		width: 100%;
 		padding: 0 1rem 1rem 1rem;
 		background: var(--wa-color-surface-raised);
 		border: 1px solid var(--wa-color-border-quiet);
@@ -258,6 +305,7 @@
 		display: flex;
 		gap: 2rem;
 		flex-direction: column;
+		box-sizing: border-box;
 	}
 
 	.category-header {
@@ -270,6 +318,11 @@
 		padding: 1rem 1rem 0 1rem;
 		background: var(--wa-color-surface-raised);
 		cursor: default;
+	}
+
+	.float-right-wrapper {
+		display: flex;
+		gap: 0.5rem;
 	}
 
 	.dropdown-item {
@@ -333,5 +386,70 @@
 
 	.nav-buttons :global(a) {
 		text-decoration: none;
+	}
+
+	.hamburger-btn {
+		display: none;
+	}
+
+	.mobile-nav-links {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		padding: 0.5rem;
+	}
+
+	.mobile-nav-links a {
+		color: var(--wa-color-on-blue);
+		text-decoration: none;
+		font-weight: 700;
+		font-family: var(--font-mono);
+		font-size: var(--wa-font-size-m);
+		padding: 0.5rem;
+	}
+
+	.drawer-section-title {
+		font-size: 0.75rem;
+		font-weight: bold;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+		color: var(--wa-color-neutral-text-weak);
+		margin-top: 0.5rem;
+		border-bottom: 1px;
+	}
+
+	.mobile-drawer {
+		--size: min(300px, 80vw);
+	}
+
+	@media (max-width: 816px) {
+		.nav {
+			padding: 1rem;
+			gap: 0.75rem;
+		}
+
+		.desktop-only {
+			display: none !important;
+		}
+
+		.hamburger-btn {
+			display: inline-block;
+			flex-shrink: 0;
+		}
+
+		#color-scheme-button {
+			flex-shrink: 0;
+		}
+	}
+
+	@media (max-width: 450px) {
+		.float-right-wrapper {
+			flex-grow: 1;
+		}
+
+		.search-wrapper {
+			max-width: none;
+			flex-grow: 1;
+		}
 	}
 </style>
