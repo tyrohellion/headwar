@@ -41,4 +41,10 @@
 		flex: 1 0 auto;
 		min-height: calc(100vh - 6rem);
 	}
+
+	@media (max-width: 768px) {
+		.main {
+			padding: 0 1rem 4rem 1rem;
+		}
+	}
 </style>

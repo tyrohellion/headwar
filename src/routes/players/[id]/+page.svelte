@@ -12,6 +12,7 @@
 	import { standardFieldingStatsConfig } from '../../../formatters/fieldingStatsConfig';
 	import { page } from '$app/stores';
 	import { untrack } from 'svelte';
+	import { onMount } from 'svelte';
 
 	import WaTabGroup from '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
 	import WaTabPanel from '@awesome.me/webawesome/dist/components/tab-panel/tab-panel.js';
@@ -53,6 +54,18 @@
 
 	let advancedDisplayMode = $state('season');
 	let advancedSelectedSeason = $state('2026');
+
+	let isDesktop = $state(true);
+
+	onMount(() => {
+		const mql = window.matchMedia('(min-width: 769px)');
+		isDesktop = mql.matches;
+
+		const listener = (e) => (isDesktop = e.matches);
+		mql.addEventListener('change', listener);
+
+		return () => mql.removeEventListener('change', listener);
+	});
 
 	$effect(() => {
 		const id = $page.params.id;
@@ -513,7 +526,7 @@
 			<div class="player-name-and-team-wrapper">
 				<div class="wa-heading-xl">{playerProfile.fullName}</div>
 				{#if !playerProfile.deathDate && !playerProfile.lastPlayedDate}
-					<wa-divider orientation="vertical"></wa-divider>
+					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
 					<wa-tooltip for="teamLogoNameButton"
 						>{playerProfile.currentTeam?.name} team page</wa-tooltip
 					>
@@ -529,69 +542,201 @@
 					</a>
 				{/if}
 			</div>
-			<div class="small-details-wrapper">
-				<p>{playerProfile.deathDate ? 'Died at ' : ''}{playerProfile.currentAge} years old</p>
-				<wa-divider orientation="vertical"></wa-divider>
-				{#if playerProfile.mlbDebutDate}
-					<wa-tooltip for="debut-wrapper">Years active since MLB debut</wa-tooltip>
-					<div id="debut-wrapper">
-						<wa-badge appearance="outlined" variant="neutral">
-							<wa-format-date
-								month="long"
-								day="numeric"
-								year="numeric"
-								date={playerProfile.mlbDebutDate}
-							></wa-format-date>
-						</wa-badge>
-						<wa-icon name="arrow-right" label="arrow right" class="debut-arrow"></wa-icon>
-						{#if playerProfile.lastPlayedDate}
-							<wa-badge appearance="filled" size="l" variant="neutral">
-								<wa-format-date
-									month="long"
-									day="numeric"
-									year="numeric"
-									date={playerProfile.lastPlayedDate}
-								></wa-format-date>
-							</wa-badge>
-						{:else}
-							<wa-badge appearance="filled" variant="brand">Present</wa-badge>
-						{/if}
-					</div>
-				{:else}
-					<wa-badge appearance="outlined" variant="neutral">No Major League Debut</wa-badge>
-				{/if}
-				<wa-divider orientation="vertical"></wa-divider>
-				<p>{playerProfile.primaryPosition?.name}</p>
-				<wa-divider orientation="vertical"></wa-divider>
-				<wa-badge appearance="filled" size="l" variant="neutral"
-					>Bats: {playerProfile.batSide?.description || 'N/A'}</wa-badge
-				>
-				<wa-divider orientation="vertical"></wa-divider>
-				<wa-badge appearance="filled" size="l" variant="neutral"
-					>Throws: {playerProfile.pitchHand?.description || 'N/A'}</wa-badge
-				>
-				<wa-divider orientation="vertical"></wa-divider>
-				<p>{playerProfile.weight} lbs</p>
-				<wa-divider orientation="vertical"></wa-divider>
-				<p>{playerProfile.height}</p>
-			</div>
 		</div>
 	</div>
+	<div class="small-details-wrapper">
+		<p>{playerProfile.deathDate ? 'Died at ' : ''}{playerProfile.currentAge} years old</p>
+		<wa-divider orientation="vertical"></wa-divider>
+		{#if playerProfile.mlbDebutDate}
+			<wa-tooltip for="debut-wrapper">Years active since MLB debut</wa-tooltip>
+			<div id="debut-wrapper">
+				<wa-badge appearance="outlined" variant="neutral">
+					<wa-format-date
+						month="long"
+						day="numeric"
+						year="numeric"
+						date={playerProfile.mlbDebutDate}
+					></wa-format-date>
+				</wa-badge>
+				<wa-icon name="arrow-right" label="arrow right" class="debut-arrow"></wa-icon>
+				{#if playerProfile.lastPlayedDate}
+					<wa-badge appearance="filled" size="l" variant="neutral">
+						<wa-format-date
+							month="long"
+							day="numeric"
+							year="numeric"
+							date={playerProfile.lastPlayedDate}
+						></wa-format-date>
+					</wa-badge>
+				{:else}
+					<wa-badge appearance="filled" variant="brand">Present</wa-badge>
+				{/if}
+			</div>
+		{:else}
+			<wa-badge appearance="outlined" variant="neutral">No Major League Debut</wa-badge>
+		{/if}
+		<wa-divider orientation="vertical"></wa-divider>
+		<p>{playerProfile.primaryPosition?.name}</p>
+		<wa-divider orientation="vertical"></wa-divider>
+		<wa-badge appearance="filled" size="l" variant="neutral"
+			>Bats: {playerProfile.batSide?.description || 'N/A'}</wa-badge
+		>
+		<wa-divider orientation="vertical"></wa-divider>
+		<wa-badge appearance="filled" size="l" variant="neutral"
+			>Throws: {playerProfile.pitchHand?.description || 'N/A'}</wa-badge
+		>
+		<wa-divider orientation="vertical"></wa-divider>
+		<p>{playerProfile.weight} lbs</p>
+		<wa-divider orientation="vertical"></wa-divider>
+		<p>{playerProfile.height}</p>
+	</div>
 
-	<wa-divider></wa-divider>
+	<wa-divider style="margin-top: 0px;"></wa-divider>
 
-	<wa-tab-group placement="start">
-		<wa-tab panel="overview">Overview</wa-tab>
-		<wa-tab panel="batting">Batting</wa-tab>
-		<wa-tab panel="pitching">Pitching</wa-tab>
-		<wa-tab panel="fielding">Fielding</wa-tab>
-		<wa-tab panel="awards">Awards</wa-tab>
+	{#key isDesktop}
+		<wa-tab-group placement={isDesktop ? 'start' : 'top'}>
+			<wa-tab panel="overview">Overview</wa-tab>
+			<wa-tab panel="batting">Batting</wa-tab>
+			<wa-tab panel="pitching">Pitching</wa-tab>
+			<wa-tab panel="fielding">Fielding</wa-tab>
+			<wa-tab panel="awards">Awards</wa-tab>
 
-		<wa-tab-panel name="overview">
-			<div class="advanced-tab-panel">
+			<wa-tab-panel name="overview">
+				<div class="advanced-tab-panel">
+					<div class="horizontal-wrapper">
+						<h3 id="advancedExplanationStandard">Overview</h3>
+						<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
+
+						<div class="dropdown-and-switch-wrapper">
+							<wa-select
+								id="battingYearSelector"
+								value={userSelectedYearStandard}
+								disabled={isCareerMode || availableSeasonsStandard.length <= 1 || null}
+								class="year-dropdown"
+								size="s"
+								onchange={(e) => {
+									userSelectedYearStandard = e.target.value;
+								}}
+							>
+								{#if availableSeasonsStandard.length === 0}
+									<wa-option value={userSelectedYearStandard} selected={true}
+										>{userSelectedYearStandard}</wa-option
+									>
+								{:else}
+									{#each availableSeasonsStandard as season}
+										<wa-option
+											value={season}
+											selected={season === userSelectedYearStandard || null}
+										>
+											{season}
+										</wa-option>
+									{/each}
+								{/if}
+							</wa-select>
+							<wa-switch
+								class="no-wrap-switch"
+								checked={isCareerMode || (null && advancedDisplayMode === 'career') || null}
+								onchange={(e) => {
+									isCareerMode = e.target.checked;
+									advancedDisplayMode = e.target.checked ? 'career' : 'season';
+								}}
+							>
+								Career Stats
+							</wa-switch>
+						</div>
+					</div>
+
+					<div class="overview-boxes-wrapper">
+						{#if advancedDisplayMode === 'career'}
+							<StatBox
+								label="Career bWAR"
+								abbr="WAR"
+								careerSeasonLength={Object.keys(advancedStats.seasons).length}
+								percentile={advancedStats.careerWar}
+								isRetired={advancedStats.isRetired}
+								tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player. 60+ WAR is the standard benchmark for the Hall of Fame. Accumulated over {Object.keys(
+									advancedStats.seasons
+								).length} seasons"
+							/>
+						{:else}
+							<StatBox
+								label="Career bWAR"
+								abbr="WAR"
+								careerSeasonLength={Object.keys(advancedStats.seasons).length}
+								percentile={advancedStats.careerWar}
+								isRetired={advancedStats.isRetired}
+								tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player. 60+ WAR is the standard benchmark for the Hall of Fame. Accumulated over {Object.keys(
+									advancedStats.seasons
+								).length} seasons"
+							/>
+							<StatBox
+								label="{advancedSelectedSeason} bWAR"
+								abbr="WAR"
+								percentile={advancedStats.seasons[advancedSelectedSeason]?.war != null
+									? parseFloat(advancedStats.seasons[advancedSelectedSeason].war).toFixed(1)
+									: advancedStats.currentSeasonWar}
+								isRetired={advancedStats.isRetired}
+								tooltipText="Wins added over a replacement-level backup this season. 2.0+ is a solid starter, 5.0+ is an All-Star, and 8.0+ is an MVP-caliber performance."
+							/>
+						{/if}
+
+						<StatBox
+							label={advancedDisplayMode === 'career'
+								? 'Career OPS+'
+								: `${advancedSelectedSeason} OPS+`}
+							abbr="OPS+"
+							percentile={advancedDisplayMode === 'career'
+								? advancedStats.careerOpsPlus
+								: (advancedStats.seasons[advancedSelectedSeason]?.ops ?? 'N/A')}
+							isRetired={advancedStats.isRetired}
+							tooltipText={advancedDisplayMode === 'career'
+								? 'Park-adjusted offensive production over their career. 100 is league average; a 150 score means the hitter was 50% better than the rest of the league.'
+								: 'Park-adjusted offensive production for this season. 100 is league average; a 150 score means the hitter was 50% better than the rest of the league.'}
+						/>
+
+						<StatBox
+							label={advancedDisplayMode === 'career'
+								? 'Career ERA+'
+								: `${advancedSelectedSeason} ERA+`}
+							abbr="ERA+"
+							percentile={advancedDisplayMode === 'career'
+								? advancedStats.careerEraPlus
+								: (advancedStats.seasons[advancedSelectedSeason]?.era ?? 'N/A')}
+							isRetired={advancedStats.isRetired}
+							tooltipText={advancedDisplayMode === 'career'
+								? 'Park and league-adjusted pitching efficiency for their career. 100 is perfectly average; higher numbers are better (e.g., 125 means 25% better at preventing runs).'
+								: 'Park and league-adjusted pitching efficiency for this season. 100 is perfectly average; higher numbers are better (e.g., 125 means 25% better at preventing runs).'}
+						/>
+					</div>
+					<wa-divider></wa-divider>
+					{#if isCareerMode || availableSeasonsStandard.length > 0}
+						<div class="overview-boxes-wrapper-standard">
+							{#each standardBattingConfig.filter((s) => s.category === 'standard') as stat}
+								{@const rawValue = activeSeasonStats?.[stat.key]}
+								{#if rawValue !== undefined && rawValue !== null}
+									{@const formattedValue = ['avg', 'obp', 'slg', 'ops'].includes(stat.key)
+										? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue))
+												.toFixed(3)
+												.replace(/^0/, '')
+										: rawValue}
+
+									<StatBoxStandard
+										label={stat.label}
+										abbr={stat.abbr}
+										stat={formattedValue}
+										tooltipText={stat.description}
+									/>
+								{/if}
+							{/each}
+						</div>
+					{/if}
+				</div>
+			</wa-tab-panel>
+
+			<wa-tab-panel name="batting">
 				<div class="horizontal-wrapper">
-					<h3 id="advancedExplanationStandard">Overview</h3>
-					<wa-divider orientation="vertical"></wa-divider>
+					<h3 id="battingExplanationStandard">Batting Stats</h3>
+					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
 
 					<div class="dropdown-and-switch-wrapper">
 						<wa-select
@@ -616,12 +761,12 @@
 								{/each}
 							{/if}
 						</wa-select>
+
 						<wa-switch
 							class="no-wrap-switch"
-							checked={isCareerMode || (null && advancedDisplayMode === 'career') || null}
+							checked={isCareerMode || null}
 							onchange={(e) => {
 								isCareerMode = e.target.checked;
-								advancedDisplayMode = e.target.checked ? 'career' : 'season';
 							}}
 						>
 							Career Stats
@@ -629,543 +774,423 @@
 					</div>
 				</div>
 
-				<div class="overview-boxes-wrapper">
-					{#if advancedDisplayMode === 'career'}
-						<StatBox
-							label="Career bWAR"
-							abbr="WAR"
-							careerSeasonLength={Object.keys(advancedStats.seasons).length}
-							percentile={advancedStats.careerWar}
-							isRetired={advancedStats.isRetired}
-							tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player. 60+ WAR is the standard benchmark for the Hall of Fame. Accumulated over {Object.keys(
-								advancedStats.seasons
-							).length} seasons"
-						/>
-					{:else}
-						<StatBox
-							label="Career bWAR"
-							abbr="WAR"
-							careerSeasonLength={Object.keys(advancedStats.seasons).length}
-							percentile={advancedStats.careerWar}
-							isRetired={advancedStats.isRetired}
-							tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player. 60+ WAR is the standard benchmark for the Hall of Fame. Accumulated over {Object.keys(
-								advancedStats.seasons
-							).length} seasons"
-						/>
-						<StatBox
-							label="{advancedSelectedSeason} bWAR"
-							abbr="WAR"
-							percentile={advancedStats.seasons[advancedSelectedSeason]?.war != null
-								? parseFloat(advancedStats.seasons[advancedSelectedSeason].war).toFixed(1)
-								: advancedStats.currentSeasonWar}
-							isRetired={advancedStats.isRetired}
-							tooltipText="Wins added over a replacement-level backup this season. 2.0+ is a solid starter, 5.0+ is an All-Star, and 8.0+ is an MVP-caliber performance."
-						/>
-					{/if}
-
-					<StatBox
-						label={advancedDisplayMode === 'career'
-							? 'Career OPS+'
-							: `${advancedSelectedSeason} OPS+`}
-						abbr="OPS+"
-						percentile={advancedDisplayMode === 'career'
-							? advancedStats.careerOpsPlus
-							: (advancedStats.seasons[advancedSelectedSeason]?.ops ?? 'N/A')}
-						isRetired={advancedStats.isRetired}
-						tooltipText={advancedDisplayMode === 'career'
-							? 'Park-adjusted offensive production over their career. 100 is league average; a 150 score means the hitter was 50% better than the rest of the league.'
-							: 'Park-adjusted offensive production for this season. 100 is league average; a 150 score means the hitter was 50% better than the rest of the league.'}
-					/>
-
-					<StatBox
-						label={advancedDisplayMode === 'career'
-							? 'Career ERA+'
-							: `${advancedSelectedSeason} ERA+`}
-						abbr="ERA+"
-						percentile={advancedDisplayMode === 'career'
-							? advancedStats.careerEraPlus
-							: (advancedStats.seasons[advancedSelectedSeason]?.era ?? 'N/A')}
-						isRetired={advancedStats.isRetired}
-						tooltipText={advancedDisplayMode === 'career'
-							? 'Park and league-adjusted pitching efficiency for their career. 100 is perfectly average; higher numbers are better (e.g., 125 means 25% better at preventing runs).'
-							: 'Park and league-adjusted pitching efficiency for this season. 100 is perfectly average; higher numbers are better (e.g., 125 means 25% better at preventing runs).'}
-					/>
-				</div>
-				<wa-divider></wa-divider>
-				{#if isCareerMode || availableSeasonsStandard.length > 0}
-					<div class="overview-boxes-wrapper-standard">
-						{#each standardBattingConfig.filter((s) => s.category === 'standard') as stat}
-							{@const rawValue = activeSeasonStats?.[stat.key]}
-							{#if rawValue !== undefined && rawValue !== null}
-								{@const formattedValue = ['avg', 'obp', 'slg', 'ops'].includes(stat.key)
-									? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue))
-											.toFixed(3)
-											.replace(/^0/, '')
-									: rawValue}
-
-								<StatBoxStandard
-									label={stat.label}
-									abbr={stat.abbr}
-									stat={formattedValue}
-									tooltipText={stat.description}
-								/>
-							{/if}
-						{/each}
-					</div>
-				{/if}
-			</div>
-		</wa-tab-panel>
-
-		<wa-tab-panel name="batting">
-			<div class="horizontal-wrapper">
-				<h3 id="battingExplanationStandard">Batting Stats</h3>
-				<wa-divider orientation="vertical"></wa-divider>
-
-				<div class="dropdown-and-switch-wrapper">
-					<wa-select
-						id="battingYearSelector"
-						value={userSelectedYearStandard}
-						disabled={isCareerMode || availableSeasonsStandard.length <= 1 || null}
-						class="year-dropdown"
-						size="s"
-						onchange={(e) => {
-							userSelectedYearStandard = e.target.value;
-						}}
-					>
-						{#if availableSeasonsStandard.length === 0}
-							<wa-option value={userSelectedYearStandard} selected={true}
-								>{userSelectedYearStandard}</wa-option
-							>
-						{:else}
-							{#each availableSeasonsStandard as season}
-								<wa-option value={season} selected={season === userSelectedYearStandard || null}>
-									{season}
-								</wa-option>
-							{/each}
-						{/if}
-					</wa-select>
-
-					<wa-switch
-						class="no-wrap-switch"
-						checked={isCareerMode || null}
-						onchange={(e) => {
-							isCareerMode = e.target.checked;
-						}}
-					>
-						Career Stats
-					</wa-switch>
-				</div>
-			</div>
-
-			{#if availableSeasonsStandard.length > 0}
-				<div class="stats-grid-container">
-					<div class="stats-column">
-						<div class="category-heading-wrapper"><h4 class="category-heading">Standard</h4></div>
-						<div class="wa-stack" style="gap: 0px">
-							{#each standardBattingConfig.filter((s) => s.category === 'standard') as stat}
-								{@const rawValue = activeSeasonStats?.[stat.key]}
-								{#if rawValue !== undefined && rawValue !== null}
-									{@const formattedValue = ['avg', 'obp', 'slg', 'ops'].includes(stat.key)
-										? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue))
-												.toFixed(3)
-												.replace(/^0/, '')
-										: rawValue}
-									<div id="stat-pill-{stat.key}">
-										<StatPill
-											label={stat.label}
-											abbr={stat.abbr}
-											percentile={formattedValue}
-											tooltipText={stat.description}
-										/>
-									</div>
-								{:else}
-									<StatPill label={stat.label} abbr={stat.abbr} percentile="-.--" />
-								{/if}
-							{/each}
-						</div>
-					</div>
-					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-					<div class="stats-column">
-						<div class="category-heading-wrapper"><h4 class="category-heading">Counting</h4></div>
-						<div class="wa-stack" style="gap: 0px">
-							{#each standardBattingConfig.filter((s) => s.category === 'counting') as stat}
-								{#if activeSeasonStats?.[stat.key] !== undefined && activeSeasonStats?.[stat.key] !== null}
-									<StatPill
-										abbr={stat.abbr}
-										label={stat.label}
-										percentile={activeSeasonStats[stat.key]}
-										tooltipText={stat.description}
-									/>
-								{:else}
-									<StatPill label={stat.label} abbr={stat.abbr} percentile="N/A" />
-								{/if}
-							{/each}
-						</div>
-					</div>
-					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-					<div class="stats-column">
-						<div class="category-heading-wrapper">
-							<h4 class="category-heading">Situational</h4>
-						</div>
-						<div class="wa-stack" style="gap: 0px">
-							{#each standardBattingConfig.filter((s) => s.category === 'situational') as stat}
-								{#if activeSeasonStats?.[stat.key] !== undefined && activeSeasonStats?.[stat.key] !== null}
-									<StatPill
-										abbr={stat.abbr}
-										label={stat.label}
-										percentile={activeSeasonStats[stat.key]}
-										tooltipText={stat.description}
-									/>
-								{:else}
-									<StatPill label={stat.label} abbr={stat.abbr} percentile="N/A" />
-								{/if}
-							{/each}
-						</div>
-					</div>
-				</div>
-			{:else}
-				<p>No hitting records found for this player.</p>
-			{/if}
-
-			<wa-divider class="section-divider"></wa-divider>
-
-			<wa-tooltip for="battingExplanation">
-				93 would mean a player is in the top 7 percent of MLB players in that category. 50 is always
-				going to be the league average.
-			</wa-tooltip>
-			<div class="horizontal-wrapper">
-				<h3 id="battingExplanation" class="help-trigger">Batting Percentiles</h3>
-				<wa-divider orientation="vertical"></wa-divider>
-				<wa-badge variant="brand" appearance="filled">Higher number is better</wa-badge>
-				<wa-divider orientation="vertical"></wa-divider>
-				{#if availableSeasons.length === 0}
-					<wa-tooltip for="percentileYearSelector">
-						Only 2015-Present data available for statcast percentiles or player has no data to show
-					</wa-tooltip>
-				{/if}
-				<wa-select
-					id="percentileYearSelector"
-					value={userSelectedYear}
-					disabled={availableSeasons.length <= 1 || null}
-					size="s"
-					class="year-dropdown"
-					onchange={(e) => {
-						userSelectedYear = e.target.value;
-					}}
-				>
-					{#if availableSeasons.length === 0}
-						<wa-option value={userSelectedYear}>{userSelectedYear}</wa-option>
-					{:else}
-						{#each availableSeasons as season}
-							<wa-option value={season}>{season}</wa-option>
-						{/each}
-					{/if}
-				</wa-select>
-			</div>
-
-			{#if availableSeasons.length > 0}
-				<div class="stats-grid-container">
-					<div class="stats-column">
-						<div class="category-heading-wrapper">
-							<h4 class="category-heading">Power Profile</h4>
-						</div>
-						<div class="wa-stack">
-							{#each battingStatConfig.filter((s) => s.category === 'profile') as stat}
-								{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
-									<StatBar
-										label={stat.label}
-										percentile={battingPercentileStats[stat.key]}
-										tooltipText={stat.description}
-									/>
-								{:else}
-									<StatBar label="No data" percentile="N/A" />
-								{/if}
-							{/each}
-						</div>
-					</div>
-					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-					<div class="stats-column">
-						<div class="category-heading-wrapper">
-							<h4 class="category-heading">Plate Discipline</h4>
-						</div>
-						<div class="wa-stack">
-							{#each battingStatConfig.filter((s) => s.category === 'discipline') as stat}
-								{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
-									<StatBar
-										label={stat.label}
-										percentile={battingPercentileStats[stat.key]}
-										tooltipText={stat.description}
-									/>
-								{:else}
-									<StatBar label="No data" percentile="N/A" />
-								{/if}
-							{/each}
-						</div>
-					</div>
-					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-					<div class="stats-column">
-						<div class="category-heading-wrapper">
-							<wa-tooltip for="expectedHeading"
-								>Calculates what a player's numbers should look like based entirely on exit velocity
-								and launch angle, completely removing defense. If a player's real stats are much
-								lower than the expected, they have arguably been getting unlucky.</wa-tooltip
-							>
-							<h4 class="category-heading help-trigger" id="expectedHeading">Expected Metrics</h4>
-						</div>
-						<div class="wa-stack">
-							{#each battingStatConfig.filter((s) => s.category === 'expected') as stat}
-								{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
-									<StatBar
-										label={stat.label}
-										percentile={battingPercentileStats[stat.key]}
-										tooltipText={stat.description}
-									/>
-								{:else}
-									<StatBar label="No data" percentile="N/A" />
-								{/if}
-							{/each}
-						</div>
-					</div>
-				</div>
-			{:else}
-				<p>Statcast advanced percentile metrics are unavailable for this player.</p>
-			{/if}
-		</wa-tab-panel>
-
-		<wa-tab-panel name="pitching">
-			<div class="horizontal-wrapper">
-				<h3 id="pitchingExplanationStandard">Pitching Stats</h3>
-				<wa-divider orientation="vertical"></wa-divider>
-
-				<div class="dropdown-and-switch-wrapper">
-					<wa-select
-						id="pitchingYearSelector"
-						value={userSelectedYearPitching}
-						disabled={isCareerMode || availableSeasonsPitching.length <= 1 || null}
-						class="year-dropdown"
-						size="s"
-						onchange={(e) => {
-							userSelectedYearPitching = e.target.value;
-						}}
-					>
-						{#if availableSeasonsPitching.length === 0}
-							<wa-option value={userSelectedYearPitching} selected={true}>
-								{userSelectedYearPitching}
-							</wa-option>
-						{:else}
-							{#each availableSeasonsPitching as season}
-								<wa-option value={season} selected={season === userSelectedYearPitching || null}>
-									{season}
-								</wa-option>
-							{/each}
-						{/if}
-					</wa-select>
-
-					<wa-switch
-						class="no-wrap-switch"
-						checked={isCareerMode || null}
-						onchange={(e) => {
-							isCareerMode = e.target.checked;
-						}}
-					>
-						Career Stats
-					</wa-switch>
-				</div>
-			</div>
-
-			{#if availableSeasonsPitching.length > 0}
-				<div class="stats-grid-container">
-					<div class="stats-column">
-						<div class="category-heading-wrapper"><h4 class="category-heading">Standard</h4></div>
-						<div class="wa-stack" style="gap: 0px">
-							{#each standardPitchingConfig.filter((s) => s.category === 'standard') as stat}
-								{@const rawValue = activePitchingStats?.[stat.key]}
-								{#if rawValue !== undefined && rawValue !== null}
-									{@const formattedValue = ['era', 'whip', 'ops', 'obp'].includes(stat.key)
-										? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue))
-												.toFixed(3)
-												.replace(/^0/, '')
-										: ['strikeoutsPer9Inn', 'walksPer9Inn'].includes(stat.key)
-											? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue)).toFixed(2)
+				{#if availableSeasonsStandard.length > 0}
+					<div class="stats-grid-container">
+						<div class="stats-column">
+							<div class="category-heading-wrapper"><h4 class="category-heading">Standard</h4></div>
+							<div class="wa-stack" style="gap: 0px">
+								{#each standardBattingConfig.filter((s) => s.category === 'standard') as stat}
+									{@const rawValue = activeSeasonStats?.[stat.key]}
+									{#if rawValue !== undefined && rawValue !== null}
+										{@const formattedValue = ['avg', 'obp', 'slg', 'ops'].includes(stat.key)
+											? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue))
+													.toFixed(3)
+													.replace(/^0/, '')
 											: rawValue}
-									<div id="stat-pill-{stat.key}">
-										<StatPill
-											label={stat.label}
-											abbr={stat.abbr}
-											percentile={formattedValue}
-											tooltipText={stat.description}
-										/>
-									</div>
-								{:else}
-									<StatPill label={stat.label} abbr={stat.abbr} percentile="-.--" />
-								{/if}
-							{/each}
-						</div>
-					</div>
-
-					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-
-					<div class="stats-column">
-						<div class="category-heading-wrapper"><h4 class="category-heading">Counting</h4></div>
-						<div class="wa-stack" style="gap: 0px">
-							{#each standardPitchingConfig.filter((s) => s.category === 'counting') as stat}
-								{#if activePitchingStats?.[stat.key] !== undefined && activePitchingStats?.[stat.key] !== null}
-									<StatPill
-										abbr={stat.abbr}
-										label={stat.label}
-										percentile={activePitchingStats[stat.key]}
-										tooltipText={stat.description}
-									/>
-								{:else}
-									<StatPill label={stat.label} abbr={stat.abbr} percentile="N/A" />
-								{/if}
-							{/each}
-						</div>
-					</div>
-				</div>
-			{:else}
-				<p>No pitching records found for this player.</p>
-			{/if}
-		</wa-tab-panel>
-
-		<wa-tab-panel name="fielding">
-			<div class="horizontal-wrapper">
-				<h3 id="fieldingExplanationStandard">Fielding Stats</h3>
-				<wa-divider orientation="vertical"></wa-divider>
-
-				<div class="dropdown-and-switch-wrapper">
-					<wa-select
-						id="fieldingPositionSelector"
-						value={userSelectedFieldingPosition}
-						disabled={availableFieldingPositions.length <= 1 || null}
-						class="position-dropdown"
-						size="s"
-						onchange={(e) => {
-							userSelectedFieldingPosition = e.target.value;
-						}}
-					>
-						<wa-option value="ALL"> All </wa-option>
-						{#each availableFieldingPositions as pos}
-							<wa-option value={pos}>
-								{pos}
-							</wa-option>
-						{/each}
-					</wa-select>
-
-					<wa-select
-						id="fieldingYearSelector"
-						value={userSelectedYearFielding}
-						disabled={isCareerMode || availableSeasonsFielding.length <= 1 || null}
-						class="year-dropdown"
-						size="s"
-						onchange={(e) => {
-							userSelectedYearFielding = e.target.value;
-						}}
-					>
-						{#if availableSeasonsFielding.length === 0}
-							<wa-option value={userSelectedYearFielding} selected={true}>
-								{userSelectedYearFielding}
-							</wa-option>
-						{:else}
-							{#each availableSeasonsFielding as season}
-								<wa-option value={season} selected={season === userSelectedYearFielding || null}>
-									{season}
-								</wa-option>
-							{/each}
-						{/if}
-					</wa-select>
-
-					<wa-switch
-						class="no-wrap-switch"
-						checked={isCareerMode || null}
-						onchange={(e) => {
-							isCareerMode = e.target.checked;
-						}}
-					>
-						Career Stats
-					</wa-switch>
-				</div>
-			</div>
-
-			{#if availableSeasonsFielding.length > 0}
-				<div class="stats-grid-container">
-					<div class="stats-column">
-						<div class="category-heading-wrapper"><h4 class="category-heading">Standard</h4></div>
-						<div class="wa-stack" style="gap: 0px">
-							{#each standardFieldingStatsConfig.filter((s) => s.category === 'standard') as stat}
-								{@const rawValue = activeFieldingStats?.[stat.key]}
-								{#if rawValue !== undefined && rawValue !== null}
-									{@const formattedValue =
-										stat.key === 'fielding'
-											? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue)).toFixed(3)
-											: (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue)).toFixed(2)}
-									<div id="stat-pill-{stat.key}">
-										<StatPill
-											label={stat.label}
-											abbr={stat.abbr}
-											percentile={formattedValue}
-											tooltipText={stat.description}
-										/>
-									</div>
-								{:else}
-									<StatPill label={stat.label} abbr={stat.abbr} percentile="-.--" />
-								{/if}
-							{/each}
-						</div>
-					</div>
-
-					<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-
-					<div class="stats-column">
-						<div class="category-heading-wrapper"><h4 class="category-heading">Counting</h4></div>
-						<div class="wa-stack" style="gap: 0px">
-							{#each standardFieldingStatsConfig.filter((s) => s.category === 'counting') as stat}
-								{#if activeFieldingStats?.[stat.key] !== undefined && activeFieldingStats?.[stat.key] !== null}
-									<StatPill
-										abbr={stat.abbr}
-										label={stat.label}
-										percentile={activeFieldingStats[stat.key]}
-										tooltipText={stat.description}
-									/>
-								{:else}
-									<StatPill label={stat.label} abbr={stat.abbr} percentile="N/A" />
-								{/if}
-							{/each}
-						</div>
-					</div>
-				</div>
-			{:else}
-				<p>No fielding records found for this player.</p>
-			{/if}
-		</wa-tab-panel>
-
-		<wa-tab-panel name="awards">
-			<div class="horizontal-wrapper">
-				<h3>Player Awards</h3>
-			</div>
-			{#if processedAccolades.length > 0}
-				<div class="accolades-list">
-					{#each processedAccolades as honor}
-						<div class="honor-card">
-							<div>
-								<strong class="honor-label">{honor.label}</strong>
-								<span class="honor-count">({honor.count}x)</span>
-							</div>
-							<div class="honor-badges-wrapper">
-								{#each honor.seasons as yr}
-									<wa-badge appearance="filled" variant={honor.rank <= 4 ? 'brand' : 'neutral'}
-										>{yr}</wa-badge
-									>
+										<div id="stat-pill-{stat.key}">
+											<StatPill
+												label={stat.label}
+												abbr={stat.abbr}
+												percentile={formattedValue}
+												tooltipText={stat.description}
+											/>
+										</div>
+									{:else}
+										<StatPill label={stat.label} abbr={stat.abbr} percentile="-.--" />
+									{/if}
 								{/each}
 							</div>
 						</div>
-					{/each}
+						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+						<div class="stats-column">
+							<div class="category-heading-wrapper"><h4 class="category-heading">Counting</h4></div>
+							<div class="wa-stack" style="gap: 0px">
+								{#each standardBattingConfig.filter((s) => s.category === 'counting') as stat}
+									{#if activeSeasonStats?.[stat.key] !== undefined && activeSeasonStats?.[stat.key] !== null}
+										<StatPill
+											abbr={stat.abbr}
+											label={stat.label}
+											percentile={activeSeasonStats[stat.key]}
+											tooltipText={stat.description}
+										/>
+									{:else}
+										<StatPill label={stat.label} abbr={stat.abbr} percentile="N/A" />
+									{/if}
+								{/each}
+							</div>
+						</div>
+						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+						<div class="stats-column">
+							<div class="category-heading-wrapper">
+								<h4 class="category-heading">Situational</h4>
+							</div>
+							<div class="wa-stack" style="gap: 0px">
+								{#each standardBattingConfig.filter((s) => s.category === 'situational') as stat}
+									{#if activeSeasonStats?.[stat.key] !== undefined && activeSeasonStats?.[stat.key] !== null}
+										<StatPill
+											abbr={stat.abbr}
+											label={stat.label}
+											percentile={activeSeasonStats[stat.key]}
+											tooltipText={stat.description}
+										/>
+									{:else}
+										<StatPill label={stat.label} abbr={stat.abbr} percentile="N/A" />
+									{/if}
+								{/each}
+							</div>
+						</div>
+					</div>
+				{:else}
+					<p>No hitting records found for this player.</p>
+				{/if}
+
+				<wa-divider class="section-divider"></wa-divider>
+
+				<wa-tooltip for="battingExplanation">
+					93 would mean a player is in the top 7 percent of MLB players in that category. 50 is
+					always going to be the league average.
+				</wa-tooltip>
+				<div class="horizontal-wrapper">
+					<h3 id="battingExplanation" class="help-trigger">Batting Percentiles</h3>
+					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
+					<wa-badge variant="brand" appearance="filled">Higher number is better</wa-badge>
+					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
+					{#if availableSeasons.length === 0}
+						<wa-tooltip for="percentileYearSelector">
+							Only 2015-Present data available for statcast percentiles or player has no data to
+							show
+						</wa-tooltip>
+					{/if}
+					<wa-select
+						id="percentileYearSelector"
+						value={userSelectedYear}
+						disabled={availableSeasons.length <= 1 || null}
+						size="s"
+						class="year-dropdown"
+						onchange={(e) => {
+							userSelectedYear = e.target.value;
+						}}
+					>
+						{#if availableSeasons.length === 0}
+							<wa-option value={userSelectedYear}>{userSelectedYear}</wa-option>
+						{:else}
+							{#each availableSeasons as season}
+								<wa-option value={season}>{season}</wa-option>
+							{/each}
+						{/if}
+					</wa-select>
 				</div>
-			{:else}
-				<p>This player has not received any tracked MLB honors or awards.</p>
-			{/if}
-		</wa-tab-panel>
-	</wa-tab-group>
+
+				{#if availableSeasons.length > 0}
+					<div class="stats-grid-container">
+						<div class="stats-column">
+							<div class="category-heading-wrapper">
+								<h4 class="category-heading">Power Profile</h4>
+							</div>
+							<div class="wa-stack">
+								{#each battingStatConfig.filter((s) => s.category === 'profile') as stat}
+									{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
+										<StatBar
+											label={stat.label}
+											percentile={battingPercentileStats[stat.key]}
+											tooltipText={stat.description}
+										/>
+									{:else}
+										<StatBar label="No data" percentile="N/A" />
+									{/if}
+								{/each}
+							</div>
+						</div>
+						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+						<div class="stats-column">
+							<div class="category-heading-wrapper">
+								<h4 class="category-heading">Plate Discipline</h4>
+							</div>
+							<div class="wa-stack">
+								{#each battingStatConfig.filter((s) => s.category === 'discipline') as stat}
+									{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
+										<StatBar
+											label={stat.label}
+											percentile={battingPercentileStats[stat.key]}
+											tooltipText={stat.description}
+										/>
+									{:else}
+										<StatBar label="No data" percentile="N/A" />
+									{/if}
+								{/each}
+							</div>
+						</div>
+						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+						<div class="stats-column">
+							<div class="category-heading-wrapper">
+								<wa-tooltip for="expectedHeading"
+									>Calculates what a player's numbers should look like based entirely on exit
+									velocity and launch angle, completely removing defense. If a player's real stats
+									are much lower than the expected, they have arguably been getting unlucky.</wa-tooltip
+								>
+								<h4 class="category-heading help-trigger" id="expectedHeading">Expected Metrics</h4>
+							</div>
+							<div class="wa-stack">
+								{#each battingStatConfig.filter((s) => s.category === 'expected') as stat}
+									{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
+										<StatBar
+											label={stat.label}
+											percentile={battingPercentileStats[stat.key]}
+											tooltipText={stat.description}
+										/>
+									{:else}
+										<StatBar label="No data" percentile="N/A" />
+									{/if}
+								{/each}
+							</div>
+						</div>
+					</div>
+				{:else}
+					<p>Statcast advanced percentile metrics are unavailable for this player.</p>
+				{/if}
+			</wa-tab-panel>
+
+			<wa-tab-panel name="pitching">
+				<div class="horizontal-wrapper">
+					<h3 id="pitchingExplanationStandard">Pitching Stats</h3>
+					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
+
+					<div class="dropdown-and-switch-wrapper">
+						<wa-select
+							id="pitchingYearSelector"
+							value={userSelectedYearPitching}
+							disabled={isCareerMode || availableSeasonsPitching.length <= 1 || null}
+							class="year-dropdown"
+							size="s"
+							onchange={(e) => {
+								userSelectedYearPitching = e.target.value;
+							}}
+						>
+							{#if availableSeasonsPitching.length === 0}
+								<wa-option value={userSelectedYearPitching} selected={true}>
+									{userSelectedYearPitching}
+								</wa-option>
+							{:else}
+								{#each availableSeasonsPitching as season}
+									<wa-option value={season} selected={season === userSelectedYearPitching || null}>
+										{season}
+									</wa-option>
+								{/each}
+							{/if}
+						</wa-select>
+
+						<wa-switch
+							class="no-wrap-switch"
+							checked={isCareerMode || null}
+							onchange={(e) => {
+								isCareerMode = e.target.checked;
+							}}
+						>
+							Career Stats
+						</wa-switch>
+					</div>
+				</div>
+
+				{#if availableSeasonsPitching.length > 0}
+					<div class="stats-grid-container">
+						<div class="stats-column">
+							<div class="category-heading-wrapper"><h4 class="category-heading">Standard</h4></div>
+							<div class="wa-stack" style="gap: 0px">
+								{#each standardPitchingConfig.filter((s) => s.category === 'standard') as stat}
+									{@const rawValue = activePitchingStats?.[stat.key]}
+									{#if rawValue !== undefined && rawValue !== null}
+										{@const formattedValue = ['era', 'whip', 'ops', 'obp'].includes(stat.key)
+											? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue))
+													.toFixed(3)
+													.replace(/^0/, '')
+											: ['strikeoutsPer9Inn', 'walksPer9Inn'].includes(stat.key)
+												? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue)).toFixed(
+														2
+													)
+												: rawValue}
+										<div id="stat-pill-{stat.key}">
+											<StatPill
+												label={stat.label}
+												abbr={stat.abbr}
+												percentile={formattedValue}
+												tooltipText={stat.description}
+											/>
+										</div>
+									{:else}
+										<StatPill label={stat.label} abbr={stat.abbr} percentile="-.--" />
+									{/if}
+								{/each}
+							</div>
+						</div>
+
+						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+
+						<div class="stats-column">
+							<div class="category-heading-wrapper"><h4 class="category-heading">Counting</h4></div>
+							<div class="wa-stack" style="gap: 0px">
+								{#each standardPitchingConfig.filter((s) => s.category === 'counting') as stat}
+									{#if activePitchingStats?.[stat.key] !== undefined && activePitchingStats?.[stat.key] !== null}
+										<StatPill
+											abbr={stat.abbr}
+											label={stat.label}
+											percentile={activePitchingStats[stat.key]}
+											tooltipText={stat.description}
+										/>
+									{:else}
+										<StatPill label={stat.label} abbr={stat.abbr} percentile="N/A" />
+									{/if}
+								{/each}
+							</div>
+						</div>
+					</div>
+				{:else}
+					<p>No pitching records found for this player.</p>
+				{/if}
+			</wa-tab-panel>
+
+			<wa-tab-panel name="fielding">
+				<div class="horizontal-wrapper">
+					<h3 id="fieldingExplanationStandard">Fielding Stats</h3>
+					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
+
+					<div class="dropdown-and-switch-wrapper">
+						<wa-select
+							id="fieldingPositionSelector"
+							value={userSelectedFieldingPosition}
+							disabled={availableFieldingPositions.length <= 1 || null}
+							class="position-dropdown"
+							size="s"
+							onchange={(e) => {
+								userSelectedFieldingPosition = e.target.value;
+							}}
+						>
+							<wa-option value="ALL"> All </wa-option>
+							{#each availableFieldingPositions as pos}
+								<wa-option value={pos}>
+									{pos}
+								</wa-option>
+							{/each}
+						</wa-select>
+
+						<wa-select
+							id="fieldingYearSelector"
+							value={userSelectedYearFielding}
+							disabled={isCareerMode || availableSeasonsFielding.length <= 1 || null}
+							class="year-dropdown"
+							size="s"
+							onchange={(e) => {
+								userSelectedYearFielding = e.target.value;
+							}}
+						>
+							{#if availableSeasonsFielding.length === 0}
+								<wa-option value={userSelectedYearFielding} selected={true}>
+									{userSelectedYearFielding}
+								</wa-option>
+							{:else}
+								{#each availableSeasonsFielding as season}
+									<wa-option value={season} selected={season === userSelectedYearFielding || null}>
+										{season}
+									</wa-option>
+								{/each}
+							{/if}
+						</wa-select>
+
+						<wa-switch
+							class="no-wrap-switch"
+							checked={isCareerMode || null}
+							onchange={(e) => {
+								isCareerMode = e.target.checked;
+							}}
+						>
+							Career Stats
+						</wa-switch>
+					</div>
+				</div>
+
+				{#if availableSeasonsFielding.length > 0}
+					<div class="stats-grid-container">
+						<div class="stats-column">
+							<div class="category-heading-wrapper"><h4 class="category-heading">Standard</h4></div>
+							<div class="wa-stack" style="gap: 0px">
+								{#each standardFieldingStatsConfig.filter((s) => s.category === 'standard') as stat}
+									{@const rawValue = activeFieldingStats?.[stat.key]}
+									{#if rawValue !== undefined && rawValue !== null}
+										{@const formattedValue =
+											stat.key === 'fielding'
+												? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue)).toFixed(
+														3
+													)
+												: (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue)).toFixed(
+														2
+													)}
+										<div id="stat-pill-{stat.key}">
+											<StatPill
+												label={stat.label}
+												abbr={stat.abbr}
+												percentile={formattedValue}
+												tooltipText={stat.description}
+											/>
+										</div>
+									{:else}
+										<StatPill label={stat.label} abbr={stat.abbr} percentile="-.--" />
+									{/if}
+								{/each}
+							</div>
+						</div>
+
+						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
+
+						<div class="stats-column">
+							<div class="category-heading-wrapper"><h4 class="category-heading">Counting</h4></div>
+							<div class="wa-stack" style="gap: 0px">
+								{#each standardFieldingStatsConfig.filter((s) => s.category === 'counting') as stat}
+									{#if activeFieldingStats?.[stat.key] !== undefined && activeFieldingStats?.[stat.key] !== null}
+										<StatPill
+											abbr={stat.abbr}
+											label={stat.label}
+											percentile={activeFieldingStats[stat.key]}
+											tooltipText={stat.description}
+										/>
+									{:else}
+										<StatPill label={stat.label} abbr={stat.abbr} percentile="N/A" />
+									{/if}
+								{/each}
+							</div>
+						</div>
+					</div>
+				{:else}
+					<p>No fielding records found for this player.</p>
+				{/if}
+			</wa-tab-panel>
+
+			<wa-tab-panel name="awards">
+				<div class="horizontal-wrapper">
+					<h3>Player Awards</h3>
+				</div>
+				{#if processedAccolades.length > 0}
+					<div class="accolades-list">
+						{#each processedAccolades as honor}
+							<div class="honor-card">
+								<div>
+									<strong class="honor-label">{honor.label}</strong>
+									<span class="honor-count">({honor.count}x)</span>
+								</div>
+								<div class="honor-badges-wrapper">
+									{#each honor.seasons as yr}
+										<wa-badge appearance="filled" variant={honor.rank <= 4 ? 'brand' : 'neutral'}
+											>{yr}</wa-badge
+										>
+									{/each}
+								</div>
+							</div>
+						{/each}
+					</div>
+				{:else}
+					<p>This player has not received any tracked MLB honors or awards.</p>
+				{/if}
+			</wa-tab-panel>
+		</wa-tab-group>
+	{/key}
 {/if}
 
 <style>
@@ -1173,14 +1198,20 @@
 		display: flex;
 		flex-direction: column;
 		gap: 1.5rem;
+		margin-bottom: 1.5rem;
 		justify-content: center;
 	}
 	.player-name-and-team-wrapper {
 		display: flex;
 		align-items: center;
 	}
+	.player-name-and-team-wrapper .wa-heading-xl {
+		margin-right: 0.5rem;
+	}
 	wa-badge {
 		height: min-content;
+		white-space: nowrap;
+		min-width: min-content;
 	}
 	img {
 		max-width: 150px;
@@ -1193,6 +1224,7 @@
 		text-decoration: none;
 		color: inherit;
 	}
+
 	.image-container {
 		position: relative;
 		width: 150px;
@@ -1300,15 +1332,6 @@
 		border-bottom: 1px dashed var(--wa-color-border-quiet);
 		width: 100%;
 	}
-	@media (min-width: 1024px) {
-		.stats-grid-container {
-			grid-template-columns: 1fr auto 1fr auto 1fr;
-			gap: 1.5rem;
-		}
-		.grid-desktop-divider {
-			display: block;
-		}
-	}
 	.horizontal-wrapper {
 		display: flex;
 		align-items: center;
@@ -1326,11 +1349,14 @@
 	.small-details-wrapper {
 		display: flex;
 		align-items: center;
+		overflow-x: scroll;
 		gap: 0;
+		padding-bottom: 1.5rem;
 	}
 
 	.small-details-wrapper p {
 		margin: 0px;
+		white-space: nowrap;
 	}
 	.skeleton-overview wa-skeleton {
 		margin-bottom: 1rem;
@@ -1402,5 +1428,54 @@
 		display: flex;
 		gap: 0.25rem;
 		flex-wrap: wrap;
+	}
+
+	@media (min-width: 1024px) {
+		.stats-grid-container {
+			grid-template-columns: 1fr auto 1fr auto 1fr;
+			gap: 1.5rem;
+		}
+
+		.grid-desktop-divider {
+			display: block;
+		}
+	}
+
+	@media (max-width: 1024px) {
+		.small-details-wrapper {
+			mask-image: linear-gradient(to right, black calc(100% - 32px), transparent 100%);
+			-webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+		}
+	}
+
+	@media (max-width: 768px) {
+		.player-info-box {
+			align-items: center;
+		}
+
+		.player-name-and-team-wrapper {
+			flex-direction: column;
+			align-items: center;
+			gap: 1rem;
+		}
+
+		#verticalDividers {
+			display: none;
+		}
+
+		.horizontal-wrapper {
+			flex-direction: column;
+			gap: 1rem;
+			align-items: start;
+		}
+
+		.dropdown-and-switch-wrapper {
+			flex-direction: column;
+			align-items: start;
+		}
+
+		.honor-badges-wrapper {
+			justify-content: flex-end;
+		}
 	}
 </style>
