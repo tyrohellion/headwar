@@ -10,9 +10,9 @@
 	import { processPlayerAwards } from '../../../formatters/playerAwardFormatter';
 	import { standardPitchingConfig } from '../../../formatters/standardPitchingStatsConfig';
 	import { standardFieldingStatsConfig } from '../../../formatters/fieldingStatsConfig';
+	import { getSeasonProgressPercentage } from '../../../formatters/getSeasonProgressPercentage';
 	import { page } from '$app/stores';
-	import { untrack } from 'svelte';
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
 
 	import WaTabGroup from '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
 	import WaTabPanel from '@awesome.me/webawesome/dist/components/tab-panel/tab-panel.js';
@@ -32,6 +32,9 @@
 	import StatPill from '$lib/components/statPill.svelte';
 	import StatBox from '$lib/components/statBox.svelte';
 	import StatBoxStandard from '$lib/components/statBoxStandard.svelte';
+	import StatBoxStandardPitching from '$lib/components/statBoxStandardPitching.svelte';
+
+	const seasonProgress = $derived.by(() => getSeasonProgressPercentage());
 
 	let playerData = $state(null);
 	let loading = $state(true);
@@ -43,18 +46,11 @@
 	let isBattingPercentileStatsLoading = $state(false);
 
 	let userSelectedYear = $state(new Date().getFullYear().toString());
-	let userSelectedYearStandard = $state(new Date().getFullYear().toString());
-	let userSelectedYearPitching = $state(new Date().getFullYear().toString());
-	let userSelectedYearFielding = $state(new Date().getFullYear().toString());
-	let userSelectedFieldingPosition = $state('ALL');
-	let advancedYearSelection = $state('2026');
-	let hasDefaultedViewMode = $state(false);
-
 	let isCareerMode = $state(false);
 
+	let userSelectedFieldingPosition = $state('ALL');
+	let hasDefaultedViewMode = $state(false);
 	let advancedDisplayMode = $state('season');
-	let advancedSelectedSeason = $state('2026');
-
 	let isDesktop = $state(true);
 
 	onMount(() => {
@@ -88,14 +84,15 @@
 
 				const profile = info?.people?.[0];
 				if (profile?.mlbDebutDate) {
-					const finalYear = profile.lastPlayedDate
-						? new Date(profile.lastPlayedDate).getFullYear().toString()
-						: new Date().getFullYear().toString();
-
-					userSelectedYear = finalYear;
-					userSelectedYearStandard = finalYear;
-					userSelectedYearPitching = finalYear;
-					userSelectedYearFielding = finalYear;
+					untrack(() => {
+						if (availableOverviewSeasons.length > 0) {
+							userSelectedYear = availableOverviewSeasons[0];
+						} else {
+							userSelectedYear = profile.lastPlayedDate
+								? new Date(profile.lastPlayedDate).getFullYear().toString()
+								: new Date().getFullYear().toString();
+						}
+					});
 				}
 			} catch (err) {
 				errorMsg = err.message;
@@ -109,7 +106,7 @@
 
 	$effect(() => {
 		const id = $page.params.id;
-		const targetYear = userSelectedYearStandard || new Date().getFullYear().toString();
+		const targetYear = userSelectedYear || new Date().getFullYear().toString();
 
 		if (id) {
 			loadAdvancedMetrics(id, targetYear);
@@ -126,20 +123,12 @@
 	let processedAccolades = $derived(processPlayerAwards(playerProfile?.awards || []));
 
 	let hittingStatsBlock = $derived.by(() => {
-		if (!playerProfile?.stats) {
-			console.log('DEBUG 2 -> No stats array found on player profile object.');
-			return null;
-		}
-
-		const block = playerProfile.stats.find((s) => {
+		if (!playerProfile?.stats) return null;
+		return playerProfile.stats.find((s) => {
 			const groupName = (s.group?.name || s.group?.displayName || '').toLowerCase();
 			const typeName = (s.type?.code || s.type?.displayName || '').toLowerCase();
-
 			return groupName === 'hitting' && typeName === 'yearbyyear';
 		});
-
-		console.log('FIXED DEBUG 2 -> Matched hittingStatsBlock:', block);
-		return block;
 	});
 
 	let careerStatsBlock = $derived.by(() => {
@@ -149,26 +138,6 @@
 			const typeName = (s.type?.code || s.type?.displayName || '').toLowerCase();
 			return groupName === 'hitting' && typeName === 'career';
 		});
-	});
-
-	let activeSeasonStats = $derived.by(() => {
-		if (isCareerMode) {
-			const careerSplit = careerStatsBlock?.splits?.[0];
-			console.log('DEBUG CAREER -> Loading compiled lifetime stat array:', careerSplit);
-			return careerSplit?.stat || null;
-		}
-
-		console.log('DEBUG 3 -> Running filter for standard stat year:', userSelectedYearStandard);
-		if (!hittingStatsBlock?.splits) {
-			console.log('DEBUG 3 -> No splits available inside hittingStatsBlock.');
-			return null;
-		}
-
-		const matchingSplit = hittingStatsBlock.splits.find(
-			(split) => split.season === userSelectedYearStandard
-		);
-		console.log('DEBUG 3 -> matchingSplit result for current loop:', matchingSplit);
-		return matchingSplit?.stat || null;
 	});
 
 	let pitchingStatsBlock = $derived.by(() => {
@@ -189,72 +158,6 @@
 		});
 	});
 
-	let activePitchingStats = $derived.by(() => {
-		if (isCareerMode) {
-			return careerPitchingStatsBlock?.splits?.[0]?.stat || null;
-		}
-		if (!pitchingStatsBlock?.splits) return null;
-		const matchingSplit = pitchingStatsBlock.splits.find(
-			(split) => split.season === userSelectedYearPitching
-		);
-		return matchingSplit?.stat || null;
-	});
-
-	let availableSeasonsPitching = $derived.by(() => {
-		if (!pitchingStatsBlock?.splits) return [];
-		const years = pitchingStatsBlock.splits.map((split) => split.season);
-		return [...new Set(years)].sort((a, b) => parseInt(b) - parseInt(a));
-	});
-
-	let availableSeasons = $derived.by(() => {
-		if (!playerProfile?.mlbDebutDate) return [];
-		const rawStartYear = new Date(playerProfile.mlbDebutDate).getFullYear();
-		const startYear = Math.max(rawStartYear, 2015);
-		const endYear = playerProfile.lastPlayedDate
-			? new Date(playerProfile.lastPlayedDate).getFullYear()
-			: new Date().getFullYear();
-		if (endYear < 2015 || startYear > endYear) return [];
-
-		const years = [];
-		for (let y = endYear; y >= startYear; y--) {
-			years.push(y.toString());
-		}
-		return years;
-	});
-
-	let availableSeasonsStandard = $derived.by(() => {
-		if (!hittingStatsBlock?.splits) {
-			console.log('DEBUG 4 -> No splits found to compile availableSeasonsStandard dropdown.');
-			return [];
-		}
-		const years = hittingStatsBlock.splits.map((split) => split.season);
-		const uniqueYears = [...new Set(years)].sort((a, b) => parseInt(b) - parseInt(a));
-		console.log('DEBUG 4 -> Extracted unique years for standard dropdown:', uniqueYears);
-		return uniqueYears;
-	});
-
-	$effect(() => {
-		const id = $page.params.id;
-		const targetYear = userSelectedYear;
-		if (!id || availableSeasons.length === 0 || !availableSeasons.includes(targetYear)) {
-			battingPercentileStats = null;
-			return;
-		}
-
-		async function loadPercentiles() {
-			isBattingPercentileStatsLoading = true;
-			try {
-				battingPercentileStats = await getPlayerBattingPercentileStats(id, targetYear);
-			} catch (err) {
-				battingPercentileStats = null;
-			} finally {
-				isBattingPercentileStatsLoading = false;
-			}
-		}
-
-		loadPercentiles();
-	});
-
 	let fieldingStatsBlock = $derived.by(() => {
 		if (!playerProfile?.stats) return null;
 		return playerProfile.stats.find((s) => {
@@ -264,58 +167,49 @@
 		});
 	});
 
-	let availableSeasonsFielding = $derived.by(() => {
-		if (!fieldingStatsBlock?.splits) return [];
-		const years = fieldingStatsBlock.splits.map((split) => split.season);
-		return [...new Set(years)].sort((a, b) => parseInt(b) - parseInt(a));
+	let availableOverviewSeasons = $derived.by(() => {
+		const hittingYears = hittingStatsBlock?.splits?.map((split) => split.season) || [];
+		const pitchingYears = pitchingStatsBlock?.splits?.map((split) => split.season) || [];
+		const fieldingYears = fieldingStatsBlock?.splits?.map((split) => split.season) || [];
+		return [...new Set([...hittingYears, ...pitchingYears, ...fieldingYears])].sort(
+			(a, b) => parseInt(b) - parseInt(a)
+		);
 	});
 
-	let availableFieldingPositions = $derived.by(() => {
-		if (!fieldingStatsBlock?.splits) return [];
+	let activeSeasonStats = $derived.by(() => {
+		const currentYear = userSelectedYear;
+		const careerModeActive = isCareerMode;
 
-		const targetSplits = isCareerMode
-			? fieldingStatsBlock.splits
-			: fieldingStatsBlock.splits.filter((s) => s.season === userSelectedYearFielding);
-
-		const positionMap = {
-			LF: 'Left Field',
-			CF: 'Center Field',
-			RF: 'Right Field',
-			OF: 'Outfielder'
-		};
-
-		const positions = targetSplits
-			.map((s) => {
-				const abbrev = s.position?.abbreviation;
-				if (positionMap[abbrev]) {
-					return positionMap[abbrev];
-				}
-
-				return s.position?.name || s.position?.displayName;
-			})
-			.filter((posName) => posName && posName !== 'Designated Hitter');
-
-		return [...new Set(positions)];
+		if (careerModeActive) {
+			return careerStatsBlock?.splits?.[0]?.stat || null;
+		}
+		if (!hittingStatsBlock?.splits) return null;
+		const matchingSplit = hittingStatsBlock.splits.find((split) => split.season === currentYear);
+		return matchingSplit?.stat || null;
 	});
 
-	$effect(() => {
-		const positions = availableFieldingPositions;
+	let activePitchingStats = $derived.by(() => {
+		const currentYear = userSelectedYear;
+		const careerModeActive = isCareerMode;
 
-		untrack(() => {
-			if (positions.length === 1) {
-				userSelectedFieldingPosition = positions[0];
-			} else {
-				userSelectedFieldingPosition = 'ALL';
-			}
-		});
+		if (careerModeActive) {
+			return careerPitchingStatsBlock?.splits?.[0]?.stat || null;
+		}
+		if (!pitchingStatsBlock?.splits) return null;
+		const matchingSplit = pitchingStatsBlock.splits.find((split) => split.season === currentYear);
+		return matchingSplit?.stat || null;
 	});
 
 	let activeFieldingStats = $derived.by(() => {
+		const currentYear = userSelectedYear;
+		const careerModeActive = isCareerMode;
+		const selectedPosition = userSelectedFieldingPosition;
+
 		if (!fieldingStatsBlock?.splits) return null;
 
-		let targetSplits = isCareerMode
+		let targetSplits = careerModeActive
 			? fieldingStatsBlock.splits
-			: fieldingStatsBlock.splits.filter((s) => s.season === userSelectedYearFielding);
+			: fieldingStatsBlock.splits.filter((s) => s.season === currentYear);
 
 		targetSplits = targetSplits.filter(
 			(s) =>
@@ -323,20 +217,19 @@
 				s.position?.abbreviation !== 'DH'
 		);
 
-		if (userSelectedFieldingPosition !== 'ALL') {
+		if (selectedPosition !== 'ALL') {
 			const positionAbbrevMap = {
 				'Left Field': 'LF',
 				'Center Field': 'CF',
 				'Right Field': 'RF',
 				Outfielder: 'OF'
 			};
-			const targetAbbrev = positionAbbrevMap[userSelectedFieldingPosition];
+			const targetAbbrev = positionAbbrevMap[selectedPosition];
 
 			targetSplits = targetSplits.filter((s) => {
 				const name = s.position?.name || s.position?.displayName;
 				const abbrev = s.position?.abbreviation;
-
-				return name === userSelectedFieldingPosition || (targetAbbrev && abbrev === targetAbbrev);
+				return name === selectedPosition || (targetAbbrev && abbrev === targetAbbrev);
 			});
 		}
 
@@ -442,41 +335,109 @@
 		return aggregated;
 	});
 
-	$effect(() => {
-		const seasons = availableSeasons;
-		if (seasons.length > 0) {
-			untrack(() => {
-				if (!seasons.includes(advancedYearSelection)) {
-					advancedYearSelection = seasons[0];
-				}
-			});
+	let availableSeasons = $derived.by(() => {
+		if (!playerProfile?.mlbDebutDate) return [];
+		const rawStartYear = new Date(playerProfile.mlbDebutDate).getFullYear();
+		const startYear = Math.max(rawStartYear, 2015);
+		const endYear = playerProfile.lastPlayedDate
+			? new Date(playerProfile.lastPlayedDate).getFullYear()
+			: new Date().getFullYear();
+		if (endYear < 2015 || startYear > endYear) return [];
+
+		const years = [];
+		for (let y = endYear; y >= startYear; y--) {
+			years.push(y.toString());
 		}
+		return years;
 	});
 
 	$effect(() => {
-		if (userSelectedYearStandard) {
-			advancedSelectedSeason = userSelectedYearStandard;
+		const id = $page.params.id;
+		const targetYear = userSelectedYear;
+		if (!id || availableSeasons.length === 0 || !availableSeasons.includes(targetYear)) {
+			battingPercentileStats = null;
+			return;
+		}
+
+		async function loadPercentiles() {
+			isBattingPercentileStatsLoading = true;
+			try {
+				battingPercentileStats = await getPlayerBattingPercentileStats(id, targetYear);
+			} catch (err) {
+				battingPercentileStats = null;
+			} finally {
+				isBattingPercentileStatsLoading = false;
+			}
+		}
+
+		loadPercentiles();
+	});
+
+	let availableFieldingPositions = $derived.by(() => {
+		const currentYear = userSelectedYear;
+		const careerModeActive = isCareerMode;
+
+		if (!fieldingStatsBlock?.splits) return [];
+		const targetSplits = careerModeActive
+			? fieldingStatsBlock.splits
+			: fieldingStatsBlock.splits.filter((s) => s.season === currentYear);
+		const positionMap = {
+			LF: 'Left Field',
+			CF: 'Center Field',
+			RF: 'Right Field',
+			OF: 'Outfielder'
+		};
+
+		const positions = targetSplits
+			.map((s) => {
+				const abbrev = s.position?.abbreviation;
+				return positionMap[abbrev] || s.position?.name || s.position?.displayName;
+			})
+			.filter((posName) => posName && posName !== 'Designated Hitter');
+
+		return [...new Set(positions)];
+	});
+
+	$effect(() => {
+		const positions = availableFieldingPositions;
+		untrack(() => {
+			if (positions.length === 1) {
+				userSelectedFieldingPosition = positions[0];
+			} else if (!positions.includes(userSelectedFieldingPosition)) {
+				userSelectedFieldingPosition = 'ALL';
+			}
+		});
+	});
+
+	$effect(() => {
+		if (userSelectedYear) {
+			advancedDisplayMode = isCareerMode ? 'career' : 'season';
 		}
 	});
 
 	$effect(() => {
 		const id = $page.params.id;
-
 		untrack(() => {
 			id;
 			hasDefaultedViewMode = false;
 			isCareerMode = false;
 			advancedDisplayMode = 'season';
 
-			const currentYearFallback = new Date().getFullYear().toString();
-			userSelectedYearStandard = currentYearFallback;
-			userSelectedYearPitching = currentYearFallback;
-			userSelectedYearFielding = currentYearFallback;
+			if (availableOverviewSeasons.length > 0) {
+				userSelectedYear = availableOverviewSeasons[0];
+			} else {
+				userSelectedYear = new Date().getFullYear().toString();
+			}
 		});
 	});
 
 	$effect(() => {
-		if (!advancedStats.loading && advancedStats.isRetired && !hasDefaultedViewMode) {
+		if (
+			typeof advancedStats !== 'undefined' &&
+			!advancedStats.loading &&
+			advancedStats.isRetired &&
+			!hasDefaultedViewMode
+		) {
 			untrack(() => {
 				advancedDisplayMode = 'career';
 				isCareerMode = true;
@@ -544,51 +505,77 @@
 			</div>
 		</div>
 	</div>
-	<div class="small-details-wrapper">
-		<p>{playerProfile.deathDate ? 'Died at ' : ''}{playerProfile.currentAge} years old</p>
-		<wa-divider orientation="vertical"></wa-divider>
-		{#if playerProfile.mlbDebutDate}
-			<wa-tooltip for="debut-wrapper">Years active since MLB debut</wa-tooltip>
-			<div id="debut-wrapper">
-				<wa-badge appearance="outlined" variant="neutral">
-					<wa-format-date
-						month="long"
-						day="numeric"
-						year="numeric"
-						date={playerProfile.mlbDebutDate}
-					></wa-format-date>
-				</wa-badge>
-				<wa-icon name="arrow-right" label="arrow right" class="debut-arrow"></wa-icon>
-				{#if playerProfile.lastPlayedDate}
-					<wa-badge appearance="filled" size="l" variant="neutral">
+	<div class="details-filters-wrapper">
+		<div class="small-details-wrapper">
+			<p>{playerProfile.deathDate ? 'Died at ' : ''}{playerProfile.currentAge} years old</p>
+			<wa-divider orientation="vertical"></wa-divider>
+
+			{#if playerProfile.mlbDebutDate}
+				<wa-tooltip for="debut-wrapper">Years active since MLB debut</wa-tooltip>
+				<div id="debut-wrapper">
+					<wa-badge appearance="outlined" variant="neutral">
 						<wa-format-date
 							month="long"
 							day="numeric"
 							year="numeric"
-							date={playerProfile.lastPlayedDate}
+							date={playerProfile.mlbDebutDate}
 						></wa-format-date>
 					</wa-badge>
-				{:else}
-					<wa-badge appearance="filled" variant="brand">Present</wa-badge>
-				{/if}
-			</div>
-		{:else}
-			<wa-badge appearance="outlined" variant="neutral">No Major League Debut</wa-badge>
-		{/if}
-		<wa-divider orientation="vertical"></wa-divider>
-		<p>{playerProfile.primaryPosition?.name}</p>
-		<wa-divider orientation="vertical"></wa-divider>
-		<wa-badge appearance="filled" size="l" variant="neutral"
-			>Bats: {playerProfile.batSide?.description || 'N/A'}</wa-badge
-		>
-		<wa-divider orientation="vertical"></wa-divider>
-		<wa-badge appearance="filled" size="l" variant="neutral"
-			>Throws: {playerProfile.pitchHand?.description || 'N/A'}</wa-badge
-		>
-		<wa-divider orientation="vertical"></wa-divider>
-		<p>{playerProfile.weight} lbs</p>
-		<wa-divider orientation="vertical"></wa-divider>
-		<p>{playerProfile.height}</p>
+					<wa-icon name="arrow-right" label="arrow right" class="debut-arrow"></wa-icon>
+					{#if playerProfile.lastPlayedDate}
+						<wa-badge appearance="filled" size="l" variant="neutral">
+							<wa-format-date
+								month="long"
+								day="numeric"
+								year="numeric"
+								date={playerProfile.lastPlayedDate}
+							></wa-format-date>
+						</wa-badge>
+					{:else}
+						<wa-badge appearance="filled" variant="brand">Present</wa-badge>
+					{/if}
+				</div>
+			{:else}
+				<wa-badge appearance="outlined" variant="neutral">No Major League Debut</wa-badge>
+			{/if}
+			<wa-divider orientation="vertical"></wa-divider>
+			<p>{playerProfile.primaryPosition?.name}</p>
+			<wa-divider orientation="vertical"></wa-divider>
+			<wa-badge appearance="filled" size="l" variant="neutral"
+				>Bats: {playerProfile.batSide?.description || 'N/A'}</wa-badge
+			>
+			<wa-divider orientation="vertical"></wa-divider>
+			<wa-badge appearance="filled" size="l" variant="neutral"
+				>Throws: {playerProfile.pitchHand?.description || 'N/A'}</wa-badge
+			>
+			<wa-divider orientation="vertical"></wa-divider>
+			<p>{playerProfile.weight} lbs</p>
+			<wa-divider orientation="vertical"></wa-divider>
+			<p>{playerProfile.height}</p>
+		</div>
+		<div class="filter-controls-group">
+			{#if !isCareerMode && availableOverviewSeasons.length > 0}
+				<wa-select
+					appearance="filled"
+					size="s"
+					value={userSelectedYear}
+					onchange={(e) => (userSelectedYear = e.target.value)}
+					style="width: 110px;"
+				>
+					{#each availableOverviewSeasons as season}
+						<wa-option value={season}>{season}</wa-option>
+					{/each}
+				</wa-select>
+			{/if}
+
+			<wa-switch
+				size="s"
+				checked={isCareerMode}
+				onchange={(e) => (isCareerMode = e.target.checked)}
+			>
+				Career Stats
+			</wa-switch>
+		</div>
 	</div>
 
 	<wa-divider style="margin-top: 0px;"></wa-divider>
@@ -605,56 +592,17 @@
 				<div class="advanced-tab-panel">
 					<div class="horizontal-wrapper">
 						<h3 id="advancedExplanationStandard">Overview</h3>
-						<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
-
-						<div class="dropdown-and-switch-wrapper">
-							<wa-select
-								id="battingYearSelector"
-								value={userSelectedYearStandard}
-								disabled={isCareerMode || availableSeasonsStandard.length <= 1 || null}
-								class="year-dropdown"
-								size="s"
-								onchange={(e) => {
-									userSelectedYearStandard = e.target.value;
-								}}
-							>
-								{#if availableSeasonsStandard.length === 0}
-									<wa-option value={userSelectedYearStandard} selected={true}
-										>{userSelectedYearStandard}</wa-option
-									>
-								{:else}
-									{#each availableSeasonsStandard as season}
-										<wa-option
-											value={season}
-											selected={season === userSelectedYearStandard || null}
-										>
-											{season}
-										</wa-option>
-									{/each}
-								{/if}
-							</wa-select>
-							<wa-switch
-								class="no-wrap-switch"
-								checked={isCareerMode || (null && advancedDisplayMode === 'career') || null}
-								onchange={(e) => {
-									isCareerMode = e.target.checked;
-									advancedDisplayMode = e.target.checked ? 'career' : 'season';
-								}}
-							>
-								Career Stats
-							</wa-switch>
-						</div>
 					</div>
 
 					<div class="overview-boxes-wrapper">
-						{#if advancedDisplayMode === 'career'}
+						{#if isCareerMode}
 							<StatBox
 								label="Career bWAR"
 								abbr="WAR"
 								careerSeasonLength={Object.keys(advancedStats.seasons).length}
 								percentile={advancedStats.careerWar}
 								isRetired={advancedStats.isRetired}
-								tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player. 60+ WAR is the standard benchmark for the Hall of Fame. Accumulated over {Object.keys(
+								tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player. 60+ WAR is the standard benchmark for the Hall of Fame. {playerProfile.fullName} accumulated this amount over {Object.keys(
 									advancedStats.seasons
 								).length} seasons"
 							/>
@@ -665,52 +613,53 @@
 								careerSeasonLength={Object.keys(advancedStats.seasons).length}
 								percentile={advancedStats.careerWar}
 								isRetired={advancedStats.isRetired}
-								tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player. 60+ WAR is the standard benchmark for the Hall of Fame. Accumulated over {Object.keys(
+								tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player. 60+ WAR is the standard benchmark for the Hall of Fame. {playerProfile.fullName} accumulated this amount over {Object.keys(
 									advancedStats.seasons
 								).length} seasons"
 							/>
+
+							{const currentYear = new Date().getFullYear()}
 							<StatBox
-								label="{advancedSelectedSeason} bWAR"
+								label="{userSelectedYear} bWAR"
 								abbr="WAR"
-								percentile={advancedStats.seasons[advancedSelectedSeason]?.war != null
-									? parseFloat(advancedStats.seasons[advancedSelectedSeason].war).toFixed(1)
+								progressContext={String(userSelectedYear) === '2026' ? seasonProgress : undefined}
+								percentile={advancedStats.seasons[userSelectedYear]?.war != null
+									? parseFloat(advancedStats.seasons[userSelectedYear].war).toFixed(1)
 									: advancedStats.currentSeasonWar}
 								isRetired={advancedStats.isRetired}
-								tooltipText="Wins added over a replacement-level backup this season. 2.0+ is a solid starter, 5.0+ is an All-Star, and 8.0+ is an MVP-caliber performance."
+								tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player throughout the selected season. 2.0+ is a solid starter, 5.0+ is an All-Star, and 8.0+ is an MVP-caliber performance. This stat is additive over the year. The percentage value is how far into the MLB season we are."
 							/>
 						{/if}
 
 						<StatBox
-							label={advancedDisplayMode === 'career'
-								? 'Career OPS+'
-								: `${advancedSelectedSeason} OPS+`}
+							label={isCareerMode ? 'Career OPS+' : `${userSelectedYear} OPS+`}
 							abbr="OPS+"
-							percentile={advancedDisplayMode === 'career'
+							percentile={isCareerMode
 								? advancedStats.careerOpsPlus
-								: (advancedStats.seasons[advancedSelectedSeason]?.ops ?? 'N/A')}
+								: (advancedStats.seasons[userSelectedYear]?.ops ?? 'N/A')}
 							isRetired={advancedStats.isRetired}
-							tooltipText={advancedDisplayMode === 'career'
+							tooltipText={isCareerMode
 								? 'Park-adjusted offensive production over their career. 100 is league average; a 150 score means the hitter was 50% better than the rest of the league.'
 								: 'Park-adjusted offensive production for this season. 100 is league average; a 150 score means the hitter was 50% better than the rest of the league.'}
 						/>
 
 						<StatBox
-							label={advancedDisplayMode === 'career'
-								? 'Career ERA+'
-								: `${advancedSelectedSeason} ERA+`}
+							label={isCareerMode ? 'Career ERA+' : `${userSelectedYear} ERA+`}
 							abbr="ERA+"
-							percentile={advancedDisplayMode === 'career'
+							percentile={isCareerMode
 								? advancedStats.careerEraPlus
-								: (advancedStats.seasons[advancedSelectedSeason]?.era ?? 'N/A')}
+								: (advancedStats.seasons[userSelectedYear]?.era ?? 'N/A')}
 							isRetired={advancedStats.isRetired}
-							tooltipText={advancedDisplayMode === 'career'
+							tooltipText={isCareerMode
 								? 'Park and league-adjusted pitching efficiency for their career. 100 is perfectly average; higher numbers are better (e.g., 125 means 25% better at preventing runs).'
 								: 'Park and league-adjusted pitching efficiency for this season. 100 is perfectly average; higher numbers are better (e.g., 125 means 25% better at preventing runs).'}
 						/>
 					</div>
 					<wa-divider></wa-divider>
-					{#if isCareerMode || availableSeasonsStandard.length > 0}
-						<div class="overview-boxes-wrapper-standard">
+
+					<!-- HITTING STATS BLOCK -->
+					<div class="overview-boxes-wrapper-standard">
+						{#if activeSeasonStats && activeSeasonStats.atBats > 0}
 							{#each standardBattingConfig.filter((s) => s.category === 'standard') as stat}
 								{@const rawValue = activeSeasonStats?.[stat.key]}
 								{#if rawValue !== undefined && rawValue !== null}
@@ -728,53 +677,44 @@
 									/>
 								{/if}
 							{/each}
-						</div>
-					{/if}
+						{/if}
+
+						<!-- PITCHING STATS BLOCK -->
+						{#if pitchingStatsBlock?.splits?.length > 0}
+							{#each standardPitchingConfig.filter((s) => s.category === 'standard') as stat}
+								{@const rawValue = activePitchingStats?.[stat.key]}
+								{#if rawValue !== undefined && rawValue !== null}
+									{@const formattedValue = ['era'].includes(stat.key)
+										? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue)).toFixed(2)
+										: ['ops', 'obp', 'avg', 'whip'].includes(stat.key)
+											? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue))
+													.toFixed(3)
+													.replace(/^0/, '')
+											: ['strikeoutsPer9Inn', 'walksPer9Inn'].includes(stat.key)
+												? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue)).toFixed(
+														2
+													)
+												: rawValue}
+
+									<StatBoxStandardPitching
+										label={stat.label}
+										abbr={stat.abbr}
+										stat={formattedValue}
+										tooltipText={stat.description}
+									/>
+								{/if}
+							{/each}
+						{/if}
+					</div>
 				</div>
 			</wa-tab-panel>
 
 			<wa-tab-panel name="batting">
 				<div class="horizontal-wrapper">
 					<h3 id="battingExplanationStandard">Batting Stats</h3>
-					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
-
-					<div class="dropdown-and-switch-wrapper">
-						<wa-select
-							id="battingYearSelector"
-							value={userSelectedYearStandard}
-							disabled={isCareerMode || availableSeasonsStandard.length <= 1 || null}
-							class="year-dropdown"
-							size="s"
-							onchange={(e) => {
-								userSelectedYearStandard = e.target.value;
-							}}
-						>
-							{#if availableSeasonsStandard.length === 0}
-								<wa-option value={userSelectedYearStandard} selected={true}
-									>{userSelectedYearStandard}</wa-option
-								>
-							{:else}
-								{#each availableSeasonsStandard as season}
-									<wa-option value={season} selected={season === userSelectedYearStandard || null}>
-										{season}
-									</wa-option>
-								{/each}
-							{/if}
-						</wa-select>
-
-						<wa-switch
-							class="no-wrap-switch"
-							checked={isCareerMode || null}
-							onchange={(e) => {
-								isCareerMode = e.target.checked;
-							}}
-						>
-							Career Stats
-						</wa-switch>
-					</div>
 				</div>
 
-				{#if availableSeasonsStandard.length > 0}
+				{#if activeSeasonStats && activeSeasonStats.atBats > 0}
 					<div class="stats-grid-container">
 						<div class="stats-column">
 							<div class="category-heading-wrapper"><h4 class="category-heading">Standard</h4></div>
@@ -854,34 +794,9 @@
 					<h3 id="battingExplanation" class="help-trigger">Batting Percentiles</h3>
 					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
 					<wa-badge variant="brand" appearance="filled">Higher number is better</wa-badge>
-					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
-					{#if availableSeasons.length === 0}
-						<wa-tooltip for="percentileYearSelector">
-							Only 2015-Present data available for statcast percentiles or player has no data to
-							show
-						</wa-tooltip>
-					{/if}
-					<wa-select
-						id="percentileYearSelector"
-						value={userSelectedYear}
-						disabled={availableSeasons.length <= 1 || null}
-						size="s"
-						class="year-dropdown"
-						onchange={(e) => {
-							userSelectedYear = e.target.value;
-						}}
-					>
-						{#if availableSeasons.length === 0}
-							<wa-option value={userSelectedYear}>{userSelectedYear}</wa-option>
-						{:else}
-							{#each availableSeasons as season}
-								<wa-option value={season}>{season}</wa-option>
-							{/each}
-						{/if}
-					</wa-select>
 				</div>
 
-				{#if availableSeasons.length > 0}
+				{#if activeSeasonStats && activeSeasonStats.atBats > 0}
 					<div class="stats-grid-container">
 						<div class="stats-column">
 							<div class="category-heading-wrapper">
@@ -953,45 +868,9 @@
 			<wa-tab-panel name="pitching">
 				<div class="horizontal-wrapper">
 					<h3 id="pitchingExplanationStandard">Pitching Stats</h3>
-					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
-
-					<div class="dropdown-and-switch-wrapper">
-						<wa-select
-							id="pitchingYearSelector"
-							value={userSelectedYearPitching}
-							disabled={isCareerMode || availableSeasonsPitching.length <= 1 || null}
-							class="year-dropdown"
-							size="s"
-							onchange={(e) => {
-								userSelectedYearPitching = e.target.value;
-							}}
-						>
-							{#if availableSeasonsPitching.length === 0}
-								<wa-option value={userSelectedYearPitching} selected={true}>
-									{userSelectedYearPitching}
-								</wa-option>
-							{:else}
-								{#each availableSeasonsPitching as season}
-									<wa-option value={season} selected={season === userSelectedYearPitching || null}>
-										{season}
-									</wa-option>
-								{/each}
-							{/if}
-						</wa-select>
-
-						<wa-switch
-							class="no-wrap-switch"
-							checked={isCareerMode || null}
-							onchange={(e) => {
-								isCareerMode = e.target.checked;
-							}}
-						>
-							Career Stats
-						</wa-switch>
-					</div>
 				</div>
 
-				{#if availableSeasonsPitching.length > 0}
+				{#if pitchingStatsBlock?.splits?.length > 0}
 					<div class="stats-grid-container">
 						<div class="stats-column">
 							<div class="category-heading-wrapper"><h4 class="category-heading">Standard</h4></div>
@@ -999,15 +878,18 @@
 								{#each standardPitchingConfig.filter((s) => s.category === 'standard') as stat}
 									{@const rawValue = activePitchingStats?.[stat.key]}
 									{#if rawValue !== undefined && rawValue !== null}
-										{@const formattedValue = ['era', 'whip', 'ops', 'obp'].includes(stat.key)
-											? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue))
-													.toFixed(3)
-													.replace(/^0/, '')
-											: ['strikeoutsPer9Inn', 'walksPer9Inn'].includes(stat.key)
-												? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue)).toFixed(
-														2
-													)
-												: rawValue}
+										{@const formattedValue = ['era'].includes(stat.key)
+											? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue)).toFixed(2)
+											: ['ops', 'obp', 'avg', 'whip'].includes(stat.key)
+												? (typeof rawValue === 'number' ? rawValue : parseFloat(rawValue))
+														.toFixed(3)
+														.replace(/^0/, '')
+												: ['strikeoutsPer9Inn', 'walksPer9Inn'].includes(stat.key)
+													? (typeof rawValue === 'number'
+															? rawValue
+															: parseFloat(rawValue)
+														).toFixed(2)
+													: rawValue}
 										<div id="stat-pill-{stat.key}">
 											<StatPill
 												label={stat.label}
@@ -1071,43 +953,10 @@
 								</wa-option>
 							{/each}
 						</wa-select>
-
-						<wa-select
-							id="fieldingYearSelector"
-							value={userSelectedYearFielding}
-							disabled={isCareerMode || availableSeasonsFielding.length <= 1 || null}
-							class="year-dropdown"
-							size="s"
-							onchange={(e) => {
-								userSelectedYearFielding = e.target.value;
-							}}
-						>
-							{#if availableSeasonsFielding.length === 0}
-								<wa-option value={userSelectedYearFielding} selected={true}>
-									{userSelectedYearFielding}
-								</wa-option>
-							{:else}
-								{#each availableSeasonsFielding as season}
-									<wa-option value={season} selected={season === userSelectedYearFielding || null}>
-										{season}
-									</wa-option>
-								{/each}
-							{/if}
-						</wa-select>
-
-						<wa-switch
-							class="no-wrap-switch"
-							checked={isCareerMode || null}
-							onchange={(e) => {
-								isCareerMode = e.target.checked;
-							}}
-						>
-							Career Stats
-						</wa-switch>
 					</div>
 				</div>
 
-				{#if availableSeasonsFielding.length > 0}
+				{#if fieldingStatsBlock?.splits?.length > 0}
 					<div class="stats-grid-container">
 						<div class="stats-column">
 							<div class="category-heading-wrapper"><h4 class="category-heading">Standard</h4></div>
@@ -1318,6 +1167,7 @@
 		height: 100%;
 		align-self: stretch;
 	}
+
 	.category-heading {
 		margin: 0;
 		font-size: var(--wa-font-size-m);
@@ -1336,6 +1186,7 @@
 		display: flex;
 		align-items: center;
 		margin: 1rem 0 2rem 0;
+		height: 40px;
 	}
 	h3 {
 		margin: 0;
@@ -1346,12 +1197,32 @@
 		flex-direction: column;
 		gap: 1rem;
 	}
+
+	.details-filters-wrapper {
+		display: flex;
+		justify-content: space-between;
+		align-items: center;
+		padding-bottom: 1.5rem;
+		height: 4rem;
+	}
 	.small-details-wrapper {
 		display: flex;
 		align-items: center;
 		overflow-x: scroll;
 		gap: 0;
-		padding-bottom: 1.5rem;
+	}
+
+	.filter-controls-group {
+		display: flex;
+		width: min-content;
+		justify-content: flex-end;
+		gap: 1rem;
+		align-items: center;
+	}
+
+	.filter-controls-group wa-select,
+	.filter-controls-group wa-switch {
+		white-space: nowrap;
 	}
 
 	.small-details-wrapper p {
@@ -1430,6 +1301,19 @@
 		flex-wrap: wrap;
 	}
 
+	@media (max-width: 1250px) {
+		.details-filters-wrapper {
+			flex-direction: column;
+			align-items: start;
+			overflow-x: scroll;
+			padding: 0 0 1.5rem 3px;
+			height: auto;
+			mask-image: linear-gradient(to right, black calc(100% - 32px), transparent 100%);
+			-webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+			gap: 1.5rem;
+		}
+	}
+
 	@media (min-width: 1024px) {
 		.stats-grid-container {
 			grid-template-columns: 1fr auto 1fr auto 1fr;
@@ -1438,13 +1322,6 @@
 
 		.grid-desktop-divider {
 			display: block;
-		}
-	}
-
-	@media (max-width: 1024px) {
-		.small-details-wrapper {
-			mask-image: linear-gradient(to right, black calc(100% - 32px), transparent 100%);
-			-webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
 		}
 	}
 

@@ -7,6 +7,7 @@
 		abbr = '',
 		stat = 0,
 		careerSeasonLength = 0,
+		progressContext = '',
 		tooltipText = '',
 		isRetired = false
 	} = $props();
@@ -38,7 +39,6 @@
 			if (numericValue >= 90) return 'var(--wa-color-neutral-50)';
 			return 'var(--wa-color-danger-70)';
 		} else {
-			// Single-season WAR thresholds
 			if (numericValue >= 5.0) return 'var(--wa-color-success-60)';
 			if (numericValue >= 2.5) return 'var(--wa-color-success-80)';
 			if (numericValue >= 0.5) return 'var(--wa-color-neutral-50)';
@@ -69,6 +69,12 @@
 					<span class="season-count"> / </span>
 					<span class="season-count">
 						<AnimatedCounter value={careerSeasonLength} />
+					</span>
+				{/if}
+				{#if progressContext !== ''}
+					<span class="progress-count"> / </span>
+					<span class="progress-count">
+						<AnimatedCounter value={progressContext} />%
 					</span>
 				{/if}
 			</div>
@@ -186,6 +192,15 @@
 		font-size: var(--wa-font-size-s);
 		color: var(--wa-color-neutral-on-quiet);
 	}
+
+	.progress-count {
+		font-family: var(--font-mono);
+		font-variant-numeric: tabular-nums;
+		font-weight: var(--wa-font-weight-bold, 600);
+		font-size: var(--wa-font-size-s);
+		color: var(--wa-color-neutral-on-quiet);
+	}
+
 	.context-track {
 		position: absolute;
 		bottom: 0;

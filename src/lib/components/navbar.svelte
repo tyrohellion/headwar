@@ -123,6 +123,7 @@
 	<div class="float-right-wrapper">
 		<div class="search-wrapper" bind:this={searchWrapperEl}>
 			<wa-input
+				appearance="filled"
 				value={query}
 				oninput={handleInput}
 				placeholder="Search players or teams..."
@@ -241,8 +242,8 @@
 		position: fixed;
 		top: 0;
 		left: 0;
+		right: 0;
 		padding: 1rem 3rem;
-		width: 100%;
 		justify-content: space-between;
 		backdrop-filter: blur(6px);
 		background-color: color-mix(in srgb, var(--wa-color-surface-default) 85%, transparent);
@@ -265,7 +266,8 @@
 		display: flex;
 		gap: 0.5rem;
 		position: relative;
-		max-width: 368px;
+		max-width: none;
+		flex-grow: 1;
 	}
 
 	wa-input {
@@ -323,6 +325,9 @@
 	.float-right-wrapper {
 		display: flex;
 		gap: 0.5rem;
+		flex-grow: 1;
+		max-width: 26rem;
+		justify-content: flex-end;
 	}
 
 	.dropdown-item {
@@ -424,8 +429,8 @@
 
 	@media (max-width: 816px) {
 		.nav {
-			padding: 1rem;
-			gap: 0.75rem;
+			padding: 1rem 1rem;
+			gap: 0.5rem;
 		}
 
 		.desktop-only {
