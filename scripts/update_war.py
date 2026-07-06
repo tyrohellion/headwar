@@ -115,7 +115,7 @@ def generate_compressed_war_vault():
             for year in v["seasons"]:
                 v["seasons"][year]["war"] = round(v["seasons"][year]["war"], 1)
 
-    # 4. CALCULATE LEADERBOARD RANKINGS
+# 4. CALCULATE LEADERBOARD RANKINGS
     print("Calculating leaderboard rankings...")
     
     # --- A. Build the 3rd File: Global Career Leaderboard ---
@@ -130,37 +130,42 @@ def generate_compressed_war_vault():
             "status": item["status"]
         }
 
-    # --- B. Seasonal Stat Rankings (Isolated per file, Grouped by Year) ---
-    for vault in [war_active, war_archive]:
-        yearly_war = {}
-        yearly_ops = {}
-        yearly_era = {}
+    # --- B. Seasonal Stat Rankings (Pooled Globally across BOTH files, Grouped by Year) ---
+    # We initialize these OUTSIDE the vault loops to combine all historical data together
+    yearly_war = {}
+    yearly_ops = {}
+    yearly_era = {}
 
+    # Gather data from BOTH vaults into a single global pool per year
+    for vault_name, vault in [("active", war_active), ("archive", war_archive)]:
         for mlb_id, p_data in vault.items():
             for year, s_data in p_data["seasons"].items():
-                yearly_war.setdefault(year, []).append((mlb_id, s_data["war"]))
+                yearly_war.setdefault(year, []).append((mlb_id, s_data["war"], vault_name))
                 if "ops" in s_data:
-                    yearly_ops.setdefault(year, []).append((mlb_id, s_data["ops"]))
+                    yearly_ops.setdefault(year, []).append((mlb_id, s_data["ops"], vault_name))
                 if "era" in s_data:
-                    yearly_era.setdefault(year, []).append((mlb_id, s_data["era"]))
+                    yearly_era.setdefault(year, []).append((mlb_id, s_data["era"], vault_name))
 
-        # Rank and assign Seasonal WAR
-        for year, players in yearly_war.items():
-            players.sort(key=lambda x: x[1], reverse=True)
-            for index, (mlb_id, val) in enumerate(players):
-                vault[mlb_id]["seasons"][year]["war"] = {"value": val, "rank": index + 1}
+    # Rank and assign Seasonal WAR globally
+    for year, players in yearly_war.items():
+        players.sort(key=lambda x: x[1], reverse=True)
+        for index, (mlb_id, val, vault_name) in enumerate(players):
+            target_vault = war_active if vault_name == "active" else war_archive
+            target_vault[mlb_id]["seasons"][year]["war"] = {"value": val, "rank": index + 1}
 
-        # Rank and assign Seasonal OPS+
-        for year, players in yearly_ops.items():
-            players.sort(key=lambda x: x[1], reverse=True)
-            for index, (mlb_id, val) in enumerate(players):
-                vault[mlb_id]["seasons"][year]["ops"] = {"value": val, "rank": index + 1}
+    # Rank and assign Seasonal OPS+ globally
+    for year, players in yearly_ops.items():
+        players.sort(key=lambda x: x[1], reverse=True)
+        for index, (mlb_id, val, vault_name) in enumerate(players):
+            target_vault = war_active if vault_name == "active" else war_archive
+            target_vault[mlb_id]["seasons"][year]["ops"] = {"value": val, "rank": index + 1}
 
-        # Rank and assign Seasonal ERA+
-        for year, players in yearly_era.items():
-            players.sort(key=lambda x: x[1], reverse=True)
-            for index, (mlb_id, val) in enumerate(players):
-                vault[mlb_id]["seasons"][year]["era"] = {"value": val, "rank": index + 1}
+    # Rank and assign Seasonal ERA+ globally
+    for year, players in yearly_era.items():
+        players.sort(key=lambda x: x[1], reverse=True)
+        for index, (mlb_id, val, vault_name) in enumerate(players):
+            target_vault = war_active if vault_name == "active" else war_archive
+            target_vault[mlb_id]["seasons"][year]["era"] = {"value": val, "rank": index + 1}
 
     # 5. SAVE COMPRESSED ASSETS
     print("Saving compressed storage assets...")
