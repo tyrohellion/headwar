@@ -7,7 +7,6 @@ CURRENT_YEAR = 2026
 YEAR_THRESHOLD = CURRENT_YEAR - 8  # 2018
 
 # --- QUALIFICATION THRESHOLDS FOR RANKINGS ---
-# Tweak these numbers to adjust ranking strictness
 MIN_SEASONAL_PA = 200       # Minimum Plate Appearances to qualify for seasonal OPS+ rank
 MIN_SEASONAL_IPOUTS = 150   # Minimum outs pitched (150 outs = 50 Innings) to qualify for ERA+ rank
 
@@ -54,8 +53,6 @@ def generate_compressed_war_vault():
         
         ops_plus = row.get('OPS_plus') or row.get('ops_plus')
         ops_val = int(ops_plus) if pd.notna(ops_plus) else None
-        
-        # Safely capture Plate Appearances to handle qualification thresholds
         pa_val = int(row.get('PA')) if pd.notna(row.get('PA')) else 0
         
         last_year_played = last_active_map.get(int(mlb_id), 0)
@@ -65,7 +62,7 @@ def generate_compressed_war_vault():
             target_vault[mlb_id] = {"seasons": {}}
             
         if year not in target_vault[mlb_id]["seasons"]:
-            target_vault[mlb_id]["seasons"][year] = {"war": 0.0, "pa": 0}
+            target_vault[mlb_id]["seasons"][year] = {"war": 0.0, "pa": 0, "ipouts": 0}
             
         target_vault[mlb_id]["seasons"][year]["war"] += war
         target_vault[mlb_id]["seasons"][year]["pa"] += pa_val
@@ -82,8 +79,6 @@ def generate_compressed_war_vault():
         
         era_plus = row.get('ERA_plus') or row.get('era_plus')
         era_val = int(era_plus) if pd.notna(era_plus) else None
-        
-        # 'ipouts' represents 1/3 of an inning pitched in BRef source files
         ipouts_val = int(row.get('ipouts') or row.get('IPouts') or 0)
         
         last_year_played = last_active_map.get(int(mlb_id), 0)
@@ -92,8 +87,12 @@ def generate_compressed_war_vault():
         if mlb_id not in target_vault:
             target_vault[mlb_id] = {"seasons": {}}
             
+        # Ensure ALL fields are safely set up even if the batter loop created this season dictionary first
         if year not in target_vault[mlb_id]["seasons"]:
-            target_vault[mlb_id]["seasons"][year] = {"war": 0.0, "ipouts": 0}
+            target_vault[mlb_id]["seasons"][year] = {"war": 0.0, "pa": 0, "ipouts": 0}
+        else:
+            target_vault[mlb_id]["seasons"][year].setdefault("pa", 0)
+            target_vault[mlb_id]["seasons"][year].setdefault("ipouts", 0)
             
         target_vault[mlb_id]["seasons"][year]["war"] += war
         target_vault[mlb_id]["seasons"][year]["ipouts"] += ipouts_val
@@ -133,7 +132,6 @@ def generate_compressed_war_vault():
             "status": item["status"]
         }
 
-    # Gather data from BOTH vaults into a single global pool per year
     yearly_war = {}
     yearly_ops = {}
     yearly_era = {}
@@ -144,11 +142,9 @@ def generate_compressed_war_vault():
                 yearly_war.setdefault(year, []).append((mlb_id, s_data["war"], vault_name))
                 
                 if "ops" in s_data:
-                    # Only add to the ranking pool if cumulative seasonal volume meets the threshold
                     if s_data.get("pa", 0) >= MIN_SEASONAL_PA:
                         yearly_ops.setdefault(year, []).append((mlb_id, s_data["ops"], vault_name))
                     else:
-                        # Keep value but assign rank as None to preserve consistent schema structures
                         p_data["seasons"][year]["ops"] = {"value": s_data["ops"], "rank": None}
                         
                 if "era" in s_data:
@@ -178,7 +174,7 @@ def generate_compressed_war_vault():
             target_vault = war_active if vault_name == "active" else war_archive
             target_vault[mlb_id]["seasons"][year]["era"] = {"value": val, "rank": index + 1}
 
-    # Clean up internal counting tracking keys before outputting json assets
+    # Clean up internal volume tracking keys before outputting json assets
     for vault in [war_active, war_archive]:
         for mlb_id in vault:
             for year in vault[mlb_id]["seasons"]:
