@@ -9,6 +9,7 @@
 	import { battingStatConfig } from '../../../formatters/battingStatsConfig';
 	import { processPlayerAwards } from '../../../formatters/playerAwardFormatter';
 	import { standardPitchingConfig } from '../../../formatters/standardPitchingStatsConfig';
+	import { sumInningsPitched } from '../../../formatters/addInningsPitched';
 	import { standardFieldingStatsConfig } from '../../../formatters/fieldingStatsConfig';
 	import { getSeasonProgressPercentage } from '../../../formatters/getSeasonProgressPercentage';
 	import { page } from '$app/stores';
@@ -184,8 +185,18 @@
 			return careerStatsBlock?.splits?.[0]?.stat || null;
 		}
 		if (!hittingStatsBlock?.splits) return null;
-		const matchingSplit = hittingStatsBlock.splits.find((split) => split.season === currentYear);
-		return matchingSplit?.stat || null;
+
+		const yearSplits = hittingStatsBlock.splits.filter((split) => split.season === currentYear);
+		if (yearSplits.length === 0) return null;
+
+		if (yearSplits.length === 1) return yearSplits[0].stat;
+
+		const totalSplit = yearSplits.find(
+			(split) =>
+				!split.team || split.team?.id === undefined || String(split.team?.name).includes('teams')
+		);
+
+		return totalSplit ? totalSplit.stat : yearSplits[0].stat;
 	});
 
 	let activePitchingStats = $derived.by(() => {
@@ -196,8 +207,58 @@
 			return careerPitchingStatsBlock?.splits?.[0]?.stat || null;
 		}
 		if (!pitchingStatsBlock?.splits) return null;
-		const matchingSplit = pitchingStatsBlock.splits.find((split) => split.season === currentYear);
-		return matchingSplit?.stat || null;
+
+		const yearSplits = pitchingStatsBlock.splits.filter((split) => split.season === currentYear);
+		if (yearSplits.length === 0) return null;
+
+		if (yearSplits.length === 1) return yearSplits[0].stat;
+
+		const individualTeamStints = yearSplits.filter(
+			(split) =>
+				split.team &&
+				split.team.id !== undefined &&
+				!String(split.team.name).toLowerCase().includes('teams')
+		);
+
+		if (individualTeamStints.length === 0) return yearSplits[0].stat;
+		if (individualTeamStints.length === 1) return individualTeamStints[0].stat;
+
+		const aggregatedStat = { ...individualTeamStints[0].stat };
+
+		const allIPs = individualTeamStints.map((split) => split.stat.inningsPitched);
+		aggregatedStat.inningsPitched = sumInningsPitched(allIPs);
+
+		const countingStats = [
+			'gamesPlayed',
+			'gamesStarted',
+			'wins',
+			'losses',
+			'strikeOuts',
+			'baseOnBalls',
+			'hits',
+			'runs',
+			'earnedRuns'
+		];
+
+		countingStats.forEach((key) => {
+			if (key in aggregatedStat) {
+				aggregatedStat[key] = individualTeamStints.reduce(
+					(sum, split) => sum + (split.stat[key] || 0),
+					0
+				);
+			}
+		});
+
+		if (aggregatedStat.earnedRuns !== undefined && aggregatedStat.inningsPitched) {
+			const [fullInnings, outs] = String(aggregatedStat.inningsPitched).split('.').map(Number);
+			const totalInningsFloat = fullInnings + (outs || 0) / 3;
+
+			if (totalInningsFloat > 0) {
+				aggregatedStat.era = ((aggregatedStat.earnedRuns * 9) / totalInningsFloat).toFixed(2);
+			}
+		}
+
+		return aggregatedStat;
 	});
 
 	let activeFieldingStats = $derived.by(() => {
