@@ -156,7 +156,6 @@
 	}
 
 	wa-badge {
-		width: 42px;
 		height: 26px;
 	}
 

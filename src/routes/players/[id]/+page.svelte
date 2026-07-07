@@ -1126,7 +1126,7 @@
 		margin-right: 0.5rem;
 	}
 	wa-badge {
-		height: min-content;
+		min-height: 22.6px;
 		white-space: nowrap;
 		min-width: min-content;
 	}
@@ -1333,15 +1333,11 @@
 	.help-trigger {
 		cursor: help;
 	}
-	.year-dropdown {
-		width: 6rem;
-	}
+
 	.section-divider {
 		margin: 3rem 0 3rem 0;
 	}
-	.no-wrap-switch {
-		white-space: nowrap;
-	}
+
 	.accolades-list {
 		display: flex;
 		flex-direction: column;
@@ -1374,7 +1370,7 @@
 			flex-direction: column;
 			align-items: start;
 			overflow-x: scroll;
-			padding: 0 0 1.5rem 3px;
+			padding: 0 1rem 1.5rem 3px;
 			height: auto;
 			mask-image: linear-gradient(to right, black calc(100% - 32px), transparent 100%);
 			-webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
@@ -1410,6 +1406,7 @@
 
 		.horizontal-wrapper {
 			flex-direction: column;
+			height: auto;
 			gap: 1rem;
 			align-items: start;
 		}
