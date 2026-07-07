@@ -38,10 +38,6 @@ def generate_compressed_war_vault():
     batters = batters[batters['mlb_ID'] > 0]
     pitchers = pitchers[pitchers['mlb_ID'] > 0]
 
-    # Filter out multi-team aggregate rows ('2TM') to prevent double-counting metrics
-    batters = batters[batters['team_ID'] != '2TM']
-    pitchers = pitchers[pitchers['team_ID'] != '2TM']
-
     # Pre-calculate the last active year for every player in the dataset
     print("Analyzing player activity time horizons...")
     max_year_bat = batters.groupby('mlb_ID')['year_ID'].max()
@@ -71,8 +67,11 @@ def generate_compressed_war_vault():
         target_vault[mlb_id]["seasons"][year]["war"] += war
         target_vault[mlb_id]["seasons"][year]["pa"] += pa_val
         
+        # Track the rate metric cleanly for multi-stint players by prioritizing the largest workload
         if ops_val is not None:
-            target_vault[mlb_id]["seasons"][year]["ops"] = ops_val
+            if "ops" not in target_vault[mlb_id]["seasons"][year] or pa_val > target_vault[mlb_id]["seasons"][year].get("_max_ops_pa", 0):
+                target_vault[mlb_id]["seasons"][year]["ops"] = ops_val
+                target_vault[mlb_id]["seasons"][year]["_max_ops_pa"] = pa_val
 
     # 2. COMPILE PITCHER DATA (WAR, ERA+, & IPOUTS)
     print("Processing historical pitcher metrics...")
@@ -91,7 +90,6 @@ def generate_compressed_war_vault():
         if mlb_id not in target_vault:
             target_vault[mlb_id] = {"seasons": {}}
             
-        # Ensure ALL fields are safely set up even if the batter loop created this season dictionary first
         if year not in target_vault[mlb_id]["seasons"]:
             target_vault[mlb_id]["seasons"][year] = {"war": 0.0, "pa": 0, "ipouts": 0}
         else:
@@ -101,8 +99,11 @@ def generate_compressed_war_vault():
         target_vault[mlb_id]["seasons"][year]["war"] += war
         target_vault[mlb_id]["seasons"][year]["ipouts"] += ipouts_val
         
+        # Track the rate metric cleanly for multi-stint players by prioritizing the largest workload
         if era_val is not None:
-            target_vault[mlb_id]["seasons"][year]["era"] = era_val
+            if "era" not in target_vault[mlb_id]["seasons"][year] or ipouts_val > target_vault[mlb_id]["seasons"][year].get("_max_era_ipouts", 0):
+                target_vault[mlb_id]["seasons"][year]["era"] = era_val
+                target_vault[mlb_id]["seasons"][year]["_max_era_ipouts"] = ipouts_val
 
     # 3. NORMALIZE CAREER TOTALS & PRECISION ACROSS BOTH VAULTS
     print("Formatting structural outputs and calculating career aggregates...")
@@ -184,6 +185,8 @@ def generate_compressed_war_vault():
             for year in vault[mlb_id]["seasons"]:
                 vault[mlb_id]["seasons"][year].pop("pa", None)
                 vault[mlb_id]["seasons"][year].pop("ipouts", None)
+                vault[mlb_id]["seasons"][year].pop("_max_ops_pa", None)
+                vault[mlb_id]["seasons"][year].pop("_max_era_ipouts", None)
 
     # 5. SAVE COMPRESSED ASSETS
     print("Saving compressed storage assets...")
