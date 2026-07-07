@@ -38,6 +38,10 @@ def generate_compressed_war_vault():
     batters = batters[batters['mlb_ID'] > 0]
     pitchers = pitchers[pitchers['mlb_ID'] > 0]
 
+    # Filter out multi-team aggregate rows ('2TM') to prevent double-counting metrics
+    batters = batters[batters['team_ID'] != '2TM']
+    pitchers = pitchers[pitchers['team_ID'] != '2TM']
+
     # Pre-calculate the last active year for every player in the dataset
     print("Analyzing player activity time horizons...")
     max_year_bat = batters.groupby('mlb_ID')['year_ID'].max()

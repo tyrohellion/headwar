@@ -623,9 +623,10 @@
 								label="{userSelectedYear} bWAR"
 								abbr="WAR"
 								progressContext={String(userSelectedYear) === '2026' ? seasonProgress : undefined}
-								percentile={advancedStats.seasons[userSelectedYear]?.war != null
-									? parseFloat(advancedStats.seasons[userSelectedYear].war).toFixed(1)
-									: advancedStats.currentSeasonWar}
+								percentile={advancedStats.currentSeasonWar}
+								rank={advancedStats.currentSeasonWarRank
+									? `#${advancedStats.currentSeasonWarRank}`
+									: null}
 								isRetired={advancedStats.isRetired}
 								tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player throughout the selected season. 2.0+ is a solid starter, 5.0+ is an All-Star, and 8.0+ is an MVP-caliber performance. This stat is additive over the year. The percentage value is how far into the MLB season we are."
 							/>
@@ -636,7 +637,10 @@
 							abbr="OPS+"
 							percentile={isCareerMode
 								? advancedStats.careerOpsPlus
-								: (advancedStats.seasons[userSelectedYear]?.ops ?? 'N/A')}
+								: advancedStats.currentSeasonOpsPlus}
+							{...!isCareerMode && advancedStats.currentSeasonOpsPlusRank !== 'N/A'
+								? { rank: `#${advancedStats.currentSeasonOpsPlusRank}` }
+								: {}}
 							isRetired={advancedStats.isRetired}
 							tooltipText={isCareerMode
 								? 'Park-adjusted offensive production over their career. 100 is league average; a 150 score means the hitter was 50% better than the rest of the league.'
@@ -648,7 +652,10 @@
 							abbr="ERA+"
 							percentile={isCareerMode
 								? advancedStats.careerEraPlus
-								: (advancedStats.seasons[userSelectedYear]?.era ?? 'N/A')}
+								: advancedStats.currentSeasonEraPlus}
+							rank={!isCareerMode && advancedStats.currentSeasonEraPlusRank !== 'N/A'
+								? `#${advancedStats.currentSeasonEraPlusRank}`
+								: undefined}
 							isRetired={advancedStats.isRetired}
 							tooltipText={isCareerMode
 								? 'Park and league-adjusted pitching efficiency for their career. 100 is perfectly average; higher numbers are better (e.g., 125 means 25% better at preventing runs).'

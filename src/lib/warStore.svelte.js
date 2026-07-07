@@ -4,12 +4,17 @@ import { untrack } from 'svelte';
 // Keep track of our loaded datasets independently in memory
 let globalActiveVault = null;
 let globalArchiveVault = null;
+let globalLeaderboard = null; // Stashes our tiny 3rd file for fast all-time rank lookups
 
 let state = $state({
 	careerWar: 'N/A',
+	careerWarRank: 'N/A', // New reactive property
 	currentSeasonWar: 'N/A',
+	currentSeasonWarRank: 'N/A', // New reactive property
 	currentSeasonOpsPlus: 'N/A',
+	currentSeasonOpsPlusRank: 'N/A', // New reactive property
 	currentSeasonEraPlus: 'N/A',
+	currentSeasonEraPlusRank: 'N/A', // New reactive property
 	careerOpsPlus: 'N/A',
 	careerEraPlus: 'N/A',
 	seasons: {},
@@ -21,14 +26,26 @@ export const advancedStats = {
 	get careerWar() {
 		return state.careerWar;
 	},
+	get careerWarRank() {
+		return state.careerWarRank;
+	},
 	get currentSeasonWar() {
 		return state.currentSeasonWar;
+	},
+	get currentSeasonWarRank() {
+		return state.currentSeasonWarRank;
 	},
 	get currentSeasonOpsPlus() {
 		return state.currentSeasonOpsPlus;
 	},
+	get currentSeasonOpsPlusRank() {
+		return state.currentSeasonOpsPlusRank;
+	},
 	get currentSeasonEraPlus() {
 		return state.currentSeasonEraPlus;
+	},
+	get currentSeasonEraPlusRank() {
+		return state.currentSeasonEraPlusRank;
 	},
 	get careerOpsPlus() {
 		return state.careerOpsPlus;
@@ -48,14 +65,19 @@ export const advancedStats = {
 };
 
 function extractMetricsFromRecord(playerRecord, id, year) {
+	const stringId = String(id);
 	console.log(`[warStore DEBUG] Found record for ID: ${id}`, playerRecord);
 
 	if (!playerRecord) {
 		console.warn(`[warStore] No player record found in vaults for ID: ${id}`);
 		state.careerWar = '0.0';
+		state.careerWarRank = 'N/A';
 		state.currentSeasonWar = '0.0';
+		state.currentSeasonWarRank = 'N/A';
 		state.currentSeasonOpsPlus = 'N/A';
+		state.currentSeasonOpsPlusRank = 'N/A';
 		state.currentSeasonEraPlus = 'N/A';
+		state.currentSeasonEraPlusRank = 'N/A';
 		state.careerOpsPlus = 'N/A';
 		state.careerEraPlus = 'N/A';
 		state.seasons = {};
@@ -63,23 +85,24 @@ function extractMetricsFromRecord(playerRecord, id, year) {
 		return;
 	}
 
-	// Assign base historical career WAR
-	state.careerWar =
-		playerRecord.career_total != null ? parseFloat(playerRecord.career_total).toFixed(1) : '0.0';
+	// 1. Pull the All-Time Career bWAR Rank from our pre-fetched leaderboard file
+	if (globalLeaderboard && globalLeaderboard[stringId]) {
+		state.careerWar = parseFloat(globalLeaderboard[stringId].value).toFixed(1);
+		state.careerWarRank = globalLeaderboard[stringId].rank ?? 'N/A';
+	} else {
+		state.careerWar = '0.0';
+		state.careerWarRank = 'N/A';
+	}
 
-	// Expose raw seasons object so UI dropdown can map keys
 	const seasonsMap = playerRecord.seasons || {};
 	state.seasons = seasonsMap;
 
-	console.log(`[warStore DEBUG] Full Seasons Map for ID: ${id}`, seasonsMap);
-	console.log(`[warStore DEBUG] Targeting Year: ${year}`, seasonsMap[String(year)]);
-
-	// Detect retirement status by looking at maximum recorded season against current year 2026
+	// Detect retirement status based on latest year key
 	const seasonKeys = Object.keys(seasonsMap).map(Number);
 	const maxSeason = seasonKeys.length ? Math.max(...seasonKeys) : 2026;
 	state.isRetired = maxSeason < 2026;
 
-	// --- CALCULATE CAREER METRICS ---
+	// --- CALCULATE CAREER VALUE-WEIGHTED STATISTICS ---
 	let totalOpsWarWeight = 0;
 	let totalOpsWeight = 0;
 	let totalEraWarWeight = 0;
@@ -87,19 +110,18 @@ function extractMetricsFromRecord(playerRecord, id, year) {
 
 	for (const sYear in seasonsMap) {
 		const data = seasonsMap[sYear];
-		const weight = Math.max(Math.abs(data.war || 0), 0.1);
 
-		if (data.ops != null && !isNaN(data.ops)) {
-			totalOpsWeight += data.ops * weight;
+		// Since data.war is now an object, read its value property securely
+		const warVal = data.war && typeof data.war === 'object' ? (data.war.value ?? 0) : 0;
+		const weight = Math.max(Math.abs(warVal), 0.1);
+
+		if (data.ops && typeof data.ops === 'object' && data.ops.value != null) {
+			totalOpsWeight += data.ops.value * weight;
 			totalOpsWarWeight += weight;
 		}
 
-		console.log(`[warStore DEBUG] Season ${sYear} data payload keys:`, Object.keys(data), data);
-
-		// Dynamic fallback array checking potential key names for ERA+
-		const eraValue = data.era_plus ?? data.era ?? data.era_p;
-		if (eraValue != null && !isNaN(eraValue)) {
-			totalEraWeight += eraValue * weight;
+		if (data.era && typeof data.era === 'object' && data.era.value != null) {
+			totalEraWeight += data.era.value * weight;
 			totalEraWarWeight += weight;
 		}
 	}
@@ -108,76 +130,87 @@ function extractMetricsFromRecord(playerRecord, id, year) {
 		totalOpsWarWeight > 0 ? Math.round(totalOpsWeight / totalOpsWarWeight) : 'N/A';
 	state.careerEraPlus =
 		totalEraWarWeight > 0 ? Math.round(totalEraWeight / totalEraWarWeight) : 'N/A';
-	// ---------------------------------
 
+	// --- POPULATE SINGLE TARGET SEASON METRICS & THEIR ABSOLUTE RANKS ---
 	const seasonStats = seasonsMap[String(year)];
 	if (seasonStats) {
-		state.currentSeasonWar =
-			seasonStats.war != null ? parseFloat(seasonStats.war).toFixed(1) : '0.0';
-		state.currentSeasonOpsPlus = seasonStats.ops ?? 'N/A';
+		// Parse bWAR details
+		if (seasonStats.war && typeof seasonStats.war === 'object') {
+			state.currentSeasonWar = parseFloat(seasonStats.war.value ?? 0).toFixed(1);
+			state.currentSeasonWarRank = seasonStats.war.rank ?? 'N/A';
+		} else {
+			state.currentSeasonWar = '0.0';
+			state.currentSeasonWarRank = 'N/A';
+		}
 
-		// Check potential key variants for current single season view as well
-		state.currentSeasonEraPlus =
-			seasonStats.era_plus ?? seasonStats.era ?? seasonStats.era_p ?? 'N/A';
+		// Parse OPS+ details
+		if (seasonStats.ops && typeof seasonStats.ops === 'object') {
+			state.currentSeasonOpsPlus = seasonStats.ops.value ?? 'N/A';
+			state.currentSeasonOpsPlusRank = seasonStats.ops.rank ?? 'N/A'; // Handily handles 'null' for unqualified players
+		} else {
+			state.currentSeasonOpsPlus = 'N/A';
+			state.currentSeasonOpsPlusRank = 'N/A';
+		}
+
+		// Parse ERA+ details
+		if (seasonStats.era && typeof seasonStats.era === 'object') {
+			state.currentSeasonEraPlus = seasonStats.era.value ?? 'N/A';
+			state.currentSeasonEraPlusRank = seasonStats.era.rank ?? 'N/A';
+		} else {
+			state.currentSeasonEraPlus = 'N/A';
+			state.currentSeasonEraPlusRank = 'N/A';
+		}
 	} else {
 		state.currentSeasonWar = '0.0';
+		state.currentSeasonWarRank = 'N/A';
 		state.currentSeasonOpsPlus = 'N/A';
+		state.currentSeasonOpsPlusRank = 'N/A';
 		state.currentSeasonEraPlus = 'N/A';
+		state.currentSeasonEraPlusRank = 'N/A';
 	}
-
-	console.log('[warStore DEBUG] Final structural metrics evaluation:', {
-		currentSeasonEraPlus: state.currentSeasonEraPlus,
-		careerEraPlus: state.careerEraPlus,
-		currentSeasonOpsPlus: state.currentSeasonOpsPlus,
-		careerOpsPlus: state.careerOpsPlus
-	});
 }
 
 export async function loadAdvancedMetrics(playerMlbId, selectedYear) {
 	if (!playerMlbId) return;
 
 	const stringId = String(playerMlbId);
-
-	// 1. If we already found them in a previously loaded vault, extract metrics directly
-	if (globalActiveVault && globalActiveVault[stringId]) {
-		extractMetricsFromRecord(globalActiveVault[stringId], playerMlbId, selectedYear);
-		return;
-	}
-	if (globalArchiveVault && globalArchiveVault[stringId]) {
-		extractMetricsFromRecord(globalArchiveVault[stringId], playerMlbId, selectedYear);
-		return;
-	}
-
 	state.loading = true;
 
 	try {
-		// 2. Load the active vault if it hasn't been fetched yet
-		if (!globalActiveVault) {
-			const activeUrl = `${window.location.origin}/data/war_active.json`;
-			const res = await fetch(activeUrl);
-			if (!res.ok) throw new Error(`Active database HTTP error ${res.status}`);
-			globalActiveVault = await res.json();
+		// 1. Fetch the tiny 3rd file (career leaderboard) first if not already loaded
+		if (!globalLeaderboard) {
+			const leaderboardUrl = `${window.location.origin}/data/career_leaderboard.json`;
+			const res = await fetch(leaderboardUrl);
+			if (!res.ok) throw new Error(`Leaderboard database HTTP error ${res.status}`);
+			globalLeaderboard = await res.json();
 		}
 
-		// 3. If player exists in the active vault, use it
-		if (globalActiveVault[stringId]) {
-			extractMetricsFromRecord(globalActiveVault[stringId], playerMlbId, selectedYear);
+		// 2. Identify which data asset file contains this player's seasonal breakdown
+		const playerMeta = globalLeaderboard[stringId];
+		if (!playerMeta) {
+			// Player completely unranked/missing
+			extractMetricsFromRecord(null, playerMlbId, selectedYear);
 			return;
 		}
 
-		// 4. Otherwise, fetch the historical archive pool fallback
-		if (!globalArchiveVault) {
-			console.log(
-				`[warStore] Player ${stringId} not found in active vault. Checking archive file...`
-			);
-			const archiveUrl = `${window.location.origin}/data/war_archive.json`;
-			const res = await fetch(archiveUrl);
-			if (!res.ok) throw new Error(`Archive database HTTP error ${res.status}`);
-			globalArchiveVault = await res.json();
+		// 3. Smart routing: load only the precise file we need
+		if (playerMeta.status === 'archive') {
+			if (!globalArchiveVault) {
+				const archiveUrl = `${window.location.origin}/data/war_archive.json`;
+				const res = await fetch(archiveUrl);
+				if (!res.ok) throw new Error(`Archive database HTTP error ${res.status}`);
+				globalArchiveVault = await res.json();
+			}
+			extractMetricsFromRecord(globalArchiveVault[stringId], playerMlbId, selectedYear);
+		} else {
+			if (!globalActiveVault) {
+				const activeUrl = `${window.location.origin}/data/war_active.json`;
+				const res = await fetch(activeUrl);
+				if (!res.ok) throw new Error(`Active database HTTP error ${res.status}`);
+				globalActiveVault = await res.json();
+			}
+			extractMetricsFromRecord(globalActiveVault[stringId], playerMlbId, selectedYear);
 		}
-
-		// 5. Extract metrics from archive (or cleanly handle missing records)
-		extractMetricsFromRecord(globalArchiveVault[stringId], playerMlbId, selectedYear);
 	} catch (err) {
 		console.error('[warStore] CRITICAL: Failed fetching or parsing data storage assets:', err);
 	} finally {

@@ -8,6 +8,7 @@
 		stat = 0,
 		careerSeasonLength = 0,
 		progressContext = '',
+		rank = undefined,
 		tooltipText = '',
 		isRetired = false
 	} = $props();
@@ -78,7 +79,12 @@
 					</span>
 				{/if}
 			</div>
-			<wa-badge appearance="filled" size="m" variant="neutral">{abbr}</wa-badge>
+			<div class="badges-wrapper">
+				<wa-badge appearance="filled" size="m" variant="neutral">{abbr}</wa-badge>
+				{#if rank}
+					<wa-badge appearance="filled" size="m" variant="brand">{rank}</wa-badge>
+				{/if}
+			</div>
 		</div>
 
 		{#if isNormalizedStat && !disableVisuals}
@@ -183,6 +189,11 @@
 		display: flex;
 		align-items: center;
 		gap: 0.2rem;
+	}
+
+	.badges-wrapper {
+		display: flex;
+		gap: 0.5rem;
 	}
 
 	.season-count {
