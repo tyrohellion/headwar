@@ -3,12 +3,18 @@
 	import { getTeamLogo } from '../../../api/getTeamLogo';
 	import { getTeamInfo } from '../../../api/getTeamInfo';
 	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
+
+	import StatBoxTeamInfo from '$lib/components/statBoxTeamInfo.svelte';
+	import StatBoxTeamDivisionStandings from '$lib/components/statBoxTeamDivisionStandings.svelte';
+	import RosterShowcase from '$lib/components/rosterShowcase.svelte';
 
 	import WaTabGroup from '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
 	import WaTabPanel from '@awesome.me/webawesome/dist/components/tab-panel/tab-panel.js';
 	import WaDivider from '@awesome.me/webawesome/dist/components/divider/divider.js';
 	import WaSkeleton from '@awesome.me/webawesome/dist/components/skeleton/skeleton.js';
 	import WaBadge from '@awesome.me/webawesome/dist/components/badge/badge.js';
+	import WaTooltip from '@awesome.me/webawesome/dist/components/tooltip/tooltip.js';
 
 	let teamData = $state(null);
 	let teamLogo = $state(null);
@@ -17,11 +23,23 @@
 	let errorMsg = $state('');
 	let errorMsgLogo = $state('');
 
+	let isDesktop = $state(true);
+
+	onMount(() => {
+		const mql = window.matchMedia('(min-width: 769px)');
+		isDesktop = mql.matches;
+
+		const listener = (e) => (isDesktop = e.matches);
+		mql.addEventListener('change', listener);
+
+		return () => mql.removeEventListener('change', listener);
+	});
+
 	$effect(() => {
 		const id = $page.params.id;
 		if (!id) return;
 
-		async function loadData() {
+		async function teamOverview() {
 			loading = true;
 			errorMsg = '';
 			try {
@@ -36,7 +54,7 @@
 			}
 		}
 
-		loadData();
+		teamOverview();
 	});
 
 	$effect(() => {
@@ -61,7 +79,7 @@
 		loadLogo();
 	});
 
-	let teamProfile = $derived(teamData?.teams?.[0] || null);
+	let teamProfile = $derived(teamData || null);
 </script>
 
 {#if loading}
@@ -100,28 +118,54 @@
 		<div class="player-text-box">
 			<div class="wa-heading-xl">{teamProfile.name}</div>
 			<div class="small-details-wrapper">
-				<p>est. {teamProfile.firstYearOfPlay}</p>
-				<wa-divider orientation="vertical"></wa-divider>
-				<p>{teamProfile.league?.name}</p>
+				<wa-badge appearance="filled" variant="brand">{teamProfile.league?.name}</wa-badge>
 			</div>
 		</div>
 	</div>
 
 	<wa-divider></wa-divider>
 
-	<wa-tab-group placement="start">
-		<wa-tab panel="general">Overview</wa-tab>
-		<wa-tab panel="custom">Batting</wa-tab>
-		<wa-tab panel="advanced">Pitching</wa-tab>
-		<wa-tab panel="advanced">Schedule</wa-tab>
-		<wa-tab panel="advanced">Top prospects</wa-tab>
-		<wa-tab panel="disabled" disabled>Disabled</wa-tab>
+	{#key isDesktop}
+		<wa-tab-group placement={isDesktop ? 'start' : 'top'}>
+			<wa-tab panel="overview">Overview</wa-tab>
+			<wa-tab panel="batting">Batting</wa-tab>
+			<wa-tab panel="pitching">Pitching</wa-tab>
+			<wa-tab panel="prospects">Prospects</wa-tab>
 
-		<wa-tab-panel name="general">Info</wa-tab-panel>
-		<wa-tab-panel name="custom">This is the custom tab panel.</wa-tab-panel>
-		<wa-tab-panel name="advanced">This is the advanced tab panel.</wa-tab-panel>
-		<wa-tab-panel name="disabled">This is a disabled tab panel.</wa-tab-panel>
-	</wa-tab-group>
+			<wa-tab-panel name="overview">
+				<div class="advanced-tab-panel">
+					<div class="horizontal-wrapper">
+						<h3>Overview</h3>
+					</div>
+					<div class="overview-boxes-wrapper">
+						<StatBoxTeamInfo
+							teamLogo={getTeamLogo($page.params.id)}
+							teamName={teamData.name}
+							teamId={teamData.id}
+							record={teamData.record}
+							division={teamData.division.name}
+							divisionStandings={teamData.divisionStandings}
+						/>
+
+						{#if teamData.divisionStandings?.length > 0}
+							<StatBoxTeamDivisionStandings
+								divisionName={teamData.division.name}
+								divisionStandings={teamData.divisionStandings}
+								currentTeamId={teamData.id}
+							/>
+						{/if}
+
+						{#if teamData.roster?.length > 0}
+							<RosterShowcase roster={teamData.roster} />
+						{/if}
+					</div>
+				</div>
+			</wa-tab-panel>
+			<wa-tab-panel name="batting">This is the batting tab panel.</wa-tab-panel>
+			<wa-tab-panel name="pitching">This is the pitching tab panel.</wa-tab-panel>
+			<wa-tab-panel name="prospects">This is the prospects tab panel.</wa-tab-panel>
+		</wa-tab-group>
+	{/key}
 {/if}
 
 <style>
@@ -132,20 +176,7 @@
 		justify-content: center;
 	}
 
-	.img-status-wrapper {
-		position: relative;
-		width: min-content;
-		height: min-content;
-	}
-
-	wa-badge {
-		position: absolute;
-		right: -0.9rem;
-		top: -0.7rem;
-		box-shadow: var(--wa-shadow-s);
-	}
-
-	img {
+	.player-thumb {
 		max-width: 150px;
 		width: 150px;
 		height: 150px;
@@ -153,6 +184,25 @@
 		background-color: var(--wa-color-gray-80);
 		padding: 2rem;
 		box-shadow: var(--wa-shadow-l);
+	}
+
+	.horizontal-wrapper {
+		display: flex;
+		align-items: center;
+		margin: 1rem 0 1rem 0;
+		height: 40px;
+	}
+
+	.overview-boxes-wrapper {
+		display: flex;
+		justify-content: flex-start;
+		flex-wrap: wrap;
+		gap: 2rem;
+	}
+
+	h3 {
+		margin: 0;
+		white-space: nowrap;
 	}
 
 	.player-text-box {
@@ -212,5 +262,54 @@
 
 	.skeleton-paragraphs wa-skeleton:last-child {
 		width: 50%;
+	}
+	@media (max-width: 1250px) {
+		.details-filters-wrapper {
+			flex-direction: column;
+			align-items: start;
+			overflow-x: scroll;
+			padding: 0 1rem 1.5rem 3px;
+			height: auto;
+			mask-image: linear-gradient(to right, black calc(100% - 32px), transparent 100%);
+			-webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+			gap: 1.5rem;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.stats-grid-container {
+			grid-template-columns: 1fr auto 1fr auto 1fr;
+			gap: 1.5rem;
+		}
+
+		.grid-desktop-divider {
+			display: block;
+		}
+	}
+
+	@media (max-width: 768px) {
+		.player-info-box {
+			align-items: center;
+		}
+
+		#verticalDividers {
+			display: none;
+		}
+
+		.horizontal-wrapper {
+			flex-direction: column;
+			height: auto;
+			gap: 1rem;
+			align-items: start;
+		}
+
+		.dropdown-and-switch-wrapper {
+			flex-direction: column;
+			align-items: start;
+		}
+
+		.honor-badges-wrapper {
+			justify-content: flex-end;
+		}
 	}
 </style>

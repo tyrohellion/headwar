@@ -1,20 +1,18 @@
-// src/lib/warStore.svelte.js
 import { untrack } from 'svelte';
 
-// Keep track of our loaded datasets independently in memory
 let globalActiveVault = null;
 let globalArchiveVault = null;
-let globalLeaderboard = null; // Stashes our tiny 3rd file for fast all-time rank lookups
+let globalLeaderboard = null;
 
 let state = $state({
 	careerWar: 'N/A',
-	careerWarRank: 'N/A', // New reactive property
+	careerWarRank: 'N/A',
 	currentSeasonWar: 'N/A',
-	currentSeasonWarRank: 'N/A', // New reactive property
+	currentSeasonWarRank: 'N/A',
 	currentSeasonOpsPlus: 'N/A',
-	currentSeasonOpsPlusRank: 'N/A', // New reactive property
+	currentSeasonOpsPlusRank: 'N/A',
 	currentSeasonEraPlus: 'N/A',
-	currentSeasonEraPlusRank: 'N/A', // New reactive property
+	currentSeasonEraPlusRank: 'N/A',
 	careerOpsPlus: 'N/A',
 	careerEraPlus: 'N/A',
 	seasons: {},
@@ -85,7 +83,6 @@ function extractMetricsFromRecord(playerRecord, id, year) {
 		return;
 	}
 
-	// 1. Pull the All-Time Career bWAR Rank from our pre-fetched leaderboard file
 	if (globalLeaderboard && globalLeaderboard[stringId]) {
 		state.careerWar = parseFloat(globalLeaderboard[stringId].value).toFixed(1);
 		state.careerWarRank = globalLeaderboard[stringId].rank ?? 'N/A';
@@ -97,12 +94,10 @@ function extractMetricsFromRecord(playerRecord, id, year) {
 	const seasonsMap = playerRecord.seasons || {};
 	state.seasons = seasonsMap;
 
-	// Detect retirement status based on latest year key
 	const seasonKeys = Object.keys(seasonsMap).map(Number);
 	const maxSeason = seasonKeys.length ? Math.max(...seasonKeys) : 2026;
 	state.isRetired = maxSeason < 2026;
 
-	// --- CALCULATE CAREER VALUE-WEIGHTED STATISTICS ---
 	let totalOpsWarWeight = 0;
 	let totalOpsWeight = 0;
 	let totalEraWarWeight = 0;
@@ -111,7 +106,6 @@ function extractMetricsFromRecord(playerRecord, id, year) {
 	for (const sYear in seasonsMap) {
 		const data = seasonsMap[sYear];
 
-		// Since data.war is now an object, read its value property securely
 		const warVal = data.war && typeof data.war === 'object' ? (data.war.value ?? 0) : 0;
 		const weight = Math.max(Math.abs(warVal), 0.1);
 
@@ -131,10 +125,8 @@ function extractMetricsFromRecord(playerRecord, id, year) {
 	state.careerEraPlus =
 		totalEraWarWeight > 0 ? Math.round(totalEraWeight / totalEraWarWeight) : 'N/A';
 
-	// --- POPULATE SINGLE TARGET SEASON METRICS & THEIR ABSOLUTE RANKS ---
 	const seasonStats = seasonsMap[String(year)];
 	if (seasonStats) {
-		// Parse bWAR details
 		if (seasonStats.war && typeof seasonStats.war === 'object') {
 			state.currentSeasonWar = parseFloat(seasonStats.war.value ?? 0).toFixed(1);
 			state.currentSeasonWarRank = seasonStats.war.rank ?? 'N/A';
@@ -143,7 +135,6 @@ function extractMetricsFromRecord(playerRecord, id, year) {
 			state.currentSeasonWarRank = 'N/A';
 		}
 
-		// Parse OPS+ details
 		if (seasonStats.ops && typeof seasonStats.ops === 'object') {
 			state.currentSeasonOpsPlus = seasonStats.ops.value ?? 'N/A';
 			state.currentSeasonOpsPlusRank = seasonStats.ops.rank ?? 'N/A'; // Handily handles 'null' for unqualified players
@@ -152,7 +143,6 @@ function extractMetricsFromRecord(playerRecord, id, year) {
 			state.currentSeasonOpsPlusRank = 'N/A';
 		}
 
-		// Parse ERA+ details
 		if (seasonStats.era && typeof seasonStats.era === 'object') {
 			state.currentSeasonEraPlus = seasonStats.era.value ?? 'N/A';
 			state.currentSeasonEraPlusRank = seasonStats.era.rank ?? 'N/A';
@@ -177,7 +167,6 @@ export async function loadAdvancedMetrics(playerMlbId, selectedYear) {
 	state.loading = true;
 
 	try {
-		// 1. Fetch the tiny 3rd file (career leaderboard) first if not already loaded
 		if (!globalLeaderboard) {
 			const leaderboardUrl = `${window.location.origin}/data/career_leaderboard.json`;
 			const res = await fetch(leaderboardUrl);
@@ -185,15 +174,12 @@ export async function loadAdvancedMetrics(playerMlbId, selectedYear) {
 			globalLeaderboard = await res.json();
 		}
 
-		// 2. Identify which data asset file contains this player's seasonal breakdown
 		const playerMeta = globalLeaderboard[stringId];
 		if (!playerMeta) {
-			// Player completely unranked/missing
 			extractMetricsFromRecord(null, playerMlbId, selectedYear);
 			return;
 		}
 
-		// 3. Smart routing: load only the precise file we need
 		if (playerMeta.status === 'archive') {
 			if (!globalArchiveVault) {
 				const archiveUrl = `${window.location.origin}/data/war_archive.json`;

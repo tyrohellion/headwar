@@ -1,6 +1,5 @@
 import { browser } from '$app/environment';
 
-// Helper to determine initial state safely during Server-Side Rendering (SSR)
 function getInitialTheme() {
 	if (!browser) return false;
 	const savedMode = localStorage.getItem('wa-color-scheme');
@@ -8,13 +7,11 @@ function getInitialTheme() {
 	return window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
-// Create a reactive state object using Svelte 5 runes
 class ThemeManager {
 	isDark = $state(getInitialTheme());
 
 	constructor() {
 		if (browser) {
-			// Keep the DOM and localStorage synced reactively
 			$effect.root(() => {
 				$effect(() => {
 					document.documentElement.classList.toggle('wa-dark', this.isDark);

@@ -197,7 +197,6 @@
 	</div>
 </div>
 
-<!-- Mobile Drawer Sidebar (Web Awesome) -->
 <wa-drawer
 	label="Navigation"
 	open={isMenuOpen}

@@ -4,11 +4,10 @@ import pandas as pd
 from pybaseball import bwar_bat, bwar_pitch
 
 CURRENT_YEAR = 2026
-YEAR_THRESHOLD = CURRENT_YEAR - 8  # 2018
+YEAR_THRESHOLD = CURRENT_YEAR - 8
 
-# --- QUALIFICATION THRESHOLDS FOR RANKINGS ---
-MIN_SEASONAL_PA = 200       # Minimum Plate Appearances to qualify for seasonal OPS+ rank
-MIN_SEASONAL_IPOUTS = 150   # Minimum outs pitched (150 outs = 50 Innings) to qualify for ERA+ rank
+MIN_SEASONAL_PA = 200
+MIN_SEASONAL_IPOUTS = 150
 
 def generate_compressed_war_vault():
     os.makedirs('static/data', exist_ok=True)
@@ -28,23 +27,19 @@ def generate_compressed_war_vault():
         print(f"Error executing pybaseball network request: {e}")
         return
 
-    # Clean missing variables & structural types
     for df in [batters, pitchers]:
         df['mlb_ID'] = df['mlb_ID'].fillna(0).astype(int)
         df['year_ID'] = df['year_ID'].astype(int)
         df['WAR'] = pd.to_numeric(df['WAR'], errors='coerce').fillna(0.0)
 
-    # Filter down to entries linked with a legitimate MLB tracking ID
     batters = batters[batters['mlb_ID'] > 0]
     pitchers = pitchers[pitchers['mlb_ID'] > 0]
 
-    # Pre-calculate the last active year for every player in the dataset
     print("Analyzing player activity time horizons...")
     max_year_bat = batters.groupby('mlb_ID')['year_ID'].max()
     max_year_pitch = pitchers.groupby('mlb_ID')['year_ID'].max()
     last_active_map = pd.concat([max_year_bat, max_year_pitch]).groupby(level=0).max().to_dict()
 
-    # 1. COMPILE BATTER DATA (WAR, OPS+, & PA)
     print("Processing historical batter metrics...")
     for _, row in batters.iterrows():
         mlb_id = str(row['mlb_ID'])
@@ -67,13 +62,11 @@ def generate_compressed_war_vault():
         target_vault[mlb_id]["seasons"][year]["war"] += war
         target_vault[mlb_id]["seasons"][year]["pa"] += pa_val
         
-        # Track the rate metric cleanly for multi-stint players by prioritizing the largest workload
         if ops_val is not None:
             if "ops" not in target_vault[mlb_id]["seasons"][year] or pa_val > target_vault[mlb_id]["seasons"][year].get("_max_ops_pa", 0):
                 target_vault[mlb_id]["seasons"][year]["ops"] = ops_val
                 target_vault[mlb_id]["seasons"][year]["_max_ops_pa"] = pa_val
 
-    # 2. COMPILE PITCHER DATA (WAR, ERA+, & IPOUTS)
     print("Processing historical pitcher metrics...")
     for _, row in pitchers.iterrows():
         mlb_id = str(row['mlb_ID'])
@@ -99,13 +92,11 @@ def generate_compressed_war_vault():
         target_vault[mlb_id]["seasons"][year]["war"] += war
         target_vault[mlb_id]["seasons"][year]["ipouts"] += ipouts_val
         
-        # Track the rate metric cleanly for multi-stint players by prioritizing the largest workload
         if era_val is not None:
             if "era" not in target_vault[mlb_id]["seasons"][year] or ipouts_val > target_vault[mlb_id]["seasons"][year].get("_max_era_ipouts", 0):
                 target_vault[mlb_id]["seasons"][year]["era"] = era_val
                 target_vault[mlb_id]["seasons"][year]["_max_era_ipouts"] = ipouts_val
 
-    # 3. NORMALIZE CAREER TOTALS & PRECISION ACROSS BOTH VAULTS
     print("Formatting structural outputs and calculating career aggregates...")
     global_career_data = []
 
@@ -125,7 +116,6 @@ def generate_compressed_war_vault():
             for year in v["seasons"]:
                 v["seasons"][year]["war"] = round(v["seasons"][year]["war"], 1)
 
-    # 4. CALCULATE LEADERBOARD RANKINGS
     print("Calculating leaderboard rankings...")
     
     global_career_data.sort(key=lambda x: x["career_total"], reverse=True)
@@ -158,28 +148,24 @@ def generate_compressed_war_vault():
                     else:
                         p_data["seasons"][year]["era"] = {"value": s_data["era"], "rank": None}
 
-    # Rank and assign Seasonal WAR globally
     for year, players in yearly_war.items():
         players.sort(key=lambda x: x[1], reverse=True)
         for index, (mlb_id, val, vault_name) in enumerate(players):
             target_vault = war_active if vault_name == "active" else war_archive
             target_vault[mlb_id]["seasons"][year]["war"] = {"value": val, "rank": index + 1}
 
-    # Rank and assign qualified Seasonal OPS+ globally
     for year, players in yearly_ops.items():
         players.sort(key=lambda x: x[1], reverse=True)
         for index, (mlb_id, val, vault_name) in enumerate(players):
             target_vault = war_active if vault_name == "active" else war_archive
             target_vault[mlb_id]["seasons"][year]["ops"] = {"value": val, "rank": index + 1}
 
-    # Rank and assign qualified Seasonal ERA+ globally
     for year, players in yearly_era.items():
         players.sort(key=lambda x: x[1], reverse=True)
         for index, (mlb_id, val, vault_name) in enumerate(players):
             target_vault = war_active if vault_name == "active" else war_archive
             target_vault[mlb_id]["seasons"][year]["era"] = {"value": val, "rank": index + 1}
 
-    # Clean up internal volume tracking keys before outputting json assets
     for vault in [war_active, war_archive]:
         for mlb_id in vault:
             for year in vault[mlb_id]["seasons"]:
@@ -188,7 +174,6 @@ def generate_compressed_war_vault():
                 vault[mlb_id]["seasons"][year].pop("_max_ops_pa", None)
                 vault[mlb_id]["seasons"][year].pop("_max_era_ipouts", None)
 
-    # 5. SAVE COMPRESSED ASSETS
     print("Saving compressed storage assets...")
     
     with open(active_path, 'w') as f:

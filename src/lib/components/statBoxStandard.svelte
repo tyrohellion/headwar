@@ -2,10 +2,10 @@
 	import AnimatedCounter from './animatedCounter.svelte';
 
 	let {
-		percentile = 0, // Kept for interface compatibility
+		percentile = 0,
 		label = '',
 		abbr = '',
-		stat = 0, // We will drive the numbers and visuals from the raw stat now
+		stat = 0,
 		careerSeasonLength = 0,
 		tooltipText = '',
 		isRetired = false
@@ -19,7 +19,6 @@
 	const isObp = $derived(abbr.toUpperCase() === 'OBP');
 	const isSlg = $derived(abbr.toUpperCase() === 'SLG');
 
-	// Parse the actual numeric stat safely
 	const numericValue = $derived.by(() => {
 		const num = parseFloat(stat);
 		return isNaN(num) ? 0 : num;
@@ -30,7 +29,6 @@
 	const activeColor = $derived.by(() => {
 		if (disableVisuals) return 'var(--wa-color-filled-on-normal)';
 
-		// 1. OPS Thresholds (Elite: .900+, Great: .800+, Average: .720+)
 		if (isOps) {
 			if (numericValue >= 0.9) return 'var(--wa-color-success-60)';
 			if (numericValue >= 0.8) return 'var(--wa-color-success-80)';
@@ -38,7 +36,6 @@
 			return 'var(--wa-color-danger-70)';
 		}
 
-		// 2. ERA Thresholds (Lower is better)
 		if (isEra) {
 			if (numericValue <= 3.0) return 'var(--wa-color-success-60)';
 			if (numericValue <= 4.0) return 'var(--wa-color-success-80)';
@@ -46,7 +43,6 @@
 			return 'var(--wa-color-danger-70)';
 		}
 
-		// 3. Batting Average Thresholds (.300+, .270+, .240+)
 		if (isAvg) {
 			if (numericValue >= 0.3) return 'var(--wa-color-success-60)';
 			if (numericValue >= 0.27) return 'var(--wa-color-success-80)';
@@ -54,7 +50,6 @@
 			return 'var(--wa-color-danger-70)';
 		}
 
-		// 4. On-Base Percentage Thresholds (.390+, .350+, .315+)
 		if (isObp) {
 			if (numericValue >= 0.39) return 'var(--wa-color-success-60)';
 			if (numericValue >= 0.35) return 'var(--wa-color-success-80)';
@@ -62,7 +57,6 @@
 			return 'var(--wa-color-danger-70)';
 		}
 
-		// 5. Slugging Percentage Thresholds (.500+, .440+, .390+)
 		if (isSlg) {
 			if (numericValue >= 0.5) return 'var(--wa-color-success-60)';
 			if (numericValue >= 0.44) return 'var(--wa-color-success-80)';
@@ -85,7 +79,6 @@
 		<div class="name-badge-wrapper">
 			<div class="war-career-length-wrapper">
 				<span class="stat-value" style="color: {activeColor};">
-					<!-- Showing the raw stat value inside the main counter -->
 					<AnimatedCounter value={stat} />
 				</span>
 				{#if careerSeasonLength !== 0}

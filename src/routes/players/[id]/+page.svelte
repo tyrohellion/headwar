@@ -652,7 +652,7 @@
 			<wa-tab-panel name="overview">
 				<div class="advanced-tab-panel">
 					<div class="horizontal-wrapper">
-						<h3 id="advancedExplanationStandard">Overview</h3>
+						<h3>Overview</h3>
 					</div>
 
 					<div class="overview-boxes-wrapper">
@@ -1253,7 +1253,7 @@
 	.horizontal-wrapper {
 		display: flex;
 		align-items: center;
-		margin: 1rem 0 2rem 0;
+		margin: 1rem 0 1rem 0;
 		height: 40px;
 	}
 	h3 {
@@ -1276,7 +1276,6 @@
 	.small-details-wrapper {
 		display: flex;
 		align-items: center;
-		overflow-x: scroll;
 		gap: 0;
 	}
 
