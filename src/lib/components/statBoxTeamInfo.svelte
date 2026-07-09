@@ -116,30 +116,35 @@
 		justify-content: center;
 		flex-direction: column;
 		align-items: start;
+		width: 100%;
 		gap: 1rem;
-		min-width: 280px;
 		padding: 1.25rem 1.5rem;
 		transition: all 100ms ease;
 		border-radius: var(--wa-border-radius-s);
 		border: 1px solid var(--wa-color-border-quiet, var(--wa-color-brand-border-loud));
-		overflow: hidden;
-		background-color: transparent;
 	}
 
 	.stat-molecule:hover {
 		transform: scale(1.02);
 		background-color: var(--wa-color-fill-normal);
 
-		wa-badge {
+		.streak-pill {
 			border-color: var(--wa-color-border-loud, var(--wa-color-brand-border-loud));
 		}
+	}
+
+	h3 {
+		margin: 0;
+		font-size: var(--wa-font-size-l);
+		font-weight: var(--wa-font-weight-semibold, 600);
+		position: absolute;
+		top: -2.5rem;
 	}
 
 	.team-header {
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
-		width: 100%;
 	}
 
 	.team-logo {
@@ -185,7 +190,6 @@
 		align-items: center;
 		justify-content: start;
 		gap: 0.75rem;
-		width: 100%;
 	}
 
 	.record-numbers {
@@ -218,12 +222,6 @@
 		color: var(--wa-color-neutral-on-quiet);
 	}
 
-	wa-badge {
-		font-family: var(--font-mono);
-		height: 26px;
-		padding: 0 0.5rem;
-	}
-
 	.streak-pill {
 		display: flex;
 		justify-content: center;
@@ -247,8 +245,8 @@
 		display: flex;
 		align-items: center;
 		flex-wrap: wrap;
-		width: 100%;
 		gap: 1rem;
+		width: 100%;
 		padding-top: 1rem;
 		border-top: 1px dashed var(--wa-color-border-quiet);
 	}

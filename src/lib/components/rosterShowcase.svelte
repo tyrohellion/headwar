@@ -135,6 +135,22 @@
 		}
 	}
 
+	.player-roster-card:active {
+		transform: scale(0.95);
+		background-color: var(--wa-color-fill-normal);
+		border-color: var(--wa-color-border-quiet);
+		cursor: pointer;
+
+		.player-name {
+			text-decoration: underline;
+			text-decoration-color: var(--wa-color-fill-accent-quiet);
+		}
+
+		wa-badge {
+			border-color: var(--wa-color-border-loud, var(--wa-color-brand-border-loud));
+		}
+	}
+
 	.player-roster-card.il-card {
 		opacity: 0.85;
 		background-color: rgba(var(--wa-color-neutral-rgb), 0.02);

@@ -116,6 +116,7 @@ export async function getTeamInfo(id) {
 			upcomingSchedule: upcomingGames
 		};
 
+		console.log(teamPayload);
 		return teamPayload;
 	} catch (error) {
 		console.error(`Error aggregating data inside getTeamInfo for team ${id}:`, error);

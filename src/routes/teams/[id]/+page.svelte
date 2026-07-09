@@ -8,6 +8,7 @@
 	import StatBoxTeamInfo from '$lib/components/statBoxTeamInfo.svelte';
 	import StatBoxTeamDivisionStandings from '$lib/components/statBoxTeamDivisionStandings.svelte';
 	import RosterShowcase from '$lib/components/rosterShowcase.svelte';
+	import TeamUpcomingSchedule from '$lib/components/teamUpcomingSchedule.svelte';
 
 	import WaTabGroup from '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
 	import WaTabPanel from '@awesome.me/webawesome/dist/components/tab-panel/tab-panel.js';
@@ -134,18 +135,24 @@
 
 			<wa-tab-panel name="overview">
 				<div class="advanced-tab-panel">
-					<div class="horizontal-wrapper">
-						<h3>Overview</h3>
-					</div>
 					<div class="overview-boxes-wrapper">
-						<StatBoxTeamInfo
-							teamLogo={getTeamLogo($page.params.id)}
-							teamName={teamData.name}
-							teamId={teamData.id}
-							record={teamData.record}
-							division={teamData.division.name}
-							divisionStandings={teamData.divisionStandings}
-						/>
+						<div class="info-and-schedule-wrapper">
+							<StatBoxTeamInfo
+								teamLogo={getTeamLogo($page.params.id)}
+								teamName={teamData.name}
+								teamId={teamData.id}
+								record={teamData.record}
+								division={teamData.division.name}
+								divisionStandings={teamData.divisionStandings}
+							/>
+
+							{#if teamData?.upcomingSchedule}
+								<TeamUpcomingSchedule
+									upcomingSchedule={teamData.upcomingSchedule}
+									currentTeamId={teamData.id}
+								/>
+							{/if}
+						</div>
 
 						{#if teamData.divisionStandings?.length > 0}
 							<StatBoxTeamDivisionStandings
@@ -171,145 +178,72 @@
 <style>
 	.player-info-box {
 		display: flex;
-		flex-direction: column;
+		flex-direction: row;
+		align-items: center;
 		gap: 1.5rem;
-		justify-content: center;
+		width: 100%;
+		margin-bottom: 1rem;
 	}
 
 	.player-thumb {
-		max-width: 150px;
-		width: 150px;
-		height: 150px;
-		max-height: 150px;
+		width: 120px;
+		height: 120px;
 		background-color: var(--wa-color-gray-80);
-		padding: 2rem;
+		padding: 1.5rem;
 		box-shadow: var(--wa-shadow-l);
-	}
-
-	.horizontal-wrapper {
-		display: flex;
-		align-items: center;
-		margin: 1rem 0 1rem 0;
-		height: 40px;
-	}
-
-	.overview-boxes-wrapper {
-		display: flex;
-		justify-content: flex-start;
-		flex-wrap: wrap;
-		gap: 2rem;
-	}
-
-	h3 {
-		margin: 0;
-		white-space: nowrap;
+		border-radius: var(--wa-border-radius-m, 8px);
+		object-fit: contain;
 	}
 
 	.player-text-box {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: 0.5rem;
 	}
 
 	.small-details-wrapper {
 		display: flex;
-		gap: 0;
+		gap: 0.5rem;
 	}
 
-	.skeleton-overview header {
+	.overview-boxes-wrapper {
 		display: flex;
-		align-items: center;
-		margin-bottom: 1rem;
+		flex-direction: column;
+		width: 100%;
+		gap: 2rem;
 	}
 
-	.skeleton-overview header wa-skeleton:last-child {
-		flex: 0 0 auto;
-		width: 30%;
+	.info-and-schedule-wrapper {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		width: 100%;
+		gap: 1.5rem;
 	}
 
-	.skeleton-overview wa-skeleton {
-		margin-bottom: 1rem;
+	.skeleton-overview {
+		display: flex;
+		flex-direction: column;
+		gap: 1rem;
+		margin-bottom: 1.5rem;
 	}
 
-	.skeleton-overview wa-skeleton:nth-child(1) {
-		float: left;
-		width: 3rem;
-		height: 3rem;
-		margin-right: 1rem;
-		vertical-align: middle;
+	.skeleton-paragraphs {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		margin-top: 1.5rem;
 	}
 
-	.skeleton-overview wa-skeleton:nth-child(3) {
-		width: 45%;
-	}
-
-	.skeleton-overview wa-skeleton:nth-child(4) {
-		width: 35%;
-	}
-
-	.skeleton-paragraphs wa-skeleton {
-		margin-top: 4rem;
-		margin-bottom: 1rem;
-	}
-
-	.skeleton-paragraphs wa-skeleton:nth-child(2) {
-		width: 95%;
-	}
-
-	.skeleton-paragraphs wa-skeleton:nth-child(4) {
-		width: 90%;
-	}
-
-	.skeleton-paragraphs wa-skeleton:last-child {
-		width: 50%;
-	}
-	@media (max-width: 1250px) {
-		.details-filters-wrapper {
-			flex-direction: column;
-			align-items: start;
-			overflow-x: scroll;
-			padding: 0 1rem 1.5rem 3px;
-			height: auto;
-			mask-image: linear-gradient(to right, black calc(100% - 32px), transparent 100%);
-			-webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
-			gap: 1.5rem;
-		}
-	}
-
-	@media (min-width: 1024px) {
-		.stats-grid-container {
-			grid-template-columns: 1fr auto 1fr auto 1fr;
-			gap: 1.5rem;
-		}
-
-		.grid-desktop-divider {
-			display: block;
+	@media (max-width: 992px) {
+		.info-and-schedule-wrapper {
+			grid-template-columns: minmax(0, 1fr);
 		}
 	}
 
 	@media (max-width: 768px) {
 		.player-info-box {
-			align-items: center;
-		}
-
-		#verticalDividers {
-			display: none;
-		}
-
-		.horizontal-wrapper {
 			flex-direction: column;
-			height: auto;
-			gap: 1rem;
-			align-items: start;
-		}
-
-		.dropdown-and-switch-wrapper {
-			flex-direction: column;
-			align-items: start;
-		}
-
-		.honor-badges-wrapper {
-			justify-content: flex-end;
+			text-align: center;
 		}
 	}
 </style>

@@ -98,6 +98,7 @@
 		flex-direction: column;
 		gap: 0.5rem;
 		width: 100%;
+		flex: 1;
 	}
 
 	.division-title {
@@ -140,6 +141,21 @@
 
 	.team-standings-card:hover {
 		transform: scale(1.03);
+		background-color: var(--wa-color-fill-normal);
+		cursor: pointer;
+
+		wa-badge {
+			border-color: var(--wa-color-border-loud, var(--wa-color-brand-border-loud));
+		}
+
+		.team-abbrev {
+			text-decoration: underline;
+			text-decoration-color: var(--wa-color-fill-accent-quiet);
+		}
+	}
+
+	.team-standings-card:active {
+		transform: scale(0.95);
 		background-color: var(--wa-color-fill-normal);
 		cursor: pointer;
 

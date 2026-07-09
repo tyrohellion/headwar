@@ -1211,6 +1211,14 @@
 		text-decoration: underline;
 	}
 
+	.team-logo-name-wrapper:active {
+		cursor: pointer;
+		background-color: var(--wa-color-neutral-fill-normal);
+		transform: scale(0.95);
+		transition: all 100ms ease;
+		text-decoration: underline;
+	}
+
 	#debut-wrapper {
 		cursor: default;
 		display: flex;
