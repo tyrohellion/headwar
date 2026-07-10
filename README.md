@@ -8,13 +8,13 @@ This website is a non-commercial, open-source educational project built for fun.
 
 ### Technologies used
 
-Webawesome components + lots of custom components
-Skeltekit for front-end
-flask for connecting svelte and pybaseball
-anime.js for number animations
+- Webawesome components + lots of custom components
+- Skeltekit for front-end
+- flask for connecting svelte and pybaseball
+- anime.js for number animations
 
-Pybaseball for some statcast stuff
-Official public MLB api for 99% of the data
+- Pybaseball for some statcast stuff
+- Official public MLB api for 99% of the data
 
 ### Building
 
