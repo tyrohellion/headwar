@@ -23,7 +23,6 @@
 	let loadingLogo = $state(true);
 	let errorMsg = $state('');
 	let errorMsgLogo = $state('');
-
 	let isDesktop = $state(true);
 
 	onMount(() => {

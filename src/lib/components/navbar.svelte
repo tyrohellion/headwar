@@ -105,19 +105,6 @@
 				<wa-dropdown-item>American League</wa-dropdown-item>
 			</wa-dropdown>
 		</wa-button-group>
-
-		<wa-button-group size="s" label="Games">
-			<a href="/games">
-				<wa-button size="s" appearance="filled">Games</wa-button>
-			</a>
-			<wa-dropdown size="s" placement="bottom">
-				<wa-button size="s" appearance="filled" slot="trigger">
-					<wa-icon name="chevron-down" label="More options"></wa-icon>
-				</wa-button>
-				<wa-dropdown-item>Live Games</wa-dropdown-item>
-				<wa-dropdown-item>Finished Games</wa-dropdown-item>
-			</wa-dropdown>
-		</wa-button-group>
 	</div>
 
 	<div class="float-right-wrapper">

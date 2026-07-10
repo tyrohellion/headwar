@@ -12,7 +12,7 @@ export async function getTeamInfo(id) {
 	const teamUrl = `https://statsapi.mlb.com/api/v1/teams/${id}`;
 	const rosterUrl = `https://statsapi.mlb.com/api/v1/teams/${id}/roster?season=${currentYear}&rosterType=depthChart`;
 	const standingsUrl = `https://statsapi.mlb.com/api/v1/standings?leagueId=103,104&season=${currentYear}&standingsTypes=regularSeason,wildCard`;
-	const scheduleUrl = `https://statsapi.mlb.com/api/v1/schedule?teamId=${id}&sportId=1&startDate=${startStr}&endDate=${endStr}`;
+	const scheduleUrl = `https://statsapi.mlb.com/api/v1/schedule?teamId=${id}&sportId=1&startDate=${startStr}&endDate=${endStr}&hydrate=linescore,team`;
 
 	try {
 		const [teamRes, rosterRes, standingsRes, scheduleRes] = await Promise.all([
