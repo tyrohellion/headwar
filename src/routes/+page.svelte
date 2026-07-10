@@ -129,6 +129,7 @@
 				<div class="spotlight-three-column-grid">
 					<div class="spotlight-leaderboard-card">
 						<div class="column-header-title">OPS Leaders</div>
+						<wa-divider></wa-divider>
 						<div class="leaderboard-rows-stack">
 							{#each playerSpotlights.ops as player, i}
 								<a class="leader-row" href="/players/{player?.id}">
@@ -145,6 +146,7 @@
 
 					<div class="spotlight-leaderboard-card">
 						<div class="column-header-title">ERA Leaders</div>
+						<wa-divider></wa-divider>
 						<div class="leaderboard-rows-stack">
 							{#each playerSpotlights.era as player, i}
 								<a class="leader-row" href="/players/{player?.id}">
@@ -161,6 +163,7 @@
 
 					<div class="spotlight-leaderboard-card">
 						<div class="column-header-title">MLB Top 10 Teams</div>
+						<wa-divider></wa-divider>
 						<div class="leaderboard-rows-stack">
 							{#each playerSpotlights.topTeams as team, i}
 								<a class="leader-row" href="/teams/{team?.teamId}">
@@ -250,9 +253,6 @@
 		font-size: 1.1rem;
 		font-weight: var(--wa-font-weight-semibold, 600);
 		color: var(--wa-color-filled-on-normal);
-		padding-bottom: 1rem;
-		border-bottom: 2px solid var(--wa-color-border-quiet);
-		margin-bottom: 0.75rem;
 	}
 
 	.leaderboard-rows-stack {

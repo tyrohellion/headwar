@@ -9,7 +9,7 @@ This website is a non-commercial, open-source educational project built for fun.
 ### Technologies used
 
 - Webawesome components + lots of custom components
-- Skeltekit for front-end
+- Sveltekit for front-end
 - flask for connecting svelte and pybaseball
 - anime.js for number animations
 
