@@ -6,11 +6,14 @@
 	import { getMlbStandings } from '../api/getMlbDivisionStandings';
 	import DivisionStandingsGrid from '$lib/components/divisionStandingsGrid.svelte';
 
+	import { getHomePageSpotlight } from '../api/getHomePageSpotlight';
+
 	import WaSpinner from '@awesome.me/webawesome/dist/components/spinner/spinner.js';
 	import WaButton from '@awesome.me/webawesome/dist/components/button/button.js';
 
 	let homepageSchedule = $state([]);
 	let divisionRecords = $state([]);
+	let playerSpotlights = $state({ ops: [], era: [], topTeams: [] }); // Adjusted mapping layout properties
 	let logosMap = $state({});
 	let isLoading = $state(true);
 	let errorMessage = $state('');
@@ -31,20 +34,29 @@
 		try {
 			isLoading = true;
 
-			const [scheduleData, standingsData] = await Promise.all([
+			const [scheduleData, standingsData, leadersData] = await Promise.all([
 				getMlbSchedule(),
-				getMlbStandings()
+				getMlbStandings(),
+				getHomePageSpotlight()
 			]);
 
 			homepageSchedule = scheduleData;
 			divisionRecords = standingsData;
+			playerSpotlights = leadersData;
 
-			if (homepageSchedule.length > 0) {
+			if (homepageSchedule.length > 0 || playerSpotlights.ops.length > 0) {
 				const uniqueTeamIds = new Set();
+
 				homepageSchedule.forEach((game) => {
 					if (game.teams?.away?.team?.id) uniqueTeamIds.add(game.teams.away.team.id);
 					if (game.teams?.home?.team?.id) uniqueTeamIds.add(game.teams.home.team.id);
 				});
+
+				['ops', 'era'].forEach((cat) => {
+					playerSpotlights[cat].forEach((p) => uniqueTeamIds.add(p.teamId));
+				});
+
+				playerSpotlights.topTeams.forEach((t) => uniqueTeamIds.add(t.teamId));
 
 				const logoPromises = Array.from(uniqueTeamIds).map(async (id) => {
 					try {
@@ -113,6 +125,61 @@
 			</section>
 
 			<section class="page-section">
+				<h3>League Leaders</h3>
+				<div class="spotlight-three-column-grid">
+					<div class="spotlight-leaderboard-card">
+						<div class="column-header-title">OPS Leaders</div>
+						<div class="leaderboard-rows-stack">
+							{#each playerSpotlights.ops as player, i}
+								<a class="leader-row" href="/players/{player?.id}">
+									<div class="rank-name-group">
+										<span class="row-rank-num">{i + 1}</span>
+										<img src={logosMap[player.teamId]} alt="" class="row-team-logo" />
+										<span class="player-profile-name">{player.name}</span>
+									</div>
+									<span class="metric-score-value">{player.value}</span>
+								</a>
+							{/each}
+						</div>
+					</div>
+
+					<div class="spotlight-leaderboard-card">
+						<div class="column-header-title">ERA Leaders</div>
+						<div class="leaderboard-rows-stack">
+							{#each playerSpotlights.era as player, i}
+								<a class="leader-row" href="/players/{player?.id}">
+									<div class="rank-name-group">
+										<span class="row-rank-num">{i + 1}</span>
+										<img src={logosMap[player.teamId]} alt="" class="row-team-logo" />
+										<span class="player-profile-name">{player.name}</span>
+									</div>
+									<span class="metric-score-value">{player.value}</span>
+								</a>
+							{/each}
+						</div>
+					</div>
+
+					<div class="spotlight-leaderboard-card">
+						<div class="column-header-title">MLB Top 10 Teams</div>
+						<div class="leaderboard-rows-stack">
+							{#each playerSpotlights.topTeams as team, i}
+								<a class="leader-row" href="/teams/{team?.teamId}">
+									<div class="rank-name-group">
+										<span class="row-rank-num">{i + 1}</span>
+										<img src={logosMap[team.teamId]} alt="" class="row-team-logo" />
+										<span class="player-profile-name">{team.name}</span>
+									</div>
+									<span class="metric-score-value subtitle-record">
+										{team.wins}-{team.losses}
+									</span>
+								</a>
+							{/each}
+						</div>
+					</div>
+				</div>
+			</section>
+
+			<section class="page-section">
 				<h3>Division Standings</h3>
 				{#if divisionRecords.length === 0}
 					<div class="empty-inline-state">
@@ -162,6 +229,110 @@
 		font-size: 1.5rem;
 		margin: 0 0 1.25rem 0;
 		color: var(--wa-color-filled-on-normal);
+	}
+
+	.spotlight-three-column-grid {
+		display: flex;
+		gap: 1.5rem;
+		width: 100%;
+	}
+
+	.spotlight-leaderboard-card {
+		flex: 1;
+		background-color: transparent;
+		border: 1px solid var(--wa-color-border-quiet);
+		border-radius: var(--wa-border-radius-m);
+		padding: 1.25rem;
+		box-sizing: border-box;
+	}
+
+	.column-header-title {
+		font-size: 1.1rem;
+		font-weight: var(--wa-font-weight-semibold, 600);
+		color: var(--wa-color-filled-on-normal);
+		padding-bottom: 1rem;
+		border-bottom: 2px solid var(--wa-color-border-quiet);
+		margin-bottom: 0.75rem;
+	}
+
+	.leaderboard-rows-stack {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.leader-row {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		padding: 0.4rem 0.5rem;
+		border-radius: var(--wa-border-radius-s);
+		text-decoration: none;
+		color: var(--wa-color-filled-on-normal);
+		transition: all 100ms ease;
+	}
+
+	.leader-row:hover {
+		transform: scale(1.015);
+		background-color: var(--wa-color-fill-normal);
+		cursor: pointer;
+		transition: all 100ms ease;
+
+		.player-profile-name {
+			text-decoration: underline;
+		}
+	}
+
+	.leader-row:active {
+		transform: scale(0.98);
+		transition: all 100ms ease;
+	}
+
+	.leader-row:nth-child(even) {
+		background-color: color-mix(in srgb, var(--wa-color-fill-normal) 30%, transparent);
+	}
+
+	.rank-name-group {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		min-width: 0;
+	}
+
+	.row-rank-num {
+		font-size: var(--wa-font-size-xs);
+		font-family: var(--font-mono, monospace);
+		color: var(--wa-color-neutral-on-quiet);
+		width: 16px;
+		text-align: right;
+	}
+
+	.row-team-logo {
+		width: 24px;
+		height: 24px;
+		object-fit: contain;
+	}
+
+	.player-profile-name {
+		font-size: var(--wa-font-size-m);
+		color: var(--wa-color-filled-on-normal);
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.metric-score-value {
+		font-family: var(--font-mono, monospace);
+		font-weight: var(--wa-font-weight-bold, 700);
+		color: var(--wa-color-filled-on-normal);
+		font-size: var(--wa-font-size-m);
+		padding-left: 0.5rem;
+	}
+
+	.metric-score-value.subtitle-record {
+		font-size: var(--wa-font-size-xs);
+		color: var(--wa-color-neutral-on-quiet);
+		font-weight: var(--wa-font-weight-normal, 400);
 	}
 
 	.collapsible-schedule-wrapper,
@@ -246,6 +417,11 @@
 	}
 
 	@media (max-width: 900px) {
+		.spotlight-three-column-grid {
+			flex-direction: column;
+			gap: 1rem;
+		}
+
 		.homepage-card-item {
 			max-width: 100%;
 		}

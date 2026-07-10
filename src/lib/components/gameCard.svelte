@@ -1,5 +1,6 @@
 <script>
 	import { dynamicDateCountdown } from '../../formatters/dynamicRelativeDateCountdown';
+	import AnimatedCounter from './animatedCounter.svelte';
 
 	let { game, logosMap = {}, now, currentTeamId = null } = $props();
 
@@ -61,14 +62,18 @@
 					<div class="team-name-info">
 						<span class="team-name-text">{away?.team?.clubName || 'Away'}</span>
 						{#if !isLive && away?.leagueRecord}
-							<span class="team-record-text"
-								>({away.leagueRecord.wins}-{away.leagueRecord.losses})</span
-							>
+							<span class="team-record-text">
+								(<AnimatedCounter value={away.leagueRecord.wins ?? 0} />-<AnimatedCounter
+									value={away.leagueRecord.losses ?? 0}
+								/>)
+							</span>
 						{/if}
 					</div>
 				</div>
 				{#if isLive}
-					<span class="live-score-text">{linescore?.teams?.away?.runs ?? 0}</span>
+					<span class="live-score-text">
+						<AnimatedCounter value={linescore?.teams?.away?.runs ?? 0} />
+					</span>
 				{:else}
 					<span class="loc-indicator-tag">AWAY</span>
 				{/if}
@@ -89,14 +94,18 @@
 					<div class="team-name-info">
 						<span class="team-name-text">{home?.team?.clubName || 'Home'}</span>
 						{#if !isLive && home?.leagueRecord}
-							<span class="team-record-text"
-								>({home.leagueRecord.wins}-{home.leagueRecord.losses})</span
-							>
+							<span class="team-record-text">
+								(<AnimatedCounter value={home.leagueRecord.wins ?? 0} />-<AnimatedCounter
+									value={home.leagueRecord.losses ?? 0}
+								/>)
+							</span>
 						{/if}
 					</div>
 				</div>
 				{#if isLive}
-					<span class="live-score-text">{linescore?.teams?.home?.runs ?? 0}</span>
+					<span class="live-score-text">
+						<AnimatedCounter value={linescore?.teams?.home?.runs ?? 0} />
+					</span>
 				{:else}
 					<span class="loc-indicator-tag">HOME</span>
 				{/if}
@@ -108,7 +117,9 @@
 		<span class="venue-name">{game.venue?.name || 'TBD'}</span>
 		{#if game.seriesGameNumber}
 			<wa-divider orientation="vertical"></wa-divider>
-			<span class="venue-name">Game {game.seriesGameNumber} of {game.gamesInSeries || 4}</span>
+			<span class="venue-name">
+				<span class="venue-name">Game {game.seriesGameNumber} of {game.gamesInSeries || 4}</span>
+			</span>
 		{/if}
 	</div>
 </div>
@@ -217,6 +228,8 @@
 		font-family: var(--font-mono);
 		color: var(--wa-color-neutral-on-quiet);
 		white-space: nowrap;
+		display: inline-flex;
+		align-items: center;
 	}
 
 	.loc-indicator-tag {
@@ -262,6 +275,9 @@
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
 	}
 
 	wa-divider {
