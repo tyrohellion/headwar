@@ -113,14 +113,19 @@
 		</a>
 	</div>
 
-	<div class="venue-info">
-		<span class="venue-name">{game.venue?.name || 'TBD'}</span>
-		{#if game.seriesGameNumber}
-			<wa-divider orientation="vertical"></wa-divider>
-			<span class="venue-name">
-				<span class="venue-name">Game {game.seriesGameNumber} of {game.gamesInSeries || 4}</span>
-			</span>
-		{/if}
+	<div class="game-details-cta-wrapper">
+		<div class="venue-info">
+			<span class="venue-name">{game.venue?.name || 'TBD'}</span>
+			{#if game.seriesGameNumber}
+				<wa-divider orientation="vertical"></wa-divider>
+				<span class="venue-name">
+					<span class="venue-name">Game {game.seriesGameNumber} of {game.gamesInSeries || 4}</span>
+				</span>
+			{/if}
+		</div>
+		<wa-button size="xs" appearance="filled" variant="success" href="/games/{game.gamePk}"
+			>View game</wa-button
+		>
 	</div>
 </div>
 
@@ -266,7 +271,11 @@
 		align-items: center;
 		gap: 0.5rem;
 		padding-top: 0.5rem;
-		width: 100%;
+	}
+
+	.game-details-cta-wrapper {
+		display: flex;
+		justify-content: space-between;
 	}
 
 	.venue-name {
