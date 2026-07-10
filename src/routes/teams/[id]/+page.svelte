@@ -214,20 +214,6 @@
 		gap: 1.5rem;
 	}
 
-	.skeleton-overview {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-		margin-bottom: 1.5rem;
-	}
-
-	.skeleton-paragraphs {
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-		margin-top: 1.5rem;
-	}
-
 	@media (max-width: 992px) {
 		.info-and-schedule-wrapper {
 			grid-template-columns: minmax(0, 1fr);
@@ -238,6 +224,10 @@
 		.player-info-box {
 			flex-direction: column;
 			text-align: center;
+		}
+
+		.player-text-box {
+			align-items: center;
 		}
 	}
 </style>

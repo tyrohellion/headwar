@@ -296,4 +296,20 @@
 	wa-badge {
 		flex-shrink: 0;
 	}
+
+	@media (max-width: 450px) {
+		.game-details-cta-wrapper {
+			flex-direction: column;
+			align-items: center;
+			gap: 1rem;
+
+			wa-button {
+				width: 100%;
+			}
+		}
+
+		.loc-indicator-tag {
+			display: none;
+		}
+	}
 </style>
