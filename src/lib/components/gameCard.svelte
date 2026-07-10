@@ -35,9 +35,13 @@
 
 <div class="game-schedule-card">
 	<div class="game-meta-header">
-		<wa-badge appearance="filled">
-			{isLive ? 'Live' : dynamicDateCountdown(game.gameDate, now)}
-		</wa-badge>
+		{#if isLive}
+			<wa-badge appearance="filled" variant="danger">Live</wa-badge>
+		{:else}
+			<wa-badge appearance="filled">
+				{dynamicDateCountdown(game.gameDate, now)}
+			</wa-badge>
+		{/if}
 		<wa-badge appearance="filled" size="s" variant={getStatusVariant(game.status?.detailedState)}>
 			{isLive
 				? formatInningState(linescore)
@@ -186,8 +190,11 @@
 		background-color: var(--wa-color-fill-normal);
 		transform: scale(1.015);
 		transition: all 100ms ease;
-		text-decoration: underline;
 		cursor: pointer;
+
+		.team-name-text {
+			text-decoration: underline;
+		}
 	}
 
 	.team-row:active {
