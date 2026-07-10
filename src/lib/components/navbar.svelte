@@ -380,7 +380,7 @@
 
 	.sub-text {
 		font-size: 0.8rem;
-		color: var(--wa-color-neutral-text-weak, #777);
+		color: var(--wa-color-neutral-text-weak);
 		margin-left: 0.25rem;
 	}
 
@@ -433,7 +433,7 @@
 		}
 
 		.hamburger-btn {
-			display: inline-block;
+			display: inline-block !important;
 			flex-shrink: 0;
 		}
 
