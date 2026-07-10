@@ -509,19 +509,8 @@
 </script>
 
 {#if loading}
-	<div class="skeleton-overview">
-		<div class="img-loading"></div>
-		<wa-skeleton effect="sheen"></wa-skeleton>
-		<wa-skeleton effect="sheen"></wa-skeleton>
-		<wa-skeleton effect="sheen"></wa-skeleton>
-	</div>
-	<wa-divider></wa-divider>
-	<div class="skeleton-paragraphs">
-		<wa-skeleton></wa-skeleton>
-		<wa-skeleton></wa-skeleton>
-		<wa-skeleton></wa-skeleton>
-		<wa-skeleton></wa-skeleton>
-		<wa-skeleton></wa-skeleton>
+	<div class="status-message">
+		<wa-spinner style="font-size: 3rem;"></wa-spinner>
 	</div>
 {:else if errorMsg}
 	<div class="wa-heading-m">We couldn't find that player :(</div>
@@ -1111,6 +1100,15 @@
 {/if}
 
 <style>
+	.status-message {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		min-height: 400px;
+		font-size: 1.15rem;
+		color: var(--wa-color-neutral-on-quiet);
+	}
+
 	.player-info-box {
 		display: flex;
 		flex-direction: column;

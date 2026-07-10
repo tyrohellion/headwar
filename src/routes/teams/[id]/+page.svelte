@@ -16,6 +16,7 @@
 	import WaSkeleton from '@awesome.me/webawesome/dist/components/skeleton/skeleton.js';
 	import WaBadge from '@awesome.me/webawesome/dist/components/badge/badge.js';
 	import WaTooltip from '@awesome.me/webawesome/dist/components/tooltip/tooltip.js';
+	import WaSpinner from '@awesome.me/webawesome/dist/components/spinner/spinner.js';
 
 	let teamData = $state(null);
 	let teamLogo = $state(null);
@@ -83,23 +84,8 @@
 </script>
 
 {#if loading}
-	<div class="skeleton-overview">
-		<wa-skeleton
-			effect="sheen"
-			style="width: 150px; height: 150px; border-radius: var(--wa-border-radius-m); z-index: 2;"
-		></wa-skeleton>
-		<wa-skeleton effect="sheen"></wa-skeleton>
-		<wa-skeleton effect="sheen"></wa-skeleton>
-		<wa-skeleton effect="sheen"></wa-skeleton>
-	</div>
-
-	<wa-divider></wa-divider>
-	<div class="skeleton-paragraphs">
-		<wa-skeleton></wa-skeleton>
-		<wa-skeleton></wa-skeleton>
-		<wa-skeleton></wa-skeleton>
-		<wa-skeleton></wa-skeleton>
-		<wa-skeleton></wa-skeleton>
+	<div class="status-message">
+		<wa-spinner style="font-size: 3rem;"></wa-spinner>
 	</div>
 {:else if errorMsg}
 	<div class="wa-heading-m">We couldn't find that team :(</div>
@@ -175,6 +161,15 @@
 {/if}
 
 <style>
+	.status-message {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		min-height: 400px;
+		font-size: 1.15rem;
+		color: var(--wa-color-neutral-on-quiet);
+	}
+
 	.player-info-box {
 		display: flex;
 		flex-direction: row;

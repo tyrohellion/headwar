@@ -44,9 +44,6 @@
 			<span class="team-title">{teamName}</span>
 			<span class="division-rank">
 				#{record?.divisionRank || deepStats?.divisionRank || '1'} in {division}
-				{#if deepStats && deepStats.gamesBack !== '-'}
-					<span class="games-back">(-{deepStats.gamesBack} Games)</span>
-				{/if}
 			</span>
 		</div>
 	</div>

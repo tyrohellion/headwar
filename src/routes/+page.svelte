@@ -17,6 +17,7 @@
 	let now = $state(new Date());
 
 	let isExpanded = $state(false);
+	let isDivisionExpanded = $state(false);
 
 	$effect(() => {
 		const interval = setInterval(() => {
@@ -118,13 +119,29 @@
 						<p>Standings data temporarily unavailable.</p>
 					</div>
 				{:else}
-					<div class="standings-dashboard-grid">
-						{#each divisionRecords as division}
-							<DivisionStandingsGrid
-								divisionName={division.displayName}
-								divisionStandings={division.teamRecords || []}
-							/>
-						{/each}
+					<div class="collapsible-standings-wrapper" class:is-collapsed={!isDivisionExpanded}>
+						<div class="standings-dashboard-grid">
+							{#each divisionRecords as division}
+								<DivisionStandingsGrid
+									divisionName={division.displayName}
+									divisionStandings={division.teamRecords || []}
+								/>
+							{/each}
+						</div>
+
+						{#if !isDivisionExpanded}
+							<div class="fade-overlay"></div>
+						{/if}
+					</div>
+
+					<div class="expansion-controls-row">
+						<wa-button
+							variant="neutral"
+							size="s"
+							onclick={() => (isDivisionExpanded = !isDivisionExpanded)}
+						>
+							{isDivisionExpanded ? 'Show less' : 'Show all'}
+						</wa-button>
 					</div>
 				{/if}
 			</section>
@@ -138,7 +155,7 @@
 		padding: 2rem 1rem;
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: 2rem;
 	}
 
 	.page-section h3 {
@@ -147,16 +164,21 @@
 		color: var(--wa-color-filled-on-normal);
 	}
 
-	.collapsible-schedule-wrapper {
+	.collapsible-schedule-wrapper,
+	.collapsible-standings-wrapper {
 		position: relative;
 		width: 100%;
 		overflow: hidden;
 		transition: max-height 350ms cubic-bezier(0.4, 0, 0.2, 1);
-		max-height: 2000px;
+		max-height: 8000px;
 	}
 
 	.collapsible-schedule-wrapper.is-collapsed {
-		max-height: 410px;
+		max-height: 400px;
+	}
+
+	.collapsible-standings-wrapper.is-collapsed {
+		max-height: 370px;
 	}
 
 	.fade-overlay {
@@ -171,6 +193,7 @@
 			var(--wa-color-canvas-background, var(--wa-color-surface-default)) 100%
 		);
 		pointer-events: none;
+		z-index: 2;
 	}
 
 	.expansion-controls-row {
@@ -197,7 +220,7 @@
 	.standings-dashboard-grid {
 		display: flex;
 		flex-direction: column;
-		gap: 1rem;
+		gap: 1.5rem;
 		width: 100%;
 	}
 
@@ -227,9 +250,12 @@
 			max-width: 100%;
 		}
 
-		/* Adjust mobile collapsed view bounds if row height changes when stacked */
 		.collapsible-schedule-wrapper.is-collapsed {
-			max-height: 460px;
+			max-height: 440px;
+		}
+
+		.collapsible-standings-wrapper.is-collapsed {
+			max-height: 470px;
 		}
 	}
 </style>

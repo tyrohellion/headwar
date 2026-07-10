@@ -7,7 +7,6 @@
 	import WaButton from '@awesome.me/webawesome/dist/components/button/button.js';
 	import WaButtonGroup from '@awesome.me/webawesome/dist/components/button-group/button-group.js';
 	import WaInput from '@awesome.me/webawesome/dist/components/input/input.js';
-	import WaOption from '@awesome.me/webawesome/dist/components/option/option.js';
 	import WaDivider from '@awesome.me/webawesome/dist/components/divider/divider.js';
 	import WaTooltip from '@awesome.me/webawesome/dist/components/tooltip/tooltip.js';
 	import WaSkeleton from '@awesome.me/webawesome/dist/components/skeleton/skeleton.js';
@@ -45,8 +44,8 @@
 			isSearching = true;
 			try {
 				const results = await searchEverything(cleanQuery);
-				matchedPlayers = results.players;
-				matchedTeams = results.teams;
+				matchedPlayers = results.players || [];
+				matchedTeams = results.teams || [];
 			} catch (err) {
 				console.error('Universal lookup failed:', err);
 			} finally {
@@ -70,7 +69,6 @@
 		<wa-icon name="bars" label="Open Menu"></wa-icon>
 	</wa-button>
 
-	<!-- Desktop Menu (Hidden below 768px) -->
 	<div class="nav-buttons desktop-only">
 		<a href="/" aria-label="Home">
 			<wa-button size="s" variant="brand" appearance="filled">
@@ -79,7 +77,7 @@
 		</a>
 
 		<wa-button-group size="s" label="Players">
-			<a href="/players">
+			<a href="/players" class="group-lead-anchor">
 				<wa-button size="s" appearance="filled">Players</wa-button>
 			</a>
 			<wa-dropdown size="s" placement="bottom">
@@ -93,7 +91,7 @@
 		</wa-button-group>
 
 		<wa-button-group size="s" label="Teams">
-			<a href="/teams">
+			<a href="/teams" class="group-lead-anchor">
 				<wa-button size="s" appearance="filled">Teams</wa-button>
 			</a>
 			<wa-dropdown size="s" placement="bottom">
@@ -125,8 +123,6 @@
 					<wa-skeleton effect="pulse"></wa-skeleton>
 					<wa-skeleton effect="pulse"></wa-skeleton>
 					<wa-skeleton effect="pulse"></wa-skeleton>
-					<wa-skeleton effect="pulse"></wa-skeleton>
-					<wa-skeleton effect="pulse"></wa-skeleton>
 				</div>
 			{:else if matchedPlayers.length > 0 || matchedTeams.length > 0}
 				<div class="search-dropdown">
@@ -134,14 +130,9 @@
 						<div class="category-header">Teams</div>
 						<wa-divider></wa-divider>
 						{#each matchedTeams as team}
-							<a href="/teams/{team.id}">
+							<a href="/teams/{team.id}" class="dropdown-item-link">
 								<button class="dropdown-item">
-									<img
-										src={team.logo}
-										alt="{team.name} logo"
-										class="team-logo-thumb"
-										loading="lazy"
-									/>
+									<img src={team.logo} alt="" class="team-logo-thumb" loading="lazy" />
 									<span class="item-name">
 										{team.name}
 										{#if team.abbreviation}<span class="sub-text">({team.abbreviation})</span>{/if}
@@ -155,11 +146,11 @@
 						<div class="category-header">Players</div>
 						<wa-divider></wa-divider>
 						{#each matchedPlayers as player}
-							<a href="/players/{player.id}">
+							<a href="/players/{player.id}" class="dropdown-item-link">
 								<button class="dropdown-item">
 									<img
 										src={player.headshot}
-										alt="playerHeadshot"
+										alt=""
 										class="player-thumb"
 										loading="lazy"
 										onerror={(e) =>
@@ -177,6 +168,7 @@
 				</div>
 			{/if}
 		</div>
+
 		<wa-tooltip for="color-scheme-button">toggle theme</wa-tooltip>
 		<wa-button id="color-scheme-button" size="s" onclick={() => theme.toggle()}>
 			<wa-icon name={theme.isDark ? 'sun' : 'moon'} label="Toggle Theme"></wa-icon>
@@ -205,22 +197,19 @@
 		<a href="/teams?tab=records">Record Leaders</a>
 		<a href="/teams?tab=nl">National League</a>
 		<a href="/teams?tab=al">American League</a>
-		<wa-divider></wa-divider>
-		<div class="drawer-section-title">Games</div>
-		<a href="/games">All Games</a>
-		<a href="/games?tab=live">Live Games</a>
-		<a href="/games?tab=finished">Finished Games</a>
 	</div>
 </wa-drawer>
 
 <style>
-	a {
-		text-decoration: none;
-		color: var(--wa-color-on-blue);
+	.nav:has(wa-button:not(:defined)),
+	.nav:has(wa-input:not(:defined)),
+	.nav:has(wa-icon:not(:defined)) {
+		visibility: hidden !important;
+		opacity: 0 !important;
 	}
 
-	a:hover {
-		text-decoration: underline;
+	wa-drawer:not(:defined) {
+		display: none !important;
 	}
 
 	.nav {
@@ -237,11 +226,27 @@
 		z-index: 100;
 		align-items: center;
 		gap: 1rem;
+		transition:
+			visibility 0s,
+			opacity 150ms ease-out;
 	}
 
 	.nav-buttons {
 		display: flex;
 		gap: 0.5rem;
+	}
+
+	/* Absolute rules to hide hamburger and prevent desktop layout pops */
+	.hamburger-btn {
+		display: none !important;
+	}
+
+	.desktop-only {
+		display: flex !important;
+	}
+
+	.group-lead-anchor {
+		text-decoration: none;
 	}
 
 	wa-button-group {
@@ -252,7 +257,6 @@
 		display: flex;
 		gap: 0.5rem;
 		position: relative;
-		max-width: none;
 		flex-grow: 1;
 	}
 
@@ -260,40 +264,31 @@
 		width: 100%;
 	}
 
-	.search-dropdown {
-		position: absolute;
-		top: calc(100% + 0.5rem);
-		left: 0;
-		width: 100%;
-		padding: 0 1rem 1rem 1rem;
-		background: var(--wa-color-surface-raised);
-		border: 1px solid var(--wa-color-border-quiet);
-		border-radius: var(--wa-border-radius-m);
-		box-shadow: var(--wa-shadow-m);
-		max-height: 400px;
-		overflow-y: auto;
-		display: flex;
-		flex-direction: column;
-		box-sizing: border-box;
-	}
-
+	.search-dropdown,
 	.search-dropdown-skeleton {
 		position: absolute;
 		top: calc(100% + 0.5rem);
 		left: 0;
 		width: 100%;
-		padding: 0 1rem 1rem 1rem;
-		background: var(--wa-color-surface-raised);
-		border: 1px solid var(--wa-color-border-quiet);
+		background: var(--wa-color-surface-raised, #fff);
+		border: 1px solid var(--wa-color-border-quiet, #eee);
 		border-radius: var(--wa-border-radius-m);
 		box-shadow: var(--wa-shadow-m);
 		max-height: 400px;
 		overflow-y: auto;
-		padding-top: 1rem;
 		display: flex;
-		gap: 2rem;
 		flex-direction: column;
 		box-sizing: border-box;
+		z-index: 200;
+	}
+
+	.search-dropdown {
+		padding: 0 0.5rem 0.5rem 0.5rem;
+	}
+
+	.search-dropdown-skeleton {
+		padding: 1rem;
+		gap: 1rem;
 	}
 
 	.category-header {
@@ -301,10 +296,8 @@
 		font-weight: 800;
 		letter-spacing: 0.5px;
 		text-transform: uppercase;
-		color: var(--wa-color-brand-on-quiet);
-		font-family: var(--wa-font-family-body);
-		padding: 1rem 1rem 0 1rem;
-		background: var(--wa-color-surface-raised);
+		color: var(--wa-color-neutral-text-weak);
+		padding: 0.75rem 0.5rem 0.25rem 0.5rem;
 		cursor: default;
 	}
 
@@ -316,29 +309,30 @@
 		justify-content: flex-end;
 	}
 
+	.dropdown-item-link {
+		text-decoration: none;
+		color: inherit;
+		width: 100%;
+	}
+
 	.dropdown-item {
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
 		width: 100%;
-		height: min-content;
-		padding: 0.5rem 1rem;
+		padding: 0.5rem;
 		border: none;
-		border-radius: var(--wa-border-radius-m);
+		border-radius: var(--wa-border-radius-s);
 		background: transparent;
 		text-align: left;
-		font-family: var(--wa-font-family-body);
-		font-size: 1rem;
+		font-size: 0.95rem;
 		cursor: pointer;
-		color: var(--wa-color-primary-on-quiet);
-		transition: all 100ms ease;
-		overflow: hidden;
+		color: var(--wa-color-filled-on-normal);
+		transition: background-color 100ms ease;
 	}
 
 	.dropdown-item:hover {
-		background-color: var(--wa-color-neutral-fill-normal);
-		transform: scale(1.03);
-		transition: all 100ms ease;
+		background-color: var(--wa-color-fill-normal, #f5f5f5);
 	}
 
 	.player-thumb {
@@ -350,13 +344,10 @@
 	}
 
 	.team-logo-thumb {
-		max-width: 32px;
 		width: 32px;
-		height: auto;
-		max-height: 32px;
-		background-color: var(--wa-color-gray-70);
-		padding: 6px;
-		box-shadow: var(--wa-shadow-l);
+		height: 32px;
+		background-color: var(--wa-color-gray-80);
+		padding: 4px;
 		object-fit: contain;
 		flex-shrink: 0;
 	}
@@ -365,57 +356,51 @@
 		flex-grow: 1;
 		white-space: nowrap;
 		overflow: hidden;
-		mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
-		-webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+		text-overflow: ellipsis;
 	}
 
 	.sub-text {
 		font-size: 0.8rem;
-		color: var(--wa-color-neutral-text-weak, #777);
+		color: var(--wa-color-neutral-text-weak);
 		margin-left: 0.25rem;
-	}
-
-	.nav-buttons :global(a) {
-		text-decoration: none;
-	}
-
-	.hamburger-btn {
-		display: none;
 	}
 
 	.mobile-nav-links {
 		display: flex;
 		flex-direction: column;
-		gap: 0.75rem;
-		padding: 0.5rem;
+		gap: 0.5rem;
 	}
 
 	.mobile-nav-links a {
-		color: var(--wa-color-on-blue);
+		color: var(--wa-color-filled-on-normal);
 		text-decoration: none;
-		font-weight: 700;
-		font-family: var(--font-mono);
+		font-weight: 600;
 		font-size: var(--wa-font-size-m);
 		padding: 0.5rem;
+		border-radius: var(--wa-border-radius-s);
+	}
+
+	.mobile-nav-links a:hover {
+		background-color: var(--wa-color-fill-normal);
 	}
 
 	.drawer-section-title {
-		font-size: 0.75rem;
+		font-size: 0.7rem;
 		font-weight: bold;
 		text-transform: uppercase;
 		letter-spacing: 0.5px;
 		color: var(--wa-color-neutral-text-weak);
-		margin-top: 0.5rem;
-		border-bottom: 1px;
+		margin: 0.75rem 0.5rem 0.25rem 0.5rem;
 	}
 
 	.mobile-drawer {
 		--size: min(300px, 80vw);
 	}
 
+	/* Screen Queries */
 	@media (max-width: 816px) {
 		.nav {
-			padding: 1rem 1rem;
+			padding: 1rem;
 			gap: 0.5rem;
 		}
 
@@ -424,12 +409,7 @@
 		}
 
 		.hamburger-btn {
-			display: inline-block;
-			flex-shrink: 0;
-		}
-
-		#color-scheme-button {
-			flex-shrink: 0;
+			display: inline-block !important;
 		}
 	}
 
@@ -437,9 +417,7 @@
 		.float-right-wrapper {
 			flex-grow: 1;
 		}
-
 		.search-wrapper {
-			max-width: none;
 			flex-grow: 1;
 		}
 	}
