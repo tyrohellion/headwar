@@ -13,6 +13,8 @@ export async function getMlbSchedule() {
 
 		const data = await response.json();
 
+		console.log(data.dates?.[0]?.games);
+
 		return data.dates?.[0]?.games || [];
 	} catch (error) {
 		console.error("Error fetching today's MLB schedule:", error);

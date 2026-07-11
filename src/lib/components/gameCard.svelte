@@ -8,10 +8,13 @@
 	let home = $derived(game.teams?.home);
 
 	let linescore = $derived(game.linescore);
+
 	let isLive = $derived(
 		game.status?.detailedState?.toLowerCase().includes('in progress') ||
 			game.status?.detailedState?.toLowerCase().includes('live')
 	);
+
+	let isFinal = $derived(game.status?.abstractGameState === 'Final');
 
 	function formatGameTime(isoString) {
 		if (!isoString) return '';
@@ -56,6 +59,7 @@
 			<div
 				class="team-row"
 				class:is-current={currentTeamId && Number(currentTeamId) === away?.team?.id}
+				class:is-loser={isFinal && !away?.isWinner}
 			>
 				<div class="team-logo-name-wrapper">
 					{#if away?.team?.id && logosMap[away.team.id]}
@@ -74,12 +78,17 @@
 						{/if}
 					</div>
 				</div>
+
 				{#if isLive}
 					<span class="live-score-text">
 						<AnimatedCounter value={linescore?.teams?.away?.runs ?? 0} />
 					</span>
 				{:else}
-					<span class="loc-indicator-tag">AWAY</span>
+					{#if isFinal}
+						<span class="final-score-text">{away?.score ?? 0}</span>
+					{:else}
+						<span class="loc-indicator-tag">AWAY</span>
+					{/if}
 				{/if}
 			</div>
 		</a>
@@ -88,6 +97,7 @@
 			<div
 				class="team-row"
 				class:is-current={currentTeamId && Number(currentTeamId) === home?.team?.id}
+				class:is-loser={isFinal && !home?.isWinner}
 			>
 				<div class="team-logo-name-wrapper">
 					{#if home?.team?.id && logosMap[home.team.id]}
@@ -106,12 +116,17 @@
 						{/if}
 					</div>
 				</div>
+
 				{#if isLive}
 					<span class="live-score-text">
 						<AnimatedCounter value={linescore?.teams?.home?.runs ?? 0} />
 					</span>
 				{:else}
-					<span class="loc-indicator-tag">HOME</span>
+					{#if isFinal}
+						<span class="final-score-text">{home?.score ?? 0}</span>
+					{:else}
+						<span class="loc-indicator-tag">HOME</span>
+					{/if}
 				{/if}
 			</div>
 		</a>
@@ -123,7 +138,7 @@
 			{#if game.seriesGameNumber}
 				<wa-divider orientation="vertical"></wa-divider>
 				<span class="venue-name">
-					<span class="venue-name">Game {game.seriesGameNumber} of {game.gamesInSeries || 4}</span>
+					Game {game.seriesGameNumber} of {game.gamesInSeries || 4}
 				</span>
 			{/if}
 		</div>
@@ -140,6 +155,23 @@
 		font-weight: var(--wa-font-weight-bold, 700);
 		color: var(--wa-color-filled-on-normal);
 		padding-right: 0.25rem;
+	}
+
+	.final-score-text {
+		font-family: var(--font-mono, monospace);
+		font-size: var(--wa-font-size-l, 1.25rem);
+		font-weight: var(--wa-font-weight-bold, 700);
+		color: var(--wa-color-filled-on-normal);
+		padding-right: 0.25rem;
+	}
+
+	.team-row.is-loser {
+		opacity: 0.25;
+		transition: opacity 150ms ease;
+	}
+
+	.team-row.is-loser:hover {
+		opacity: 0.6;
 	}
 
 	.game-schedule-card {
