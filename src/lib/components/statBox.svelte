@@ -217,7 +217,7 @@
 		left: 0;
 		width: 100%;
 		height: 4px;
-		background-color: var(--wa-color-border-quiet, rgba(0, 0, 0, 0.05));
+		background-color: var(--wa-color-border-quiet);
 	}
 
 	.context-fill {
@@ -229,13 +229,14 @@
 		position: absolute;
 		left: 50%;
 		bottom: 0;
-		width: 1px;
-		height: 12px;
-		background-color: var(--wa-color-border-loud, #888);
+		width: 4px;
+		height: 16px;
+		border-top-right-radius: 1rem;
+		border-top-left-radius: 1rem;
+		background-color: var(--wa-color-border-loud);
 		z-index: 3;
 	}
 
-	/* Segmented Track Styles */
 	.segmented-track {
 		position: absolute;
 		bottom: 0;
@@ -244,13 +245,13 @@
 		height: 4px;
 		display: grid;
 		grid-template-columns: repeat(4, 1fr);
-		gap: 2px;
+		gap: 6px;
 		background-color: transparent;
 	}
 
 	.track-segment {
 		height: 100%;
-		background-color: var(--wa-color-border-quiet, rgba(0, 0, 0, 0.05));
+		background-color: var(--wa-color-border-quiet);
 		transition: background-color 0.4s ease;
 	}
 </style>
