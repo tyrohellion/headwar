@@ -3,6 +3,7 @@
 	import { getMlbSchedule } from '../api/getMlbSchedule';
 	import { getTeamLogo } from '../api/getTeamLogo';
 	import GameCard from '$lib/components/gameCard.svelte';
+	import HorizontalDatePicker from '$lib/components/horizontalDatePicker.svelte';
 	import { getMlbStandings } from '../api/getMlbDivisionStandings';
 	import DivisionStandingsGrid from '$lib/components/divisionStandingsGrid.svelte';
 
@@ -11,11 +12,18 @@
 	import WaSpinner from '@awesome.me/webawesome/dist/components/spinner/spinner.js';
 	import WaButton from '@awesome.me/webawesome/dist/components/button/button.js';
 
+	function getTodayString() {
+		const d = new Date();
+		return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+	}
+
+	let selectedDate = $state(getTodayString());
 	let homepageSchedule = $state([]);
 	let divisionRecords = $state([]);
-	let playerSpotlights = $state({ ops: [], era: [], topTeams: [] }); // Adjusted mapping layout properties
+	let playerSpotlights = $state({ ops: [], era: [], topTeams: [] });
 	let logosMap = $state({});
 	let isLoading = $state(true);
+	let isScheduleLoading = $state(false);
 	let errorMessage = $state('');
 	let now = $state(new Date());
 
@@ -30,12 +38,55 @@
 		return () => clearInterval(interval);
 	});
 
+	$effect(() => {
+		if (selectedDate && !isLoading) {
+			loadScheduleForDate(selectedDate);
+		}
+	});
+
+	async function loadScheduleForDate(dateStr) {
+		isScheduleLoading = true;
+		try {
+			const scheduleData = await getMlbSchedule(dateStr);
+			homepageSchedule = scheduleData;
+
+			if (homepageSchedule.length > 0) {
+				const uniqueTeamIds = new Set();
+				homepageSchedule.forEach((game) => {
+					if (game.teams?.away?.team?.id && !logosMap[game.teams.away.team.id])
+						uniqueTeamIds.add(game.teams.away.team.id);
+					if (game.teams?.home?.team?.id && !logosMap[game.teams.home.team.id])
+						uniqueTeamIds.add(game.teams.home.team.id);
+				});
+
+				if (uniqueTeamIds.size > 0) {
+					const logoPromises = Array.from(uniqueTeamIds).map(async (id) => {
+						try {
+							const logoUrl = await getTeamLogo(id);
+							return { id, logoUrl };
+						} catch (err) {
+							return { id, logoUrl: `https://midas.mlbstatic.com/v1/team/${id}/assets/1/120.svg` };
+						}
+					});
+					const resolvedLogos = await Promise.all(logoPromises);
+					resolvedLogos.forEach((item) => {
+						if (item) logosMap[item.id] = item.logoUrl;
+					});
+				}
+			}
+		} catch (err) {
+			console.error('Failed to cycle targeted daily schedule matches:', err);
+		} finally {
+			isScheduleLoading = false;
+		}
+	}
+
 	onMount(async () => {
 		try {
 			isLoading = true;
 
 			const [scheduleData, standingsData, leadersData] = await Promise.all([
-				getMlbSchedule(),
+				getMlbSchedule(selectedDate),
 				getMlbStandings(),
 				getHomePageSpotlight()
 			]);
@@ -95,11 +146,25 @@
 				<p>{errorMessage}</p>
 			</div>
 		{:else}
-			<section class="page-section">
-				<h3>Games today</h3>
+			<section class="calendar-wrapper-section">
+				<HorizontalDatePicker bind:selectedDate daysRange={10} />
+			</section>
+
+			<section class="page-section" class:is-loading-opaque={isScheduleLoading}>
+				<h3>Games for this day</h3>
 				{#if homepageSchedule.length === 0}
 					<div class="empty-inline-state">
-						<p>No games scheduled for today.</p>
+						<p>No games scheduled for this date.</p>
+					</div>
+				{:else if homepageSchedule.length <= 3}
+					<div class="collapsible-schedule-wrapper" class:is-collapsed={!isExpanded}>
+						<div class="homepage-schedule-flex-grid">
+							{#each homepageSchedule as game (game.gamePk)}
+								<div class="homepage-card-item">
+									<GameCard {game} {logosMap} {now} />
+								</div>
+							{/each}
+						</div>
 					</div>
 				{:else}
 					<div class="collapsible-schedule-wrapper" class:is-collapsed={!isExpanded}>
@@ -228,6 +293,22 @@
 		gap: 2rem;
 	}
 
+	.calendar-wrapper-section {
+		width: 100%;
+		border-bottom: 1px solid var(--wa-color-border-quiet);
+		padding-bottom: 1rem;
+	}
+
+	.page-section {
+		transition: opacity 200ms ease;
+	}
+
+	/* Prevents layout jarring when picking alternate schedule dates */
+	.page-section.is-loading-opaque {
+		opacity: 0.4;
+		pointer-events: none;
+	}
+
 	.page-section h3 {
 		font-size: 1.5rem;
 		margin: 0 0 1.25rem 0;
@@ -247,6 +328,7 @@
 		border-radius: var(--wa-border-radius-m);
 		padding: 1.25rem;
 		box-sizing: border-box;
+		min-width: 320px;
 	}
 
 	.column-header-title {
@@ -385,7 +467,7 @@
 	.homepage-card-item {
 		flex: 1 1 calc(33.333% - 1.25rem);
 		min-width: 300px;
-		max-width: calc(50% - 0.625rem);
+		max-width: calc(33.333% - 1.25rem);
 	}
 
 	.standings-dashboard-grid {
@@ -416,12 +498,14 @@
 		color: var(--wa-color-neutral-on-quiet);
 	}
 
-	@media (max-width: 900px) {
+	@media (max-width: 1125px) {
 		.spotlight-three-column-grid {
 			flex-direction: column;
 			gap: 1rem;
 		}
+	}
 
+	@media (max-width: 900px) {
 		.homepage-card-item {
 			max-width: 100%;
 		}

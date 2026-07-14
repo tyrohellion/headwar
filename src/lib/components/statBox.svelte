@@ -229,8 +229,8 @@
 		position: absolute;
 		left: 50%;
 		bottom: 0;
-		width: 4px;
-		height: 16px;
+		width: 2px;
+		height: 12px;
 		border-top-right-radius: 1rem;
 		border-top-left-radius: 1rem;
 		background-color: var(--wa-color-border-loud);
@@ -245,7 +245,7 @@
 		height: 4px;
 		display: grid;
 		grid-template-columns: repeat(4, 1fr);
-		gap: 6px;
+		gap: 4px;
 		background-color: transparent;
 	}
 
