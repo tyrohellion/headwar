@@ -108,7 +108,7 @@
 
 	.standings-molecule {
 		display: flex;
-		flex-direction: row; /* Force horizontal alignment on large viewports */
+		flex-direction: row;
 		flex-wrap: wrap;
 		width: 100%;
 		gap: 1rem;
@@ -128,7 +128,7 @@
 		transition: all 100ms ease;
 		text-decoration: none;
 		color: inherit;
-		min-width: 140px; /* Prevent team cards from shrinking into unreadable columns */
+		min-width: 140px;
 	}
 
 	.team-standings-card:hover {
