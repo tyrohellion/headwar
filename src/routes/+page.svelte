@@ -146,9 +146,7 @@
 				<p>{errorMessage}</p>
 			</div>
 		{:else}
-			<section class="calendar-wrapper-section">
-				<HorizontalDatePicker bind:selectedDate daysRange={10} />
-			</section>
+			<HorizontalDatePicker bind:selectedDate daysRange={10} />
 
 			<section class="page-section" class:is-loading-opaque={isScheduleLoading}>
 				<h3>Games for this day</h3>
@@ -291,12 +289,6 @@
 		display: flex;
 		flex-direction: column;
 		gap: 2rem;
-	}
-
-	.calendar-wrapper-section {
-		width: 100%;
-		border-bottom: 1px solid var(--wa-color-border-quiet);
-		padding-bottom: 1rem;
 	}
 
 	.page-section {
