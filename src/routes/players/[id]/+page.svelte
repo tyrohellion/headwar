@@ -9,11 +9,19 @@
 	import { battingStatConfig } from '../../../formatters/battingStatsConfig';
 	import { processPlayerAwards } from '../../../formatters/playerAwardFormatter';
 	import { standardPitchingConfig } from '../../../formatters/standardPitchingStatsConfig';
-	import { sumInningsPitched } from '../../../formatters/addInningsPitched';
 	import { standardFieldingStatsConfig } from '../../../formatters/fieldingStatsConfig';
 	import { getSeasonProgressPercentage } from '../../../formatters/getSeasonProgressPercentage';
 	import { page } from '$app/stores';
 	import { onMount, untrack } from 'svelte';
+	import { goto } from '$app/navigation';
+
+	import {
+		findStatBlock,
+		calculateActiveHittingStats,
+		calculateActivePitchingStats,
+		calculateActiveFieldingStats,
+		getAvailableFieldingPositions
+	} from '../../../formatters/playerUtils';
 
 	import WaTabGroup from '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
 	import WaTabPanel from '@awesome.me/webawesome/dist/components/tab-panel/tab-panel.js';
@@ -48,11 +56,17 @@
 
 	let userSelectedYear = $state(new Date().getFullYear().toString());
 	let isCareerMode = $state(false);
+	let userSelectedTeam = $state('ALL');
+	let selectedRangeLabel = $state('NONE');
 
 	let userSelectedFieldingPosition = $state('ALL');
 	let hasDefaultedViewMode = $state(false);
 	let advancedDisplayMode = $state('season');
 	let isDesktop = $state(true);
+
+	let startDate = $state('');
+	let endDate = $state('');
+	let isDateFilterActive = $state(false);
 
 	onMount(() => {
 		const mql = window.matchMedia('(min-width: 769px)');
@@ -68,11 +82,19 @@
 		const id = $page.params.id;
 		if (!id) return;
 
+		const filterActive = isDateFilterActive;
+		const start = startDate;
+		const end = endDate;
+
 		async function loadProfile() {
 			loading = true;
 			errorMsg = '';
 			try {
-				const info = await getPlayerInfo(id);
+				const info =
+					filterActive && start && end
+						? await getPlayerInfo(id, { startDate: start, endDate: end })
+						: await getPlayerInfo(id);
+
 				playerData = info;
 
 				console.log('DEBUG 1 -> Full API payload response:', info);
@@ -106,11 +128,48 @@
 	});
 
 	$effect(() => {
+		if (startDate && endDate) {
+			untrack(() => {
+				isCareerMode = false;
+				isDateFilterActive = true;
+				advancedDisplayMode = 'season';
+			});
+		} else {
+			untrack(() => {
+				isDateFilterActive = false;
+			});
+		}
+	});
+
+	$effect(() => {
+		isCareerMode;
+		isDateFilterActive;
+
+		untrack(() => {
+			userSelectedTeam = 'ALL';
+		});
+	});
+
+	function clearDateRange() {
+		startDate = '';
+		endDate = '';
+		isDateFilterActive = false;
+		selectedRangeLabel = 'NONE';
+		if (availableOverviewSeasons.length > 0) {
+			userSelectedYear = availableOverviewSeasons[0];
+		}
+	}
+
+	$effect(() => {
 		const id = $page.params.id;
 		const targetYear = userSelectedYear || new Date().getFullYear().toString();
 
 		if (id) {
-			loadAdvancedMetrics(id, targetYear);
+			if (isDateFilterActive && startDate && endDate) {
+				loadAdvancedMetrics(id, targetYear, { startDate, endDate });
+			} else {
+				loadAdvancedMetrics(id, targetYear);
+			}
 		}
 	});
 
@@ -123,278 +182,114 @@
 
 	let processedAccolades = $derived(processPlayerAwards(playerProfile?.awards || []));
 
-	let hittingStatsBlock = $derived.by(() => {
-		if (!playerProfile?.stats) return null;
-		return playerProfile.stats.find((s) => {
-			const groupName = (s.group?.name || s.group?.displayName || '').toLowerCase();
-			const typeName = (s.type?.code || s.type?.displayName || '').toLowerCase();
-			return groupName === 'hitting' && typeName === 'yearbyyear';
-		});
-	});
-
-	let careerStatsBlock = $derived.by(() => {
-		if (!playerProfile?.stats) return null;
-		return playerProfile.stats.find((s) => {
-			const groupName = (s.group?.name || s.group?.displayName || '').toLowerCase();
-			const typeName = (s.type?.code || s.type?.displayName || '').toLowerCase();
-			return groupName === 'hitting' && typeName === 'career';
-		});
-	});
-
-	let pitchingStatsBlock = $derived.by(() => {
-		if (!playerProfile?.stats) return null;
-		return playerProfile.stats.find((s) => {
-			const groupName = (s.group?.name || s.group?.displayName || '').toLowerCase();
-			const typeName = (s.type?.code || s.type?.displayName || '').toLowerCase();
-			return groupName === 'pitching' && typeName === 'yearbyyear';
-		});
-	});
-
-	let careerPitchingStatsBlock = $derived.by(() => {
-		if (!playerProfile?.stats) return null;
-		return playerProfile.stats.find((s) => {
-			const groupName = (s.group?.name || s.group?.displayName || '').toLowerCase();
-			const typeName = (s.type?.code || s.type?.displayName || '').toLowerCase();
-			return groupName === 'pitching' && typeName === 'career';
-		});
-	});
-
-	let fieldingStatsBlock = $derived.by(() => {
-		if (!playerProfile?.stats) return null;
-		return playerProfile.stats.find((s) => {
-			const groupName = (s.group?.name || s.group?.displayName || '').toLowerCase();
-			const typeName = (s.type?.code || s.type?.displayName || '').toLowerCase();
-			return groupName === 'fielding' && typeName === 'yearbyyear';
-		});
-	});
+	let hittingStatsBlock = $derived(
+		findStatBlock(playerProfile, 'hitting', 'yearbyyear', isDateFilterActive)
+	);
+	let careerStatsBlock = $derived(
+		findStatBlock(playerProfile, 'hitting', 'career', isDateFilterActive)
+	);
+	let pitchingStatsBlock = $derived(
+		findStatBlock(playerProfile, 'pitching', 'yearbyyear', isDateFilterActive)
+	);
+	let careerPitchingStatsBlock = $derived(
+		findStatBlock(playerProfile, 'pitching', 'career', isDateFilterActive)
+	);
+	let fieldingStatsBlock = $derived(
+		findStatBlock(playerProfile, 'fielding', 'yearbyyear', isDateFilterActive)
+	);
 
 	let availableOverviewSeasons = $derived.by(() => {
-		const hittingYears = hittingStatsBlock?.splits?.map((split) => split.season) || [];
-		const pitchingYears = pitchingStatsBlock?.splits?.map((split) => split.season) || [];
-		const fieldingYears = fieldingStatsBlock?.splits?.map((split) => split.season) || [];
+		const getSeasonsForTeam = (block, teamId) => {
+			if (!block?.splits) return [];
+			return block.splits
+				.filter((split) => {
+					if (!split.season) return false;
+					if (teamId !== 'ALL') {
+						return split.team && String(split.team.id) === String(teamId);
+					}
+					return true;
+				})
+				.map((split) => split.season);
+		};
+
+		const hittingYears = getSeasonsForTeam(hittingStatsBlock, userSelectedTeam);
+		const pitchingYears = getSeasonsForTeam(pitchingStatsBlock, userSelectedTeam);
+		const fieldingYears = getSeasonsForTeam(fieldingStatsBlock, userSelectedTeam);
+
 		return [...new Set([...hittingYears, ...pitchingYears, ...fieldingYears])].sort(
 			(a, b) => parseInt(b) - parseInt(a)
 		);
 	});
 
-	let activeSeasonStats = $derived.by(() => {
-		const currentYear = userSelectedYear;
-		const careerModeActive = isCareerMode;
+	let availableTeams = $derived.by(() => {
+		const teamMap = new Map();
 
-		if (careerModeActive) {
-			return careerStatsBlock?.splits?.[0]?.stat || null;
-		}
-		if (!hittingStatsBlock?.splits) return null;
+		const blocks = [hittingStatsBlock, pitchingStatsBlock, fieldingStatsBlock];
 
-		const yearSplits = hittingStatsBlock.splits.filter((split) => split.season === currentYear);
-		if (yearSplits.length === 0) return null;
-
-		if (yearSplits.length === 1) return yearSplits[0].stat;
-
-		const totalSplit = yearSplits.find(
-			(split) =>
-				!split.team || split.team?.id === undefined || String(split.team?.name).includes('teams')
-		);
-
-		return totalSplit ? totalSplit.stat : yearSplits[0].stat;
-	});
-
-	let activePitchingStats = $derived.by(() => {
-		const currentYear = userSelectedYear;
-		const careerModeActive = isCareerMode;
-
-		if (careerModeActive) {
-			return careerPitchingStatsBlock?.splits?.[0]?.stat || null;
-		}
-		if (!pitchingStatsBlock?.splits) return null;
-
-		const yearSplits = pitchingStatsBlock.splits.filter((split) => split.season === currentYear);
-		if (yearSplits.length === 0) return null;
-
-		if (yearSplits.length === 1) return yearSplits[0].stat;
-
-		const individualTeamStints = yearSplits.filter(
-			(split) =>
-				split.team &&
-				split.team.id !== undefined &&
-				!String(split.team.name).toLowerCase().includes('teams')
-		);
-
-		if (individualTeamStints.length === 0) return yearSplits[0].stat;
-		if (individualTeamStints.length === 1) return individualTeamStints[0].stat;
-
-		const aggregatedStat = { ...individualTeamStints[0].stat };
-
-		const allIPs = individualTeamStints.map((split) => split.stat.inningsPitched);
-		aggregatedStat.inningsPitched = sumInningsPitched(allIPs);
-
-		const countingStats = [
-			'gamesPlayed',
-			'gamesStarted',
-			'wins',
-			'losses',
-			'strikeOuts',
-			'baseOnBalls',
-			'hits',
-			'runs',
-			'earnedRuns'
-		];
-
-		countingStats.forEach((key) => {
-			if (key in aggregatedStat) {
-				aggregatedStat[key] = individualTeamStints.reduce(
-					(sum, split) => sum + (split.stat[key] || 0),
-					0
-				);
+		blocks.forEach((block) => {
+			if (block?.splits) {
+				block.splits.forEach((split) => {
+					if (split.team?.id && split.team?.name) {
+						if (!String(split.team.name).toLowerCase().includes('teams')) {
+							teamMap.set(split.team.id, split.team.name);
+						}
+					}
+				});
 			}
 		});
 
-		if (aggregatedStat.earnedRuns !== undefined && aggregatedStat.inningsPitched) {
-			const [fullInnings, outs] = String(aggregatedStat.inningsPitched).split('.').map(Number);
-			const totalInningsFloat = fullInnings + (outs || 0) / 3;
-
-			if (totalInningsFloat > 0) {
-				aggregatedStat.era = ((aggregatedStat.earnedRuns * 9) / totalInningsFloat).toFixed(2);
-			}
-		}
-
-		return aggregatedStat;
+		return Array.from(teamMap.entries()).map(([id, name]) => ({ id, name }));
 	});
 
-	let activeFieldingStats = $derived.by(() => {
+	$effect(() => {
+		const seasons = availableOverviewSeasons;
 		const currentYear = userSelectedYear;
-		const careerModeActive = isCareerMode;
-		const selectedPosition = userSelectedFieldingPosition;
 
-		if (!fieldingStatsBlock?.splits) return null;
-
-		let targetSplits = careerModeActive
-			? fieldingStatsBlock.splits
-			: fieldingStatsBlock.splits.filter((s) => s.season === currentYear);
-
-		targetSplits = targetSplits.filter(
-			(s) =>
-				(s.position?.name || s.position?.displayName) !== 'Designated Hitter' &&
-				s.position?.abbreviation !== 'DH'
-		);
-
-		if (selectedPosition !== 'ALL') {
-			const positionAbbrevMap = {
-				'Left Field': 'LF',
-				'Center Field': 'CF',
-				'Right Field': 'RF',
-				Outfielder: 'OF'
-			};
-			const targetAbbrev = positionAbbrevMap[selectedPosition];
-
-			targetSplits = targetSplits.filter((s) => {
-				const name = s.position?.name || s.position?.displayName;
-				const abbrev = s.position?.abbreviation;
-				return name === selectedPosition || (targetAbbrev && abbrev === targetAbbrev);
+		if (seasons.length > 0 && !seasons.includes(currentYear)) {
+			untrack(() => {
+				userSelectedYear = seasons[0];
 			});
 		}
-
-		if (targetSplits.length === 0) return null;
-		if (targetSplits.length === 1) return targetSplits[0].stat;
-
-		const aggregated = {
-			games: 0,
-			gamesPlayed: 0,
-			gamesStarted: 0,
-			chances: 0,
-			putOuts: 0,
-			assists: 0,
-			errors: 0,
-			doublePlays: 0,
-			triplePlays: 0,
-			caughtStealing: 0,
-			stolenBases: 0,
-			passedBall: 0,
-			throwingErrors: 0,
-			innings: 0,
-			catcherERA: 0,
-			rangeFactorPerGame: 0,
-			rangeFactorPer9Inn: 0,
-			fielding: 0
-		};
-
-		let totalCatcherInnings = 0;
-
-		targetSplits.forEach(({ stat }) => {
-			if (!stat) return;
-			aggregated.games += stat.games || 0;
-			aggregated.gamesPlayed += stat.gamesPlayed || 0;
-			aggregated.gamesStarted += stat.gamesStarted || 0;
-			aggregated.chances += stat.chances || 0;
-			aggregated.putOuts += stat.putOuts || 0;
-			aggregated.assists += stat.assists || 0;
-			aggregated.errors += stat.errors || 0;
-			aggregated.doublePlays += stat.doublePlays || 0;
-			aggregated.triplePlays += stat.triplePlays || 0;
-			aggregated.caughtStealing += stat.caughtStealing || 0;
-			aggregated.stolenBases += stat.stolenBases || 0;
-			aggregated.passedBall += stat.passedBall || 0;
-			aggregated.throwingErrors += stat.throwingErrors || 0;
-
-			const innStr = String(stat.innings || '0');
-			const [whole, partial] = innStr.split('.');
-			let decimalInnings = parseInt(whole || 0);
-			if (partial === '1') decimalInnings += 0.333;
-			if (partial === '2') decimalInnings += 0.666;
-			aggregated.innings += decimalInnings;
-
-			if (stat.catcherERA && parseFloat(stat.catcherERA) > 0) {
-				const cInn = parseFloat(stat.innings || 0);
-				aggregated.catcherERA += parseFloat(stat.catcherERA) * cInn;
-				totalCatcherInnings += cInn;
-			}
-		});
-
-		if (aggregated.chances > 0) {
-			aggregated.fielding = (
-				(aggregated.putOuts + aggregated.assists) /
-				aggregated.chances
-			).toFixed(3);
-		} else {
-			aggregated.fielding = '.000';
-		}
-
-		if (aggregated.games > 0) {
-			aggregated.rangeFactorPerGame = (
-				(aggregated.putOuts + aggregated.assists) /
-				aggregated.games
-			).toFixed(2);
-		}
-
-		if (aggregated.innings > 0) {
-			aggregated.rangeFactorPer9Inn = (
-				((aggregated.putOuts + aggregated.assists) * 9) /
-				aggregated.innings
-			).toFixed(2);
-		}
-
-		if (totalCatcherInnings > 0 && !isNaN(aggregated.catcherERA)) {
-			aggregated.catcherERA = (aggregated.catcherERA / totalCatcherInnings).toFixed(2);
-		} else {
-			aggregated.catcherERA = 'N/A';
-		}
-
-		if (totalCatcherInnings === 0) {
-			aggregated.catcherERA = 'N/A';
-			aggregated.passedBall = 'N/A';
-			aggregated.caughtStealing = 'N/A';
-			aggregated.stolenBases = 'N/A';
-		}
-
-		const wholeInnings = Math.floor(aggregated.innings);
-		const remainder = aggregated.innings - wholeInnings;
-		let partialStr = '0';
-		if (remainder > 0.2 && remainder < 0.5) partialStr = '1';
-		if (remainder > 0.5) partialStr = '2';
-		aggregated.innings = `${wholeInnings}.${partialStr}`;
-
-		return aggregated;
 	});
+
+	let activeSeasonStats = $derived(
+		calculateActiveHittingStats({
+			isCareerMode,
+			isDateFilterActive,
+			userSelectedYear,
+			userSelectedTeam,
+			careerStatsBlock,
+			hittingStatsBlock,
+			startDate,
+			endDate
+		})
+	);
+
+	let activePitchingStats = $derived(
+		calculateActivePitchingStats({
+			isCareerMode,
+			isDateFilterActive,
+			userSelectedYear,
+			userSelectedTeam,
+			careerPitchingStatsBlock,
+			pitchingStatsBlock,
+			startDate,
+			endDate
+		})
+	);
+
+	let activeFieldingStats = $derived(
+		calculateActiveFieldingStats({
+			isCareerMode,
+			isDateFilterActive,
+			userSelectedYear,
+			userSelectedFieldingPosition,
+			userSelectedTeam,
+			fieldingStatsBlock,
+			startDate,
+			endDate
+		})
+	);
 
 	let availableSeasons = $derived.by(() => {
 		if (!playerProfile?.mlbDebutDate) return [];
@@ -415,7 +310,12 @@
 	$effect(() => {
 		const id = $page.params.id;
 		const targetYear = userSelectedYear;
-		if (!id || availableSeasons.length === 0 || !availableSeasons.includes(targetYear)) {
+		if (
+			!id ||
+			isDateFilterActive ||
+			availableSeasons.length === 0 ||
+			!availableSeasons.includes(targetYear)
+		) {
 			battingPercentileStats = null;
 			return;
 		}
@@ -434,30 +334,9 @@
 		loadPercentiles();
 	});
 
-	let availableFieldingPositions = $derived.by(() => {
-		const currentYear = userSelectedYear;
-		const careerModeActive = isCareerMode;
-
-		if (!fieldingStatsBlock?.splits) return [];
-		const targetSplits = careerModeActive
-			? fieldingStatsBlock.splits
-			: fieldingStatsBlock.splits.filter((s) => s.season === currentYear);
-		const positionMap = {
-			LF: 'Left Field',
-			CF: 'Center Field',
-			RF: 'Right Field',
-			OF: 'Outfielder'
-		};
-
-		const positions = targetSplits
-			.map((s) => {
-				const abbrev = s.position?.abbreviation;
-				return positionMap[abbrev] || s.position?.name || s.position?.displayName;
-			})
-			.filter((posName) => posName && posName !== 'Designated Hitter');
-
-		return [...new Set(positions)];
-	});
+	let availableFieldingPositions = $derived(
+		getAvailableFieldingPositions(fieldingStatsBlock, userSelectedYear, isCareerMode)
+	);
 
 	$effect(() => {
 		const positions = availableFieldingPositions;
@@ -471,7 +350,7 @@
 	});
 
 	$effect(() => {
-		if (userSelectedYear) {
+		if (userSelectedYear && !isDateFilterActive) {
 			advancedDisplayMode = isCareerMode ? 'career' : 'season';
 		}
 	});
@@ -483,6 +362,10 @@
 			hasDefaultedViewMode = false;
 			isCareerMode = false;
 			advancedDisplayMode = 'season';
+			startDate = '';
+			endDate = '';
+			isDateFilterActive = false;
+			userSelectedTeam = 'ALL';
 
 			if (availableOverviewSeasons.length > 0) {
 				userSelectedYear = availableOverviewSeasons[0];
@@ -497,7 +380,8 @@
 			typeof advancedStats !== 'undefined' &&
 			!advancedStats.loading &&
 			advancedStats.isRetired &&
-			!hasDefaultedViewMode
+			!hasDefaultedViewMode &&
+			!isDateFilterActive
 		) {
 			untrack(() => {
 				advancedDisplayMode = 'career';
@@ -506,6 +390,38 @@
 			});
 		}
 	});
+
+	function handleRangeChange(e) {
+		const val = e.target.value;
+		selectedRangeLabel = val;
+
+		if (val === 'NONE') {
+			clearDateRange();
+			return;
+		}
+
+		const today = new Date();
+		let calculatedStartDate = new Date();
+
+		if (val === '24 Hours') {
+			calculatedStartDate.setDate(today.getDate() - 1);
+		} else if (val === '7 Days') {
+			calculatedStartDate.setDate(today.getDate() - 7);
+		} else if (val === '30 Days') {
+			calculatedStartDate.setDate(today.getDate() - 30);
+		}
+
+		startDate = formatDate(calculatedStartDate);
+		endDate = formatDate(today);
+		isDateFilterActive = true;
+	}
+
+	function formatDate(date) {
+		const yyyy = date.getFullYear();
+		const mm = String(date.getMonth() + 1).padStart(2, '0');
+		const dd = String(date.getDate()).padStart(2, '0');
+		return `${yyyy}-${mm}-${dd}`;
+	}
 </script>
 
 {#if loading}
@@ -604,27 +520,66 @@
 			<p>{playerProfile.height}</p>
 		</div>
 		<div class="filter-controls-group">
-			{#if !isCareerMode && availableOverviewSeasons.length > 0}
-				<wa-select
-					appearance="filled"
-					size="s"
-					value={userSelectedYear}
-					onchange={(e) => (userSelectedYear = e.target.value)}
-					style="width: 110px;"
-				>
-					{#each availableOverviewSeasons as season}
-						<wa-option value={season}>{season}</wa-option>
-					{/each}
-				</wa-select>
+			{#if !isCareerMode && new Date().getFullYear() == userSelectedYear}
+				<div class="date-range-inputs">
+					<wa-select
+						appearance="filled"
+						size="s"
+						value={selectedRangeLabel}
+						placeholder="Select Range"
+						onchange={handleRangeChange}
+						style="width: 160px;"
+					>
+						<wa-option value="NONE">Season Year</wa-option>
+						<wa-option value="24 Hours">Last 24 Hours</wa-option>
+						<wa-option value="7 Days">Last 7 Days</wa-option>
+						<wa-option value="30 Days">Last 30 Days</wa-option>
+					</wa-select>
+
+					{#if isDateFilterActive}
+						<wa-button size="s" variant="neutral" onclick={clearDateRange}>Clear Range</wa-button>
+					{/if}
+				</div>
 			{/if}
 
-			<wa-switch
-				size="s"
-				checked={isCareerMode}
-				onchange={(e) => (isCareerMode = e.target.checked)}
-			>
-				Career Stats
-			</wa-switch>
+			{#if !isDateFilterActive}
+				{#if !isCareerMode && availableOverviewSeasons.length > 0}
+					<wa-select
+						appearance="filled"
+						size="s"
+						value={userSelectedYear}
+						onchange={(e) => (userSelectedYear = e.target.value)}
+						style="width: 110px;"
+					>
+						{#each availableOverviewSeasons as season}
+							<wa-option value={season}>{season}</wa-option>
+						{/each}
+					</wa-select>
+				{/if}
+
+				{#if availableTeams && availableTeams.length > 0 && !isCareerMode}
+					<wa-select
+						appearance="filled"
+						size="s"
+						value={userSelectedTeam}
+						onchange={(e) => (userSelectedTeam = e.target.value)}
+						style="width: 216px;"
+					>
+						<wa-option value="ALL">All Teams</wa-option>
+						{#each availableTeams as team}
+							<wa-option value={String(team.id)}>{team.name}</wa-option>
+						{/each}
+					</wa-select>
+				{/if}
+
+				<wa-switch
+					size="s"
+					checked={isCareerMode}
+					onchange={(e) => (isCareerMode = e.target.checked)}
+				>
+					Career Stats
+				</wa-switch>
+			{/if}
 		</div>
 	</div>
 
@@ -641,7 +596,15 @@
 			<wa-tab-panel name="overview">
 				<div class="advanced-tab-panel">
 					<div class="horizontal-wrapper">
-						<h3>Overview</h3>
+						{#if !isCareerMode}
+							<h3>{userSelectedYear} Overview</h3>
+						{:else}
+							<h3>Career Overview</h3>
+						{/if}
+						<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
+						<wa-badge variant="neutral" appearance="outlined"
+							>not filterable by team or custom date range</wa-badge
+						>
 					</div>
 
 					<div class="overview-boxes-wrapper">
@@ -714,6 +677,16 @@
 					</div>
 					<wa-divider></wa-divider>
 
+					<div class="horizontal-wrapper">
+						{#if !isCareerMode && !isDateFilterActive}
+							<h3>{userSelectedYear} Basics</h3>
+						{:else if isDateFilterActive}
+							<h3>Last {selectedRangeLabel}</h3>
+						{:else}
+							<h3>Career Basics</h3>
+						{/if}
+					</div>
+
 					<!-- HITTING STATS BLOCK -->
 					<div class="overview-boxes-wrapper-standard">
 						{#if activeSeasonStats && activeSeasonStats.atBats > 0}
@@ -768,7 +741,13 @@
 
 			<wa-tab-panel name="batting">
 				<div class="horizontal-wrapper">
-					<h3 id="battingExplanationStandard">Batting Stats</h3>
+					{#if !isCareerMode && !isDateFilterActive}
+						<h3 id="battingExplanationStandard">{userSelectedYear} Batting</h3>
+					{:else if isDateFilterActive}
+						<h3 id="battingExplanationStandard">Last {selectedRangeLabel} Batting</h3>
+					{:else}
+						<h3 id="battingExplanationStandard">Career Batting</h3>
+					{/if}
 				</div>
 
 				{#if activeSeasonStats && activeSeasonStats.atBats > 0}
@@ -851,6 +830,10 @@
 					<h3 id="battingExplanation" class="help-trigger">Batting Percentiles</h3>
 					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
 					<wa-badge variant="brand" appearance="filled">Higher number is better</wa-badge>
+					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
+					<wa-badge variant="neutral" appearance="outlined"
+						>not filterable by team or custom date range</wa-badge
+					>
 				</div>
 
 				{#if activeSeasonStats && activeSeasonStats.atBats > 0}
@@ -924,7 +907,13 @@
 
 			<wa-tab-panel name="pitching">
 				<div class="horizontal-wrapper">
-					<h3 id="pitchingExplanationStandard">Pitching Stats</h3>
+					{#if !isCareerMode && !isDateFilterActive}
+						<h3 id="pitchingExplanationStandard">{userSelectedYear} Pitching</h3>
+					{:else if isDateFilterActive}
+						<h3 id="pitchingExplanationStandard">Last {selectedRangeLabel} Pitching</h3>
+					{:else}
+						<h3 id="pitchingExplanationStandard">Career Pitching</h3>
+					{/if}
 				</div>
 
 				{#if pitchingStatsBlock?.splits?.length > 0}
@@ -989,7 +978,13 @@
 
 			<wa-tab-panel name="fielding">
 				<div class="horizontal-wrapper">
-					<h3 id="fieldingExplanationStandard">Fielding Stats</h3>
+					{#if !isCareerMode && !isDateFilterActive}
+						<h3 id="fieldingExplanationStandard">{userSelectedYear} Fielding</h3>
+					{:else if isDateFilterActive}
+						<h3 id="fieldingExplanationStandard">Last {selectedRangeLabel} Fielding</h3>
+					{:else}
+						<h3 id="fieldingExplanationStandard">Career Fielding</h3>
+					{/if}
 					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
 
 					<div class="dropdown-and-switch-wrapper">
@@ -1262,6 +1257,7 @@
 		margin: 1rem 0 1rem 0;
 		height: 40px;
 	}
+
 	h3 {
 		margin: 0;
 		white-space: nowrap;
@@ -1291,6 +1287,12 @@
 		justify-content: flex-end;
 		gap: 1rem;
 		align-items: center;
+	}
+
+	.date-range-inputs {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	.filter-controls-group wa-select,
@@ -1397,6 +1399,11 @@
 	@media (max-width: 768px) {
 		.player-info-box {
 			align-items: center;
+		}
+
+		.horizontal-wrapper-overview {
+			flex-direction: column;
+			height: auto;
 		}
 
 		.player-name-and-team-wrapper {
