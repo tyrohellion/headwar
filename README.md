@@ -16,9 +16,9 @@ This website is a non-commercial, open-source educational project built for fun.
 - Pybaseball for some statcast stuff
 - Official public MLB api for 99% of the data
 
-### Building
+### Running
 
-- npm build
+- npm install
 - navigate to src/backend and run pip install -r requirements.txt
 
 ### Starting development environment
