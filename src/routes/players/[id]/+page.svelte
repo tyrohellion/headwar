@@ -4,7 +4,7 @@
 	import { getPlayerPictureLarge } from '../../../api/getPlayerPicture';
 	import { getPlayerInfo } from '../../../api/getPlayerInfo';
 	import { getTeamLogo } from '../../../api/getTeamLogo';
-	import { getPlayerBattingPercentileStats } from '../../../api/getPlayerBattingPercentile';
+	import { getCompleteBatterStatcastProfile } from '../../../api/getPlayerStatcast';
 	import { getPlayerPitchingPercentileStats } from '../../../api/getPlayerPitchingPercentile';
 	import { standardBattingConfig } from '../../../formatters/standardBattingStatsConfig';
 	import { battingStatConfig } from '../../../formatters/battingStatsConfig';
@@ -40,10 +40,12 @@
 
 	import StatBar from '$lib/components/statBar.svelte';
 	import StatPill from '$lib/components/statPill.svelte';
+	import StatcastStatBar from '$lib/components/statcastStatBar.svelte';
 	import StatBox from '$lib/components/statBox.svelte';
 	import StatBoxStandard from '$lib/components/statBoxStandard.svelte';
 	import StatBoxStandardPitching from '$lib/components/statBoxStandardPitching.svelte';
 	import { pitchingStatConfig } from '../../../formatters/pitchingStatsConfig';
+	import { getPlayerBattingStatsBref } from '../../../api/getPlayerBattingStats';
 
 	const seasonProgress = $derived.by(() => getSeasonProgressPercentage());
 
@@ -53,7 +55,7 @@
 	let bbrefId = $state('');
 	let imgLoading = $state(true);
 
-	let battingPercentileStats = $state(null);
+	let battingStatcast = $state(null);
 	let pitchingPercentileStats = $state(null);
 	let isBattingPercentileStatsLoading = $state(false);
 	let isPitchingPercentileStatsLoading = $state(false);
@@ -320,16 +322,16 @@
 			availableSeasons.length === 0 ||
 			!availableSeasons.includes(targetYear)
 		) {
-			battingPercentileStats = null;
+			battingStatcast = null;
 			return;
 		}
 
 		async function loadPercentiles() {
 			isBattingPercentileStatsLoading = true;
 			try {
-				battingPercentileStats = await getPlayerBattingPercentileStats(id, targetYear);
+				battingStatcast = await getCompleteBatterStatcastProfile(id, targetYear);
 			} catch (err) {
-				battingPercentileStats = null;
+				battingStatcast = null;
 			} finally {
 				isBattingPercentileStatsLoading = false;
 			}
@@ -626,97 +628,191 @@
 
 			<wa-tab-panel name="overview">
 				<div class="advanced-tab-panel">
-					<div class="horizontal-wrapper">
-						{#if !isCareerMode}
-							<h3>{userSelectedYear} Overview</h3>
-						{:else}
-							<h3>Career Overview</h3>
-						{/if}
-						<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
-						<wa-badge variant="neutral" appearance="outlined"
-							>not filterable by team or custom date range</wa-badge
-						>
-					</div>
+					{#if !isDateFilterActive}
+						<div class="horizontal-wrapper">
+							{#if !isCareerMode}
+								<h3>{userSelectedYear} Overview</h3>
+							{:else}
+								<h3>Career Overview</h3>
+							{/if}
+							<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
+							<wa-badge variant="neutral" appearance="outlined"
+								>not filterable by team or custom date range</wa-badge
+							>
+						</div>
+						<div class="overview-boxes-wrapper">
+							{#if isCareerMode}
+								<StatBox
+									label="Career bWAR"
+									abbr="WAR"
+									careerSeasonLength={Object.keys(advancedStats.seasons).length}
+									percentile={advancedStats.careerWar}
+									isRetired={advancedStats.isRetired}
+									tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player. 60+ WAR is the standard benchmark for the Hall of Fame. {playerProfile.fullName} accumulated this amount over {Object.keys(
+										advancedStats.seasons
+									).length} seasons"
+								/>
+							{:else}
+								<StatBox
+									label="Career bWAR"
+									abbr="WAR"
+									careerSeasonLength={Object.keys(advancedStats.seasons).length}
+									percentile={advancedStats.careerWar}
+									isRetired={advancedStats.isRetired}
+									tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player. 60+ WAR is the standard benchmark for the Hall of Fame. {playerProfile.fullName} accumulated this amount over {Object.keys(
+										advancedStats.seasons
+									).length} seasons"
+								/>
 
-					<div class="overview-boxes-wrapper">
-						{#if isCareerMode}
+								{const currentYear = new Date().getFullYear()}
+								<StatBox
+									label="{userSelectedYear} bWAR"
+									abbr="WAR"
+									progressContext={playerProfile?.primaryPosition?.abbreviation === 'P'
+										? `${activePitchingStats?.gamesPlayed ?? 0} G`
+										: `${activeSeasonStats?.gamesPlayed ?? 0} G`}
+									percentile={advancedStats.currentSeasonWar}
+									rank={advancedStats.currentSeasonWarRank
+										? `#${advancedStats.currentSeasonWarRank}`
+										: null}
+									isRetired={advancedStats.isRetired}
+									tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player throughout the selected season. 2.0+ is a solid starter, 5.0+ is an All-Star, and 8.0+ is an MVP-caliber performance. This stat is additive over the year. The percentage value is how far into the MLB season we are."
+								/>
+							{/if}
+
 							<StatBox
-								label="Career bWAR"
-								abbr="WAR"
-								careerSeasonLength={Object.keys(advancedStats.seasons).length}
-								percentile={advancedStats.careerWar}
+								label={isCareerMode ? 'Career OPS+' : `${userSelectedYear} OPS+`}
+								abbr="OPS+"
+								percentile={isCareerMode
+									? advancedStats.careerOpsPlus
+									: advancedStats.currentSeasonOpsPlus}
+								{...!isCareerMode && advancedStats.currentSeasonOpsPlusRank !== 'N/A'
+									? { rank: `#${advancedStats.currentSeasonOpsPlusRank}` }
+									: {}}
 								isRetired={advancedStats.isRetired}
-								tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player. 60+ WAR is the standard benchmark for the Hall of Fame. {playerProfile.fullName} accumulated this amount over {Object.keys(
-									advancedStats.seasons
-								).length} seasons"
+								progressContext={activeSeasonStats?.plateAppearances}
+								tooltipText={isCareerMode
+									? 'Park-adjusted offensive production over their career. 100 is league average; a 150 score means the hitter was 50% better than the rest of the league.'
+									: 'Park-adjusted offensive production for this season. 100 is league average; a 150 score means the hitter was 50% better than the rest of the league.'}
 							/>
-						{:else}
+
 							<StatBox
-								label="Career bWAR"
-								abbr="WAR"
-								careerSeasonLength={Object.keys(advancedStats.seasons).length}
-								percentile={advancedStats.careerWar}
+								label={isCareerMode ? 'Career ERA+' : `${userSelectedYear} ERA+`}
+								abbr="ERA+"
+								percentile={isCareerMode
+									? advancedStats.careerEraPlus
+									: advancedStats.currentSeasonEraPlus}
+								rank={!isCareerMode && advancedStats.currentSeasonEraPlusRank !== 'N/A'
+									? `#${advancedStats.currentSeasonEraPlusRank}`
+									: undefined}
 								isRetired={advancedStats.isRetired}
-								tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player. 60+ WAR is the standard benchmark for the Hall of Fame. {playerProfile.fullName} accumulated this amount over {Object.keys(
-									advancedStats.seasons
-								).length} seasons"
+								progressContext={activePitchingStats?.inningsPitched}
+								tooltipText={isCareerMode
+									? 'Park and league-adjusted pitching efficiency for their career. 100 is perfectly average; higher numbers are better (e.g., 125 means 25% better at preventing runs).'
+									: 'Park and league-adjusted pitching efficiency for this season. 100 is perfectly average; higher numbers are better (e.g., 125 means 25% better at preventing runs).'}
 							/>
+						</div>
+					{/if}
+					{#if !isCareerMode && !isDateFilterActive && (battingStatcast?.runValues?.runs_all !== undefined || battingStatcast?.baserunningRunValues?.runs_all !== undefined || battingStatcast?.pitcherRunValues?.runs_all !== undefined)}
+						<wa-divider></wa-divider>
+						<div class="horizontal-wrapper">
+							<h3>{userSelectedYear} Run Values</h3>
+							<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
+							<wa-badge variant="neutral" appearance="outlined"
+								>not filterable by team or custom date range</wa-badge
+							>
+						</div>
 
-							{const currentYear = new Date().getFullYear()}
-							<StatBox
-								label="{userSelectedYear} bWAR"
-								abbr="WAR"
-								progressContext={String(userSelectedYear) === '2026' ? seasonProgress : undefined}
-								percentile={advancedStats.currentSeasonWar}
-								rank={advancedStats.currentSeasonWarRank
-									? `#${advancedStats.currentSeasonWarRank}`
-									: null}
-								isRetired={advancedStats.isRetired}
-								tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player throughout the selected season. 2.0+ is a solid starter, 5.0+ is an All-Star, and 8.0+ is an MVP-caliber performance. This stat is additive over the year. The percentage value is how far into the MLB season we are."
-							/>
-						{/if}
+						<div class="overview-boxes-wrapper-standard">
+							{#if battingStatcast.runValues}
+								{#if isBattingPercentileStatsLoading}
+									<StatBoxStandard
+										label="Batting Run Value"
+										stat="loading.."
+										abbr="BRV"
+										tooltipText="Total run value contributed across all baserunning outcomes."
+									/>
+								{:else}
+									<StatBoxStandard
+										label="Batting Run Value"
+										stat={Math.round(battingStatcast.runValues?.runs_all)}
+										abbr="BRV"
+										tooltipText="Total run value contributed across all batting outcomes."
+									/>
+								{/if}
+							{/if}
 
-						<StatBox
-							label={isCareerMode ? 'Career OPS+' : `${userSelectedYear} OPS+`}
-							abbr="OPS+"
-							percentile={isCareerMode
-								? advancedStats.careerOpsPlus
-								: advancedStats.currentSeasonOpsPlus}
-							{...!isCareerMode && advancedStats.currentSeasonOpsPlusRank !== 'N/A'
-								? { rank: `#${advancedStats.currentSeasonOpsPlusRank}` }
-								: {}}
-							isRetired={advancedStats.isRetired}
-							tooltipText={isCareerMode
-								? 'Park-adjusted offensive production over their career. 100 is league average; a 150 score means the hitter was 50% better than the rest of the league.'
-								: 'Park-adjusted offensive production for this season. 100 is league average; a 150 score means the hitter was 50% better than the rest of the league.'}
-						/>
+							{#if battingStatcast.pitcherRunValues}
+								{#if isBattingPercentileStatsLoading}
+									<StatBoxStandard
+										label="Pitching Run Value"
+										stat="loading.."
+										abbr="PRV"
+										tooltipText="Total run value contributed across all baserunning outcomes."
+									/>
+								{:else}
+									<StatBoxStandard
+										label="Pitching Run Value"
+										stat={Math.round(battingStatcast.pitcherRunValues?.runs_all)}
+										abbr="PRV"
+										tooltipText="Total run value contributed across all pitching outcomes."
+									/>
+								{/if}
+							{/if}
 
-						<StatBox
-							label={isCareerMode ? 'Career ERA+' : `${userSelectedYear} ERA+`}
-							abbr="ERA+"
-							percentile={isCareerMode
-								? advancedStats.careerEraPlus
-								: advancedStats.currentSeasonEraPlus}
-							rank={!isCareerMode && advancedStats.currentSeasonEraPlusRank !== 'N/A'
-								? `#${advancedStats.currentSeasonEraPlusRank}`
-								: undefined}
-							isRetired={advancedStats.isRetired}
-							tooltipText={isCareerMode
-								? 'Park and league-adjusted pitching efficiency for their career. 100 is perfectly average; higher numbers are better (e.g., 125 means 25% better at preventing runs).'
-								: 'Park and league-adjusted pitching efficiency for this season. 100 is perfectly average; higher numbers are better (e.g., 125 means 25% better at preventing runs).'}
-						/>
-					</div>
-					<wa-divider></wa-divider>
+							{#if battingStatcast.fieldingRunValues}
+								{#if isBattingPercentileStatsLoading}
+									<StatBoxStandard
+										label="Fielding Run Value"
+										stat="loading.."
+										abbr="FRV"
+										tooltipText="Total run value contributed across all fielding outcomes."
+									/>
+								{:else}
+									<StatBoxStandard
+										label="Fielding Run Value"
+										stat={Math.round(battingStatcast.fieldingRunValues?.total_runs)}
+										abbr="FRV"
+										tooltipText="Total run value contributed across all fielding outcomes."
+									/>
+								{/if}
+							{/if}
 
-					<div class="horizontal-wrapper">
-						{#if !isCareerMode && !isDateFilterActive}
-							<h3>{userSelectedYear} Basics</h3>
-						{:else if isDateFilterActive}
+							{#if battingStatcast.baserunningRunValues}
+								{#if isBattingPercentileStatsLoading}
+									<StatBoxStandard
+										label="Baserunning Run Value"
+										stat="loading.."
+										abbr="BRRV"
+										tooltipText="Total run value contributed across all baserunning outcomes."
+									/>
+								{:else}
+									<StatBoxStandard
+										label="Baserunning Run Value"
+										stat={Math.round(battingStatcast.baserunningRunValues?.runner_runs_tot)}
+										abbr="BRRV"
+										tooltipText="Total run value contributed across all baserunning outcomes."
+									/>
+								{/if}
+							{/if}
+						</div>
+					{/if}
+
+					{#if !isCareerMode && isDateFilterActive}
+						<div class="horizontal-wrapper">
 							<h3>Last {selectedRangeLabel}</h3>
-						{:else}
+						</div>
+					{:else if !isCareerMode && !isDateFilterActive}
+						<wa-divider></wa-divider>
+						<div class="horizontal-wrapper">
+							<h3>{userSelectedYear} Basics</h3>
+						</div>
+					{:else}
+						<wa-divider></wa-divider>
+						<div class="horizontal-wrapper">
 							<h3>Career Basics</h3>
-						{/if}
-					</div>
+						</div>
+					{/if}
 
 					<!-- HITTING STATS BLOCK -->
 					<div class="overview-boxes-wrapper-standard">
@@ -771,6 +867,90 @@
 			</wa-tab-panel>
 
 			<wa-tab-panel name="batting">
+				<wa-tooltip for="battingExplanation">
+					93 would mean a player is in the top 7 percent of MLB players in that category. 50 is
+					always going to be the league average.
+				</wa-tooltip>
+				<div class="horizontal-wrapper">
+					<h3 id="battingExplanation" class="help-trigger">Batting Percentiles</h3>
+					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
+					<wa-badge variant="brand" appearance="filled">Higher number is better</wa-badge>
+					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
+					<wa-badge variant="neutral" appearance="outlined"
+						>not filterable by team or custom date range</wa-badge
+					>
+				</div>
+
+				{#if activeSeasonStats && activeSeasonStats.atBats > 0}
+					{#if isBattingPercentileStatsLoading}
+						<wa-spinner></wa-spinner> Loading statcast data...
+					{:else if battingStatcast}
+						<div class="statcast-grid">
+							{#each battingStatConfig.filter((c) => c.category === 'expected') as conf (conf.key)}
+								{@const percentileVal =
+									battingStatcast.percentiles?.[conf.percentileKey ?? conf.key]}
+								{@const statVal = conf.getValue(battingStatcast)}
+
+								{#if percentileVal !== undefined && percentileVal !== null}
+									<StatcastStatBar
+										label={conf.label}
+										stat={statVal ?? percentileVal}
+										percentile={percentileVal}
+										decimals={conf.decimals ?? 1}
+										invertColor={false}
+										tooltipText={conf.description}
+										simple={conf.simple}
+									/>
+								{/if}
+							{/each}
+						</div>
+						<wa-divider></wa-divider>
+						<div class="statcast-grid">
+							{#each battingStatConfig.filter((c) => c.category === 'complete') as conf (conf.key)}
+								{@const percentileVal =
+									battingStatcast.percentiles?.[conf.percentileKey ?? conf.key]}
+								{@const statVal = conf.getValue(battingStatcast)}
+
+								{#if percentileVal !== undefined && percentileVal !== null}
+									<StatcastStatBar
+										label={conf.label}
+										stat={statVal ?? percentileVal}
+										percentile={percentileVal}
+										decimals={conf.decimals ?? 1}
+										invertColor={false}
+										tooltipText={conf.description}
+										simple={false}
+									/>
+								{/if}
+							{/each}
+						</div>
+						<wa-divider></wa-divider>
+						<div class="statcast-grid">
+							{#each battingStatConfig.filter((c) => c.category === 'discipline') as conf (conf.key)}
+								{@const percentileVal =
+									battingStatcast.percentiles?.[conf.percentileKey ?? conf.key]}
+								{@const statVal = conf.getValue(battingStatcast)}
+
+								{#if percentileVal !== undefined && percentileVal !== null}
+									<StatcastStatBar
+										label={conf.label}
+										stat={statVal ?? percentileVal}
+										percentile={percentileVal}
+										decimals={0}
+										invertColor={false}
+										tooltipText={conf.description}
+										simple={true}
+									/>
+								{/if}
+							{/each}
+						</div>
+					{:else}
+						<p>Statcast advanced percentile metrics are unavailable for this player.</p>
+					{/if}
+				{/if}
+
+				<wa-divider class="section-divider"></wa-divider>
+
 				<div class="horizontal-wrapper">
 					{#if !isCareerMode && !isDateFilterActive}
 						<h3 id="battingExplanationStandard">{userSelectedYear} Batting</h3>
@@ -849,90 +1029,6 @@
 					</div>
 				{:else}
 					<p>No hitting records found for this player.</p>
-				{/if}
-
-				<wa-divider class="section-divider"></wa-divider>
-
-				<wa-tooltip for="battingExplanation">
-					93 would mean a player is in the top 7 percent of MLB players in that category. 50 is
-					always going to be the league average.
-				</wa-tooltip>
-				<div class="horizontal-wrapper">
-					<h3 id="battingExplanation" class="help-trigger">Batting Percentiles</h3>
-					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
-					<wa-badge variant="brand" appearance="filled">Higher number is better</wa-badge>
-					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
-					<wa-badge variant="neutral" appearance="outlined"
-						>not filterable by team or custom date range</wa-badge
-					>
-				</div>
-
-				{#if activeSeasonStats && activeSeasonStats.atBats > 0}
-					<div class="stats-grid-container">
-						<div class="stats-column">
-							<div class="category-heading-wrapper">
-								<h4 class="category-heading">Power Profile</h4>
-							</div>
-							<div class="wa-stack">
-								{#each battingStatConfig.filter((s) => s.category === 'profile') as stat}
-									{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
-										<StatBar
-											label={stat.label}
-											percentile={battingPercentileStats[stat.key]}
-											tooltipText={stat.description}
-										/>
-									{:else}
-										<StatBar label="No data" percentile="N/A" />
-									{/if}
-								{/each}
-							</div>
-						</div>
-						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-						<div class="stats-column">
-							<div class="category-heading-wrapper">
-								<h4 class="category-heading">Plate Discipline</h4>
-							</div>
-							<div class="wa-stack">
-								{#each battingStatConfig.filter((s) => s.category === 'discipline') as stat}
-									{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
-										<StatBar
-											label={stat.label}
-											percentile={battingPercentileStats[stat.key]}
-											tooltipText={stat.description}
-										/>
-									{:else}
-										<StatBar label="No data" percentile="N/A" />
-									{/if}
-								{/each}
-							</div>
-						</div>
-						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-						<div class="stats-column">
-							<div class="category-heading-wrapper">
-								<wa-tooltip for="expectedHeading"
-									>Calculates what a player's numbers should look like based entirely on exit
-									velocity and launch angle, completely removing defense. If a player's real stats
-									are much lower than the expected, they have arguably been getting unlucky.</wa-tooltip
-								>
-								<h4 class="category-heading help-trigger" id="expectedHeading">Expected Metrics</h4>
-							</div>
-							<div class="wa-stack">
-								{#each battingStatConfig.filter((s) => s.category === 'expected') as stat}
-									{#if battingPercentileStats?.[stat.key] !== undefined && battingPercentileStats?.[stat.key] !== null}
-										<StatBar
-											label={stat.label}
-											percentile={battingPercentileStats[stat.key]}
-											tooltipText={stat.description}
-										/>
-									{:else}
-										<StatBar label="No data" percentile="N/A" />
-									{/if}
-								{/each}
-							</div>
-						</div>
-					</div>
-				{:else}
-					<p>Statcast advanced percentile metrics are unavailable for this player.</p>
 				{/if}
 			</wa-tab-panel>
 
@@ -1489,7 +1585,13 @@
 		flex-wrap: wrap;
 	}
 
-	@media (max-width: 1250px) {
+	.statcast-grid {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 1rem;
+	}
+
+	@media (max-width: 1600px) {
 		.details-filters-wrapper {
 			flex-direction: column;
 			align-items: start;
@@ -1516,11 +1618,6 @@
 	@media (max-width: 768px) {
 		.player-info-box {
 			align-items: center;
-		}
-
-		.horizontal-wrapper-overview {
-			flex-direction: column;
-			height: auto;
 		}
 
 		.player-name-and-team-wrapper {

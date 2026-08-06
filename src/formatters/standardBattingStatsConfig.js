@@ -47,20 +47,18 @@ export const standardBattingConfig = [
 		description:
 			'Number of runs driven in by the batter via hits, walks, sacrifices, or groundouts.'
 	},
-
-	// --- Counting Stats ---
 	{
 		key: 'gamesPlayed',
 		abbr: 'G',
 		label: 'Games',
-		category: 'counting',
+		category: 'standard',
 		description: 'Total number of games the player appeared in.'
 	},
 	{
 		key: 'plateAppearances',
 		abbr: 'PA',
 		label: 'Plate Appearances',
-		category: 'counting',
+		category: 'standard',
 		description:
 			'Total completed turns at bat, including hits, outs, walks, hit by pitches, and sacrifices.'
 	},

@@ -10,14 +10,12 @@ export async function getPlayerPitchingPercentileStats(mlbId, year = 2026) {
 	if (!mlbId) return null;
 
 	try {
-		// Call the dynamic endpoint for statcast_pitcher_percentile_ranks
 		const fullLeagueData = await fetchPybaseball('statcast_pitcher_percentile_ranks', {
 			year
 		});
 
 		console.log(`[Statcast Raw Data] Full pitching Leaderboard Array (${year}):`, fullLeagueData);
 
-		// Filter down to just this player's matching Statcast player_id row
 		const playerRow = fullLeagueData.find((row) => {
 			if (!row.player_id) return false;
 			return String(row.player_id).trim() === String(mlbId).trim();

@@ -14,6 +14,10 @@
 	const tooltipId = `pill-tip-${Math.random().toString(36).substring(2, 9)}`;
 
 	const isOps = $derived(abbr.toUpperCase() === 'OPS');
+	const isBRV = $derived(abbr.toUpperCase() === 'BRV');
+	const isBRRV = $derived(abbr.toUpperCase() === 'BRRV');
+	const isPRV = $derived(abbr.toUpperCase() === 'PRV');
+	const isFRV = $derived(abbr.toUpperCase() === 'FRV');
 	const isEra = $derived(abbr.toUpperCase() === 'ERA');
 	const isAvg = $derived(abbr.toUpperCase() === 'AVG' || abbr.toUpperCase() === 'BA');
 	const isObp = $derived(abbr.toUpperCase() === 'OBP');
@@ -61,6 +65,14 @@
 			if (numericValue >= 0.5) return 'var(--wa-color-success-60)';
 			if (numericValue >= 0.44) return 'var(--wa-color-success-80)';
 			if (numericValue >= 0.39) return 'var(--wa-color-neutral-50)';
+			return 'var(--wa-color-danger-70)';
+		}
+
+		if (isBRV || isBRRV || isPRV || isFRV) {
+			if (numericValue >= 25) return 'var(--wa-color-success-60)';
+			if (numericValue >= 15) return 'var(--wa-color-success-70)';
+			if (numericValue >= 5) return 'var(--wa-color-success-80)';
+			if (numericValue >= 0) return 'var(--wa-color-neutral-50)';
 			return 'var(--wa-color-danger-70)';
 		}
 

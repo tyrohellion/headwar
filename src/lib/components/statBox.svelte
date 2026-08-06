@@ -66,23 +66,33 @@
 				<span class="stat-value" style="color: {activeColor};">
 					<AnimatedCounter value={percentile} />
 				</span>
-				{#if !careerSeasonLength == 0}
-					<span class="season-count"> / </span>
-					<span class="season-count">
-						<AnimatedCounter value={careerSeasonLength} />
-					</span>
-				{/if}
-				{#if progressContext !== ''}
-					<span class="progress-count"> / </span>
-					<span class="progress-count">
-						<AnimatedCounter value={progressContext} />%
-					</span>
-				{/if}
 			</div>
 			<div class="badges-wrapper">
 				<wa-badge appearance="filled" size="m" variant="neutral">{abbr}</wa-badge>
+				{#if !careerSeasonLength == 0}
+					<wa-badge appearance="outlined" size="m" variant="neutral">
+						<AnimatedCounter value={careerSeasonLength} /> Seasons
+					</wa-badge>
+				{/if}
 				{#if rank}
 					<wa-badge appearance="filled" size="m" variant="brand">{rank}</wa-badge>
+				{/if}
+				{#if progressContext !== ''}
+					{#if abbr === 'WAR'}
+						<wa-badge appearance="outlined" size="m" variant="neutral">
+							<AnimatedCounter value={progressContext} /> Games
+						</wa-badge>
+					{/if}
+					{#if abbr === 'OPS+'}
+						<wa-badge appearance="outlined" size="m" variant="neutral">
+							<AnimatedCounter value={progressContext} /> Plate Appearances
+						</wa-badge>
+					{/if}
+					{#if abbr === 'ERA+'}
+						<wa-badge appearance="outlined" size="m" variant="neutral">
+							<AnimatedCounter value={progressContext} /> Innings Pitched
+						</wa-badge>
+					{/if}
 				{/if}
 			</div>
 		</div>
@@ -204,10 +214,9 @@
 	}
 
 	.progress-count {
-		font-family: var(--font-mono);
 		font-variant-numeric: tabular-nums;
-		font-weight: var(--wa-font-weight-bold, 600);
-		font-size: var(--wa-font-size-s);
+		font-weight: var(--wa-font-weight-semibold);
+		font-size: var(--wa-font-size-xs);
 		color: var(--wa-color-neutral-on-quiet);
 	}
 
