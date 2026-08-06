@@ -78,7 +78,8 @@ export const battingStatConfig = [
 		unit: '%',
 		invertColor: false,
 		simple: true,
-		description: 'How often the hitter draws a walk as a percentage of overall plate appearances.',
+		description:
+			'How often the hitter draws a walk as a percentage of overall plate appearances compared to the rest of the league.',
 		getValue: (data) => data?.custom?.bb_percent
 	},
 	{
@@ -90,7 +91,7 @@ export const battingStatConfig = [
 		unit: '%',
 		invertColor: false,
 		simple: true,
-		description: 'How often the hitter strikes out. Lower rates produce higher percentiles.',
+		description: 'How often the hitter strikes out compared to the rest of the league.',
 		getValue: (data) => data?.custom?.k_percent
 	},
 	{
@@ -102,7 +103,8 @@ export const battingStatConfig = [
 		unit: '%',
 		invertColor: false,
 		simple: true,
-		description: 'Frequency of swinging at pitches outside the strike zone. Lower is better.',
+		description:
+			'How often the player swings and misses at a pitch outside the zone compared to the rest of the league.',
 		getValue: (data) => data?.custom?.chase_percent
 	},
 	{
@@ -114,7 +116,8 @@ export const battingStatConfig = [
 		unit: '%',
 		simple: true,
 		invertColor: false,
-		description: 'Rate at which swings result in a complete miss. Lower is better.',
+		description:
+			'How often the player swings and misses at a pitch inside the zone compared to the rest of the league.',
 		getValue: (data) => data?.custom?.whiff_percent
 	},
 

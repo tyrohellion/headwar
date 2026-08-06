@@ -11,6 +11,9 @@
 	import { processPlayerAwards } from '../../../formatters/playerAwardFormatter';
 	import { standardPitchingConfig } from '../../../formatters/standardPitchingStatsConfig';
 	import { standardFieldingStatsConfig } from '../../../formatters/fieldingStatsConfig';
+	import { pitchingStatConfig } from '../../../formatters/pitchingStatsConfig';
+	import { getPlayerBattingStatsBref } from '../../../api/getPlayerBattingStats';
+	import { fieldingStatcastConfig } from '../../../formatters/fieldingStatcastConfig';
 	import { getSeasonProgressPercentage } from '../../../formatters/getSeasonProgressPercentage';
 	import { page } from '$app/stores';
 	import { onMount, untrack } from 'svelte';
@@ -44,8 +47,6 @@
 	import StatBox from '$lib/components/statBox.svelte';
 	import StatBoxStandard from '$lib/components/statBoxStandard.svelte';
 	import StatBoxStandardPitching from '$lib/components/statBoxStandardPitching.svelte';
-	import { pitchingStatConfig } from '../../../formatters/pitchingStatsConfig';
-	import { getPlayerBattingStatsBref } from '../../../api/getPlayerBattingStats';
 
 	const seasonProgress = $derived.by(() => getSeasonProgressPercentage());
 
@@ -56,6 +57,8 @@
 	let imgLoading = $state(true);
 
 	let battingStatcast = $state(null);
+	let fieldingStatcast = $state(null);
+	let isFieldingPercentileStatsLoading = $state(false);
 	let pitchingPercentileStats = $state(null);
 	let isBattingPercentileStatsLoading = $state(false);
 	let isPitchingPercentileStatsLoading = $state(false);
@@ -316,6 +319,7 @@
 	$effect(() => {
 		const id = $page.params.id;
 		const targetYear = userSelectedYear;
+
 		if (
 			!id ||
 			isDateFilterActive ||
@@ -323,48 +327,42 @@
 			!availableSeasons.includes(targetYear)
 		) {
 			battingStatcast = null;
+			pitchingPercentileStats = null;
+			fieldingStatcast = null;
 			return;
 		}
 
-		async function loadPercentiles() {
+		async function loadAllStatcastProfiles() {
 			isBattingPercentileStatsLoading = true;
+			isPitchingPercentileStatsLoading = true;
+			isFieldingPercentileStatsLoading = true;
+
 			try {
-				battingStatcast = await getCompleteBatterStatcastProfile(id, targetYear);
+				const [battingRes, pitchingRes] = await Promise.allSettled([
+					getCompleteBatterStatcastProfile(id, targetYear),
+					getPlayerPitchingPercentileStats(id, targetYear)
+				]);
+
+				const batterProfile = battingRes.status === 'fulfilled' ? battingRes.value : null;
+
+				battingStatcast = batterProfile;
+
+				fieldingStatcast = batterProfile;
+
+				pitchingPercentileStats = pitchingRes.status === 'fulfilled' ? pitchingRes.value : null;
 			} catch (err) {
+				console.error('[Statcast Effect Error]:', err);
 				battingStatcast = null;
+				pitchingPercentileStats = null;
+				fieldingStatcast = null;
 			} finally {
 				isBattingPercentileStatsLoading = false;
-			}
-		}
-
-		loadPercentiles();
-	});
-
-	$effect(() => {
-		const id = $page.params.id;
-		const targetYear = userSelectedYear;
-		if (
-			!id ||
-			isDateFilterActive ||
-			availableSeasons.length === 0 ||
-			!availableSeasons.includes(targetYear)
-		) {
-			pitchingPercentileStats = null;
-			return;
-		}
-
-		async function loadPercentiles() {
-			isPitchingPercentileStatsLoading = true;
-			try {
-				pitchingPercentileStats = await getPlayerPitchingPercentileStats(id, targetYear);
-			} catch (err) {
-				pitchingPercentileStats = null;
-			} finally {
 				isPitchingPercentileStatsLoading = false;
+				isFieldingPercentileStatsLoading = false;
 			}
 		}
 
-		loadPercentiles();
+		loadAllStatcastProfiles();
 	});
 
 	let availableFieldingPositions = $derived(
@@ -621,8 +619,12 @@
 	{#key isDesktop}
 		<wa-tab-group placement={isDesktop ? 'start' : 'top'}>
 			<wa-tab panel="overview">Overview</wa-tab>
-			<wa-tab panel="batting">Batting</wa-tab>
-			<wa-tab panel="pitching">Pitching</wa-tab>
+			{#if activeSeasonStats && activeSeasonStats.atBats > 0}
+				<wa-tab panel="batting">Batting</wa-tab>
+			{/if}
+			{#if activePitchingStats?.gamesPlayed > 0}
+				<wa-tab panel="pitching">Pitching</wa-tab>
+			{/if}
 			<wa-tab panel="fielding">Fielding</wa-tab>
 			<wa-tab panel="awards">Awards</wa-tab>
 
@@ -1190,6 +1192,73 @@
 			</wa-tab-panel>
 
 			<wa-tab-panel name="fielding">
+				<wa-tooltip for="fieldingExplanation">
+					93 would mean a player is in the top 7 percent of MLB players in that category. 50 is
+					always going to be the league average.
+				</wa-tooltip>
+				<div class="horizontal-wrapper">
+					<h3 id="fieldingExplanation" class="help-trigger">Fielding Percentiles</h3>
+					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
+					<wa-badge variant="brand" appearance="filled">Higher number is better</wa-badge>
+					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
+					<wa-badge variant="neutral" appearance="outlined"
+						>not filterable by team or custom date range</wa-badge
+					>
+				</div>
+
+				{#if fieldingStatcast}
+					{#if isFieldingPercentileStatsLoading}
+						<wa-spinner></wa-spinner> Loading statcast data...
+					{:else if fieldingStatcast}
+						<div class="statcast-grid">
+							{#each fieldingStatcastConfig.filter((c) => c.category === 'overall' || c.category === 'defense') as conf (conf.key)}
+								{@const percentileVal =
+									fieldingStatcast.percentiles?.[conf.percentileKey ?? conf.key]}
+								{@const statVal = conf.getValue(fieldingStatcast)}
+
+								{#if statVal !== undefined && statVal !== null}
+									<StatcastStatBar
+										label={conf.label}
+										stat={statVal}
+										decimals={conf.decimals ?? 1}
+										percentile={percentileVal}
+										runValue={conf.runValue ?? false}
+										tooltipText={conf.description}
+										simple={conf.simple ?? (percentileVal === undefined || percentileVal === null)}
+									/>
+								{/if}
+							{/each}
+						</div>
+
+						{#if fieldingStatcastConfig.some((c) => c.category === 'catcher' && c.getValue(fieldingStatcast) !== null && c.getValue(fieldingStatcast) !== undefined)}
+							<wa-divider></wa-divider>
+							<div class="statcast-grid">
+								{#each fieldingStatcastConfig.filter((c) => c.category === 'catcher') as conf (conf.key)}
+									{@const percentileVal =
+										fieldingStatcast.percentiles?.[conf.percentileKey ?? conf.key]}
+									{@const statVal = conf.getValue(fieldingStatcast)}
+
+									{#if statVal !== undefined && statVal !== null}
+										<StatcastStatBar
+											label={conf.label}
+											stat={statVal}
+											decimals={conf.decimals ?? 0}
+											runValue={conf.runValue ?? false}
+											tooltipText={conf.description}
+											simple={conf.simple ??
+												(percentileVal === undefined || percentileVal === null)}
+										/>
+									{/if}
+								{/each}
+							</div>
+						{/if}
+					{:else}
+						<p>Statcast advanced fielding metrics are unavailable for this player.</p>
+					{/if}
+				{/if}
+
+				<wa-divider class="section-divider"></wa-divider>
+
 				<div class="horizontal-wrapper">
 					{#if !isCareerMode && !isDateFilterActive}
 						<h3 id="fieldingExplanationStandard">{userSelectedYear} Fielding</h3>
@@ -1615,15 +1684,9 @@
 		}
 	}
 
-	@media (max-width: 768px) {
-		.player-info-box {
-			align-items: center;
-		}
-
-		.player-name-and-team-wrapper {
+	@media (max-width: 930px) {
+		.statcast-grid {
 			flex-direction: column;
-			align-items: center;
-			gap: 1rem;
 		}
 
 		#verticalDividers {
@@ -1635,6 +1698,18 @@
 			height: auto;
 			gap: 1rem;
 			align-items: start;
+		}
+	}
+
+	@media (max-width: 768px) {
+		.player-info-box {
+			align-items: center;
+		}
+
+		.player-name-and-team-wrapper {
+			flex-direction: column;
+			align-items: center;
+			gap: 1rem;
 		}
 
 		.dropdown-and-switch-wrapper {

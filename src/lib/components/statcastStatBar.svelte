@@ -7,11 +7,17 @@
 		percentile = 0,
 		decimals = 3,
 		invertColor = false,
+		runValue = false,
 		tooltipText = '',
 		simple = false
 	} = $props();
 
 	const tooltipId = `statcast-pill-${Math.random().toString(36).substring(2, 9)}`;
+
+	const numericStat = $derived.by(() => {
+		const num = parseFloat(String(stat));
+		return isNaN(num) ? null : num;
+	});
 
 	const rawPercentile = $derived.by(() => {
 		const num = parseFloat(String(percentile));
@@ -19,7 +25,7 @@
 		return Math.min(Math.max(num, 0), 100);
 	});
 
-	const isInvalid = $derived(rawPercentile === null);
+	const isInvalid = $derived(runValue ? numericStat === null : rawPercentile === null);
 
 	const effectivePercentile = $derived.by(() => {
 		if (rawPercentile === null) return 0;
@@ -27,16 +33,22 @@
 	});
 
 	const formattedStat = $derived.by(() => {
-		const num = parseFloat(String(stat));
-		if (isNaN(num)) return stat;
-		return decimals > 0 ? num.toFixed(decimals) : Math.round(num);
+		if (numericStat === null) return stat;
+		return decimals > 0 ? numericStat.toFixed(decimals) : Math.round(numericStat);
 	});
 
 	const activeColor = $derived.by(() => {
+		if (runValue) {
+			if (numericStat === null) return 'var(--wa-color-neutral-50)';
+			if (numericStat >= 1) return 'var(--wa-color-success-60)';
+			if (numericStat <= -0.5) return 'var(--wa-color-danger-80)';
+			if (numericStat <= -1) return 'var(--wa-color-danger-40)';
+			return 'var(--wa-color-neutral-50)';
+		}
+
 		if (isInvalid) return 'var(--wa-color-neutral-500)';
 
 		const p = effectivePercentile;
-
 		if (p >= 90) return 'var(--wa-color-success-60)';
 		if (p >= 60) return 'var(--wa-color-success-80)';
 		if (p > 40) return 'var(--wa-color-neutral-50)';
@@ -53,7 +65,7 @@
 	<div class="statcast-pill" id={tooltipId}>
 		<div class="pill-header">
 			<span class="stat-label">{label}</span>
-			{#if !simple}
+			{#if !simple && !runValue && rawPercentile !== null}
 				<wa-badge appearance="filled" size="s">
 					{Math.round(rawPercentile)}
 				</wa-badge>
@@ -62,7 +74,7 @@
 
 		<div class="pill-body">
 			<span class="stat-value" style="color: {activeColor};">
-				{#if typeof stat === 'number'}
+				{#if typeof stat === 'number' || numericStat !== null}
 					<AnimatedCounter value={formattedStat} />
 				{:else}
 					{formattedStat}
@@ -70,13 +82,15 @@
 			</span>
 		</div>
 
-		<div class="percentile-track">
-			<div class="league-avg-tick" title="50th Percentile (League Avg)"></div>
-			<div
-				class="percentile-fill"
-				style="width: {rawPercentile}%; background-color: {activeColor};"
-			></div>
-		</div>
+		{#if !runValue && rawPercentile !== null}
+			<div class="percentile-track">
+				<div class="league-avg-tick" title="50th Percentile (League Avg)"></div>
+				<div
+					class="percentile-fill"
+					style="width: {rawPercentile}%; background-color: {activeColor};"
+				></div>
+			</div>
+		{/if}
 	</div>
 {/if}
 
@@ -154,7 +168,14 @@
 		bottom: 0;
 		width: 2px;
 		height: 6px;
-		background-color: var(--wa-color-neutral-600, #757575);
+		background-color: var(--wa-color-neutral-600);
 		z-index: 2;
+	}
+
+	@media (max-width: 1200px) {
+		.statcast-pill {
+			flex-wrap: wrap;
+			min-width: 200px;
+		}
 	}
 </style>
