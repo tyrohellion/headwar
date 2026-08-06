@@ -13,10 +13,11 @@ This website is a non-commercial, open-source educational project built for fun.
 - flask for connecting svelte and pybaseball
 - anime.js for number animations
 
-- Pybaseball for some statcast stuff
-- Official public MLB api for 99% of the data
+- Pybaseball pulling from Bbref for WAR, OPS+, and ERA+
+- Official public MLB api for non statcast data
+- Baseball Savant public CSV files for some statcast data
 
-### Running
+### Running Locally
 
 - npm install
 - navigate to src/backend and run pip install -r requirements.txt
