@@ -64,7 +64,7 @@ def fetch_direct_fielding_run_values(year: int) -> pd.DataFrame:
 
 def fetch_direct_baserunning_run_values(year: int) -> pd.DataFrame:
     """Statcast Baserunning Run Values (Stolen Base Runs + Extra Bases Taken Runs)."""
-    url = f"https://baseballsavant.mlb.com/leaderboard/baserunning-run-value?gameType=Regular&seasonStart={year}&seasonEnd={year}&type=Runners&minOpportunities=1&csv=true"
+    url = f"https://baseballsavant.mlb.com/leaderboard/baserunning-run-value?gameType=Regular&season_start={year}&season_end={year}&type=Runners&minOpportunities=1&csv=true"
     return fetch_savant_csv(url, "Baserunning Run Value")
 
 

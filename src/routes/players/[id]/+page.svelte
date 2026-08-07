@@ -737,7 +737,7 @@
 								{:else}
 									<StatBoxStandard
 										label="Batting Run Value"
-										stat={Math.round(battingStatcast.runValues?.runs_all)}
+										stat={Math.round((battingStatcast.runValues?.runs_all ?? 0) * 10) / 10}
 										abbr="BRV"
 										tooltipText="Total run value contributed across all batting outcomes."
 									/>
@@ -755,7 +755,7 @@
 								{:else}
 									<StatBoxStandard
 										label="Pitching Run Value"
-										stat={Math.round(battingStatcast.pitcherRunValues?.runs_all)}
+										stat={Math.round((battingStatcast.pitcherRunValues?.runs_all ?? 0) * 10) / 10}
 										abbr="PRV"
 										tooltipText="Total run value contributed across all pitching outcomes."
 									/>
@@ -773,7 +773,8 @@
 								{:else}
 									<StatBoxStandard
 										label="Fielding Run Value"
-										stat={Math.round(battingStatcast.fieldingRunValues?.total_runs)}
+										stat={Math.round((battingStatcast.fieldingRunValues?.total_runs ?? 0) * 10) /
+											10}
 										abbr="FRV"
 										tooltipText="Total run value contributed across all fielding outcomes."
 									/>
@@ -791,7 +792,9 @@
 								{:else}
 									<StatBoxStandard
 										label="Baserunning Run Value"
-										stat={Math.round(battingStatcast.baserunningRunValues?.runner_runs_tot)}
+										stat={Math.round(
+											(battingStatcast.baserunningRunValues?.runner_runs_tot ?? 0) * 10
+										) / 10}
 										abbr="BRRV"
 										tooltipText="Total run value contributed across all baserunning outcomes."
 									/>
