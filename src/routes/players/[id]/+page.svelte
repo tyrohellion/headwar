@@ -11,7 +11,7 @@
 	import { processPlayerAwards } from '../../../formatters/playerAwardFormatter';
 	import { standardPitchingConfig } from '../../../formatters/standardPitchingStatsConfig';
 	import { standardFieldingStatsConfig } from '../../../formatters/fieldingStatsConfig';
-	import { pitchingStatConfig } from '../../../formatters/pitchingStatsConfig';
+	import { pitchingStatsConfig } from '../../../formatters/pitchingStatsConfig';
 	import { getPlayerBattingStatsBref } from '../../../api/getPlayerBattingStats';
 	import { fieldingStatcastConfig } from '../../../formatters/fieldingStatcastConfig';
 	import { getSeasonProgressPercentage } from '../../../formatters/getSeasonProgressPercentage';
@@ -59,7 +59,7 @@
 	let battingStatcast = $state(null);
 	let fieldingStatcast = $state(null);
 	let isFieldingPercentileStatsLoading = $state(false);
-	let pitchingPercentileStats = $state(null);
+	let pitchingStatcast = $state(null);
 	let isBattingPercentileStatsLoading = $state(false);
 	let isPitchingPercentileStatsLoading = $state(false);
 
@@ -327,7 +327,7 @@
 			!availableSeasons.includes(targetYear)
 		) {
 			battingStatcast = null;
-			pitchingPercentileStats = null;
+			pitchingStatcast = null;
 			fieldingStatcast = null;
 			return;
 		}
@@ -338,9 +338,8 @@
 			isFieldingPercentileStatsLoading = true;
 
 			try {
-				const [battingRes, pitchingRes] = await Promise.allSettled([
-					getCompleteBatterStatcastProfile(id, targetYear),
-					getPlayerPitchingPercentileStats(id, targetYear)
+				const [battingRes] = await Promise.allSettled([
+					getCompleteBatterStatcastProfile(id, targetYear)
 				]);
 
 				const batterProfile = battingRes.status === 'fulfilled' ? battingRes.value : null;
@@ -349,11 +348,11 @@
 
 				fieldingStatcast = batterProfile;
 
-				pitchingPercentileStats = pitchingRes.status === 'fulfilled' ? pitchingRes.value : null;
+				pitchingStatcast = batterProfile;
 			} catch (err) {
 				console.error('[Statcast Effect Error]:', err);
 				battingStatcast = null;
-				pitchingPercentileStats = null;
+				pitchingStatcast = null;
 				fieldingStatcast = null;
 			} finally {
 				isBattingPercentileStatsLoading = false;
@@ -1038,6 +1037,108 @@
 			</wa-tab-panel>
 
 			<wa-tab-panel name="pitching">
+				<wa-tooltip for="pitchingExplanation">
+					93 would mean a player is in the top 7 percent of MLB players in that category. 50 is
+					always going to be the league average.
+				</wa-tooltip>
+				<div class="horizontal-wrapper">
+					<h3 id="pitchingExplanation" class="help-trigger">Pitching Percentiles</h3>
+					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
+					<wa-badge variant="brand" appearance="filled">Higher percentile is better</wa-badge>
+					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
+					<wa-badge variant="neutral" appearance="outlined"
+						>not filterable by team or custom date range</wa-badge
+					>
+				</div>
+
+				{#if pitchingStatcast}
+					{#if isPitchingPercentileStatsLoading}
+						<wa-spinner></wa-spinner> Loading statcast data...
+					{:else if pitchingStatcast}
+						<div class="statcast-grid">
+							{#each pitchingStatsConfig.filter((c) => c.category === 'expected') as conf (conf.key)}
+								{@const percentileVal =
+									pitchingStatcast.pitcherPercentiles?.[conf.percentileKey ?? conf.key]}
+								{@const statVal = conf.getValue(pitchingStatcast)}
+
+								{#if percentileVal !== undefined && percentileVal !== null}
+									<StatcastStatBar
+										label={conf.label}
+										stat={statVal ?? percentileVal}
+										percentile={percentileVal}
+										decimals={conf.decimals ?? 1}
+										invertColor={false}
+										tooltipText={conf.description}
+										simple={conf.simple}
+									/>
+								{/if}
+							{/each}
+						</div>
+						<wa-divider></wa-divider>
+						<div class="statcast-grid">
+							{#each pitchingStatsConfig.filter((c) => c.category === 'discipline') as conf (conf.key)}
+								{@const percentileVal =
+									pitchingStatcast.pitcherPercentiles?.[conf.percentileKey ?? conf.key]}
+								{@const statVal = conf.getValue(pitchingStatcast)}
+
+								{#if percentileVal !== undefined && percentileVal !== null}
+									<StatcastStatBar
+										label={conf.label}
+										stat={statVal ?? percentileVal}
+										percentile={percentileVal}
+										decimals={0}
+										invertColor={false}
+										tooltipText={conf.description}
+										simple={true}
+									/>
+								{/if}
+							{/each}
+						</div>
+						<wa-divider></wa-divider>
+						<div class="statcast-grid">
+							{#each pitchingStatsConfig.filter((c) => c.category === 'quality_of_contact') as conf (conf.key)}
+								{@const percentileVal =
+									pitchingStatcast.pitcherPercentiles?.[conf.percentileKey ?? conf.key]}
+								{@const statVal = conf.getValue(pitchingStatcast)}
+
+								{#if percentileVal !== undefined && percentileVal !== null}
+									<StatcastStatBar
+										label={conf.label}
+										stat={statVal ?? percentileVal}
+										percentile={percentileVal}
+										decimals={conf.decimals ?? 1}
+										invertColor={false}
+										tooltipText={conf.description}
+										simple={false}
+									/>
+								{/if}
+							{/each}
+						</div>
+						<wa-divider></wa-divider>
+						<div class="statcast-grid">
+							{#each pitchingStatsConfig.filter((c) => c.category === 'pitch_metrics') as conf (conf.key)}
+								{@const percentileVal =
+									pitchingStatcast.pitcherPercentiles?.[conf.percentileKey ?? conf.key]}
+								{@const statVal = conf.getValue(pitchingStatcast)}
+
+								{#if percentileVal !== undefined && percentileVal !== null}
+									<StatcastStatBar
+										label={conf.label}
+										stat={statVal ?? percentileVal}
+										percentile={percentileVal}
+										decimals={0}
+										invertColor={false}
+										tooltipText={conf.description}
+										simple={true}
+									/>
+								{/if}
+							{/each}
+						</div>
+					{:else}
+						<p>Statcast advanced percentile metrics are unavailable for this player.</p>
+					{/if}
+				{/if}
+				<wa-divider class="section-divider"></wa-divider>
 				<div class="horizontal-wrapper">
 					{#if !isCareerMode && !isDateFilterActive}
 						<h3 id="pitchingExplanationStandard">{userSelectedYear} Pitching</h3>
@@ -1105,92 +1206,6 @@
 					</div>
 				{:else}
 					<p>No pitching records found for this player.</p>
-				{/if}
-
-				<wa-divider class="section-divider"></wa-divider>
-
-				<wa-tooltip for="pitchingExplanation">
-					93 would mean a player is in the top 7 percent of MLB players in that category. 50 is
-					always going to be the league average.
-				</wa-tooltip>
-				<div class="horizontal-wrapper">
-					<h3 id="pitchingExplanation" class="help-trigger">Pitching Percentiles</h3>
-					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
-					<wa-badge variant="brand" appearance="filled">Higher number is better</wa-badge>
-					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
-					<wa-badge variant="neutral" appearance="outlined"
-						>not filterable by team or custom date range</wa-badge
-					>
-				</div>
-
-				{#if activeSeasonStats && activeSeasonStats.atBats > 0}
-					<div class="stats-grid-container">
-						<div class="stats-column">
-							<div class="category-heading-wrapper">
-								<h4 class="category-heading">Power Profile</h4>
-							</div>
-							<div class="wa-stack">
-								{#each pitchingStatConfig.filter((s) => s.category === 'profile') as stat}
-									{#if pitchingPercentileStats?.[stat.key] !== undefined && pitchingPercentileStats?.[stat.key] !== null}
-										<StatBar
-											label={stat.label}
-											percentile={pitchingPercentileStats[stat.key]}
-											tooltipText={stat.description}
-										/>
-									{:else}
-										<StatBar label="No data" percentile="N/A" />
-									{/if}
-								{/each}
-							</div>
-						</div>
-						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-						<div class="stats-column">
-							<div class="category-heading-wrapper">
-								<h4 class="category-heading">Plate Discipline</h4>
-							</div>
-							<div class="wa-stack">
-								{#each pitchingStatConfig.filter((s) => s.category === 'discipline') as stat}
-									{#if pitchingPercentileStats?.[stat.key] !== undefined && pitchingPercentileStats?.[stat.key] !== null}
-										<StatBar
-											label={stat.label}
-											percentile={pitchingPercentileStats[stat.key]}
-											tooltipText={stat.description}
-										/>
-									{:else}
-										<StatBar label="No data" percentile="N/A" />
-									{/if}
-								{/each}
-							</div>
-						</div>
-						<wa-divider orientation="vertical" class="grid-desktop-divider"></wa-divider>
-						<div class="stats-column">
-							<div class="category-heading-wrapper">
-								<wa-tooltip for="expectedHeadingPitching"
-									>Calculates what a player's numbers should look like based entirely on exit
-									velocity and launch angle, completely removing defense. If a player's real stats
-									are much lower than the expected, they have arguably been getting unlucky.</wa-tooltip
-								>
-								<h4 class="category-heading help-trigger" id="expectedHeadingPitching">
-									Expected Metrics
-								</h4>
-							</div>
-							<div class="wa-stack">
-								{#each pitchingStatConfig.filter((s) => s.category === 'expected') as stat}
-									{#if pitchingPercentileStats?.[stat.key] !== undefined && pitchingPercentileStats?.[stat.key] !== null}
-										<StatBar
-											label={stat.label}
-											percentile={pitchingPercentileStats[stat.key]}
-											tooltipText={stat.description}
-										/>
-									{:else}
-										<StatBar label="No data" percentile="N/A" />
-									{/if}
-								{/each}
-							</div>
-						</div>
-					</div>
-				{:else}
-					<p>Statcast advanced percentile metrics are unavailable for this player.</p>
 				{/if}
 			</wa-tab-panel>
 
