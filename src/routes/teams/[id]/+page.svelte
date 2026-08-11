@@ -1,5 +1,4 @@
 <script>
-	import { fetchPybaseball } from '$lib/pybaseball.js';
 	import { getTeamLogo } from '../../../api/getTeamLogo';
 	import { getTeamInfo } from '../../../api/getTeamInfo';
 	import { page } from '$app/stores';
