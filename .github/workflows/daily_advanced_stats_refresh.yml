@@ -24,7 +24,7 @@ jobs:
           mkdir -p static/data
 
           duckdb -c "
-            -- 1. B-Ref Daily (Using header=True, explicit column casting, and nullstr handling)
+            -- 1. B-Ref Daily
             CREATE TABLE raw_bat AS 
             SELECT 
               CAST(mlb_ID AS VARCHAR) AS mlb_id,
@@ -93,7 +93,7 @@ jobs:
             COPY (SELECT * FROM bref_combined ORDER BY player_ID, year_ID DESC) TO 'static/data/bref_daily.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
 
             -- 2. 2026 Statcast
-            CREATE TABLE savant_bat_pct AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(percentile_exit_velocity AS INTEGER) AS pct_exit_velocity, CAST(percentile_hard_hit AS INTEGER) AS pct_hard_hit, CAST(percentile_barrel AS INTEGER) AS pct_barrel, CAST(percentile_xwoba AS INTEGER) AS pct_xwoba, CAST(percentile_xba AS INTEGER) AS pct_xba, CAST(percentile_xslg AS INTEGER) AS pct_xslg, CAST(percentile_whiff_percent AS INTEGER) AS pct_whiff, CAST(percentile_k_percent AS INTEGER) AS pct_k_rate, CAST(percentile_bb_percent AS INTEGER) AS pct_bb_rate, CAST(percentile_chase_percent AS INTEGER) AS pct_chase, CAST(percentile_sprint_speed AS INTEGER) AS pct_sprint_speed FROM read_csv('https://baseballsavant.mlb.com/leaderboard/percentile-rankings?type=batter&year=2026&csv=true', header=True, ignore_errors=True, nullstr=['NULL', '']);
+            CREATE TABLE savant_bat_pct AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(exit_velocity AS INTEGER) AS pct_exit_velocity, CAST(hard_hit_percent AS INTEGER) AS pct_hard_hit, CAST(barrel_batted_rate AS INTEGER) AS pct_barrel, CAST(xwoba AS INTEGER) AS pct_xwoba, CAST(xba AS INTEGER) AS pct_xba, CAST(xslg AS INTEGER) AS pct_xslg, CAST(whiff_percent AS INTEGER) AS pct_whiff, CAST(k_percent AS INTEGER) AS pct_k_rate, CAST(bb_percent AS INTEGER) AS pct_bb_rate, CAST(chase_percent AS INTEGER) AS pct_chase, CAST(sprint_speed AS INTEGER) AS pct_sprint_speed FROM read_csv('https://baseballsavant.mlb.com/leaderboard/percentile-rankings?type=batter&year=2026&csv=true', header=True, ignore_errors=True, nullstr=['NULL', '']);
 
             CREATE TABLE savant_bat_xstats AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(ba AS DOUBLE) AS ba, CAST(est_ba AS DOUBLE) AS xba, CAST(slg AS DOUBLE) AS slg, CAST(est_slg AS DOUBLE) AS xslg, CAST(woba AS DOUBLE) AS woba, CAST(est_woba AS DOUBLE) AS xwoba FROM read_csv('https://baseballsavant.mlb.com/leaderboard/expected_statistics?type=batter&year=2026&min=1&csv=true', header=True, ignore_errors=True, nullstr=['NULL', '']);
 
