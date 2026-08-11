@@ -10,19 +10,14 @@ This website is a non-commercial, open-source educational project built for fun.
 
 - Webawesome components + lots of custom components
 - Sveltekit for front-end
-- flask for connecting svelte and pybaseball
+- Parquet & DuckDB for backend database files and queries
 - anime.js for number animations
 
-- Pybaseball pulling from Bbref for WAR, OPS+, and ERA+
+- Baseball Reference war_daily_bat & war_daily_pitch for WAR, OPS+ and ERA+ values
 - Official public MLB api for non statcast data
 - Baseball Savant public CSV files for some statcast data
 
 ### Running Locally
 
 - npm install
-- navigate to src/backend and run pip install -r requirements.txt
-
-### Starting development environment
-
-- src/backend: python app.py
-- finally, npm run dev
+- npm run dev
