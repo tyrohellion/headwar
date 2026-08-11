@@ -1012,7 +1012,6 @@
 						['expected', 'complete', 'discipline'],
 						false
 					)}
-					<p>{statcastNoDataText}</p>
 				{/if}
 
 				<wa-divider class="section-divider"></wa-divider>
@@ -1213,7 +1212,6 @@
 						['expected', 'discipline', 'quality_of_contact', 'pitch_metrics'],
 						false
 					)}
-					<p>{statcastNoDataText}</p>
 				{/if}
 				<wa-divider class="section-divider"></wa-divider>
 				<div class="horizontal-wrapper">
@@ -1374,7 +1372,6 @@
 					{/if}
 				{:else}
 					{@render statcastSkeletonGrid(fieldingStatcastConfig, ['defense'], false)}
-					<p>{statcastNoDataText}</p>
 				{/if}
 
 				<wa-divider class="section-divider"></wa-divider>
