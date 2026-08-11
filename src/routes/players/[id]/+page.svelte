@@ -1,18 +1,15 @@
 <script>
-	import { fetchPybaseball } from '$lib/pybaseball.js';
 	import { advancedStats, loadAdvancedMetrics } from '$lib/warStore.svelte.js';
+	import { getPlayerStatcastProfile } from '$lib/parquetData.js';
 	import { getPlayerPictureLarge } from '../../../api/getPlayerPicture';
 	import { getPlayerInfo } from '../../../api/getPlayerInfo';
 	import { getTeamLogo } from '../../../api/getTeamLogo';
-	import { getCompleteBatterStatcastProfile } from '../../../api/getPlayerStatcast';
-	import { getPlayerPitchingPercentileStats } from '../../../api/getPlayerPitchingPercentile';
 	import { standardBattingConfig } from '../../../formatters/standardBattingStatsConfig';
 	import { battingStatConfig } from '../../../formatters/battingStatsConfig';
 	import { processPlayerAwards } from '../../../formatters/playerAwardFormatter';
 	import { standardPitchingConfig } from '../../../formatters/standardPitchingStatsConfig';
 	import { standardFieldingStatsConfig } from '../../../formatters/fieldingStatsConfig';
 	import { pitchingStatsConfig } from '../../../formatters/pitchingStatsConfig';
-	import { getPlayerBattingStatsBref } from '../../../api/getPlayerBattingStats';
 	import { fieldingStatcastConfig } from '../../../formatters/fieldingStatcastConfig';
 	import { getSeasonProgressPercentage } from '../../../formatters/getSeasonProgressPercentage';
 	import { page } from '$app/stores';
@@ -44,6 +41,7 @@
 	import StatBar from '$lib/components/statBar.svelte';
 	import StatPill from '$lib/components/statPill.svelte';
 	import StatcastStatBar from '$lib/components/statcastStatBar.svelte';
+	import StatcastStatBarSkeleton from '$lib/components/statcastStatBarSkeleton.svelte';
 	import StatBox from '$lib/components/statBox.svelte';
 	import StatBoxStandard from '$lib/components/statBoxStandard.svelte';
 	import StatBoxStandardPitching from '$lib/components/statBoxStandardPitching.svelte';
@@ -53,7 +51,6 @@
 	let playerData = $state(null);
 	let loading = $state(true);
 	let errorMsg = $state('');
-	let bbrefId = $state('');
 	let imgLoading = $state(true);
 
 	let battingStatcast = $state(null);
@@ -62,6 +59,37 @@
 	let pitchingStatcast = $state(null);
 	let isBattingPercentileStatsLoading = $state(false);
 	let isPitchingPercentileStatsLoading = $state(false);
+
+	let hasPitcherPercentiles = $derived(
+		pitchingStatcast && hasAnyValue(pitchingStatcast.pitcherPercentiles)
+	);
+
+	let hasFieldingStatcast = $derived(
+		fieldingStatcast &&
+			(hasAnyValue(fieldingStatcast.fieldingRunValues) ||
+				hasAnyValue(fieldingStatcast.armStrength) ||
+				(fieldingStatcast.percentiles?.arm_strength ?? null) != null)
+	);
+
+	let hasBattingStatcast = $derived(
+		battingStatcast &&
+			battingStatConfig.some(
+				(conf) => battingStatcast.percentiles?.[conf.percentileKey ?? conf.key] != null
+			)
+	);
+
+	let statcastNoDataText = $derived(
+		isCareerMode
+			? 'Statcast data is not available in career mode.'
+			: isDateFilterActive
+				? 'Statcast data is not available for custom date ranges.'
+				: `No statcast data available for ${userSelectedYear}.`
+	);
+
+	function hasAnyValue(obj) {
+		if (!obj) return false;
+		return Object.values(obj).some((v) => v != null && v !== '' && !Number.isNaN(Number(v)));
+	}
 
 	let userSelectedYear = $state(new Date().getFullYear().toString());
 	let isCareerMode = $state(false);
@@ -107,12 +135,6 @@
 				playerData = info;
 
 				console.log('DEBUG 1 -> Full API payload response:', info);
-
-				const lookupRes = await fetchPybaseball('playerid_reverse_lookup', {
-					player_ids: [id],
-					key_type: 'mlbam'
-				});
-				bbrefId = lookupRes?.[0]?.key_bbref || '';
 
 				const profile = info?.people?.[0];
 				if (profile?.mlbDebutDate) {
@@ -320,15 +342,21 @@
 		const id = $page.params.id;
 		const targetYear = userSelectedYear;
 
+		let cancelled = false;
+
 		if (
 			!id ||
 			isDateFilterActive ||
+			isCareerMode ||
 			availableSeasons.length === 0 ||
 			!availableSeasons.includes(targetYear)
 		) {
 			battingStatcast = null;
 			pitchingStatcast = null;
 			fieldingStatcast = null;
+			isBattingPercentileStatsLoading = false;
+			isPitchingPercentileStatsLoading = false;
+			isFieldingPercentileStatsLoading = false;
 			return;
 		}
 
@@ -338,11 +366,11 @@
 			isFieldingPercentileStatsLoading = true;
 
 			try {
-				const [battingRes] = await Promise.allSettled([
-					getCompleteBatterStatcastProfile(id, targetYear)
-				]);
+				const [battingRes] = await Promise.allSettled([getPlayerStatcastProfile(id, targetYear)]);
 
 				const batterProfile = battingRes.status === 'fulfilled' ? battingRes.value : null;
+
+				if (cancelled) return;
 
 				battingStatcast = batterProfile;
 
@@ -351,17 +379,24 @@
 				pitchingStatcast = batterProfile;
 			} catch (err) {
 				console.error('[Statcast Effect Error]:', err);
+				if (cancelled) return;
 				battingStatcast = null;
 				pitchingStatcast = null;
 				fieldingStatcast = null;
 			} finally {
-				isBattingPercentileStatsLoading = false;
-				isPitchingPercentileStatsLoading = false;
-				isFieldingPercentileStatsLoading = false;
+				if (!cancelled) {
+					isBattingPercentileStatsLoading = false;
+					isPitchingPercentileStatsLoading = false;
+					isFieldingPercentileStatsLoading = false;
+				}
 			}
 		}
 
 		loadAllStatcastProfiles();
+
+		return () => {
+			cancelled = true;
+		};
 	});
 
 	let availableFieldingPositions = $derived(
@@ -617,6 +652,23 @@
 
 	{#key isDesktop}
 		<wa-tab-group placement={isDesktop ? 'start' : 'top'}>
+			{#snippet statcastSkeletonGrid(config, categories, pulsing)}
+				{#each categories as category, i (category)}
+					{#if i > 0}
+						<wa-divider></wa-divider>
+					{/if}
+					<div class="statcast-grid">
+						{#each config.filter((c) => c.category === category) as conf (conf.key)}
+							<StatcastStatBarSkeleton
+								label={conf.label}
+								tooltipText={conf.description}
+								{pulsing}
+							/>
+						{/each}
+					</div>
+				{/each}
+			{/snippet}
+
 			<wa-tab panel="overview">Overview</wa-tab>
 			{#if activeSeasonStats && activeSeasonStats.atBats > 0}
 				<wa-tab panel="batting">Batting</wa-tab>
@@ -714,7 +766,7 @@
 							/>
 						</div>
 					{/if}
-					{#if !isCareerMode && !isDateFilterActive && (battingStatcast?.runValues?.runs_all !== undefined || battingStatcast?.baserunningRunValues?.runs_all !== undefined || battingStatcast?.pitcherRunValues?.runs_all !== undefined)}
+					{#if !isCareerMode && !isDateFilterActive && (battingStatcast?.runValues?.runs_all !== undefined || battingStatcast?.baserunningRunValues?.runs_all !== undefined || battingStatcast?.pitcherRunValues?.runs_all !== undefined || battingStatcast?.fieldingRunValues?.total_runs !== undefined)}
 						<wa-divider></wa-divider>
 						<div class="horizontal-wrapper">
 							<h3>{userSelectedYear} Run Values</h3>
@@ -885,72 +937,82 @@
 					>
 				</div>
 
-				{#if activeSeasonStats && activeSeasonStats.atBats > 0}
-					{#if isBattingPercentileStatsLoading}
-						<wa-spinner></wa-spinner> Loading statcast data...
-					{:else if battingStatcast}
-						<div class="statcast-grid">
-							{#each battingStatConfig.filter((c) => c.category === 'expected') as conf (conf.key)}
-								{@const percentileVal =
-									battingStatcast.percentiles?.[conf.percentileKey ?? conf.key]}
-								{@const statVal = conf.getValue(battingStatcast)}
+				{#if isBattingPercentileStatsLoading}
+					{@render statcastSkeletonGrid(
+						battingStatConfig,
+						['expected', 'complete', 'discipline'],
+						true
+					)}
+				{:else if battingStatcast && hasBattingStatcast}
+					<div class="statcast-grid">
+						{#each battingStatConfig.filter((c) => c.category === 'expected') as conf (conf.key)}
+							{@const percentileVal = battingStatcast.percentiles?.[conf.percentileKey ?? conf.key]}
+							{@const statVal = conf.getValue(battingStatcast)}
 
-								{#if percentileVal !== undefined && percentileVal !== null}
-									<StatcastStatBar
-										label={conf.label}
-										stat={statVal ?? percentileVal}
-										percentile={percentileVal}
-										decimals={conf.decimals ?? 1}
-										invertColor={false}
-										tooltipText={conf.description}
-										simple={conf.simple}
-									/>
-								{/if}
-							{/each}
-						</div>
-						<wa-divider></wa-divider>
-						<div class="statcast-grid">
-							{#each battingStatConfig.filter((c) => c.category === 'complete') as conf (conf.key)}
-								{@const percentileVal =
-									battingStatcast.percentiles?.[conf.percentileKey ?? conf.key]}
-								{@const statVal = conf.getValue(battingStatcast)}
+							{#if percentileVal !== undefined && percentileVal !== null}
+								<StatcastStatBar
+									label={conf.label}
+									stat={statVal ?? percentileVal}
+									percentile={percentileVal}
+									decimals={conf.decimals ?? 1}
+									invertColor={false}
+									tooltipText={conf.description}
+									simple={conf.simple}
+								/>
+							{:else}
+								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
+							{/if}
+						{/each}
+					</div>
+					<wa-divider></wa-divider>
+					<div class="statcast-grid">
+						{#each battingStatConfig.filter((c) => c.category === 'complete') as conf (conf.key)}
+							{@const percentileVal = battingStatcast.percentiles?.[conf.percentileKey ?? conf.key]}
+							{@const statVal = conf.getValue(battingStatcast)}
 
-								{#if percentileVal !== undefined && percentileVal !== null}
-									<StatcastStatBar
-										label={conf.label}
-										stat={statVal ?? percentileVal}
-										percentile={percentileVal}
-										decimals={conf.decimals ?? 1}
-										invertColor={false}
-										tooltipText={conf.description}
-										simple={false}
-									/>
-								{/if}
-							{/each}
-						</div>
-						<wa-divider></wa-divider>
-						<div class="statcast-grid">
-							{#each battingStatConfig.filter((c) => c.category === 'discipline') as conf (conf.key)}
-								{@const percentileVal =
-									battingStatcast.percentiles?.[conf.percentileKey ?? conf.key]}
-								{@const statVal = conf.getValue(battingStatcast)}
+							{#if percentileVal !== undefined && percentileVal !== null}
+								<StatcastStatBar
+									label={conf.label}
+									stat={statVal ?? percentileVal}
+									percentile={percentileVal}
+									decimals={conf.decimals ?? 1}
+									invertColor={false}
+									tooltipText={conf.description}
+									simple={false}
+								/>
+							{:else}
+								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
+							{/if}
+						{/each}
+					</div>
+					<wa-divider></wa-divider>
+					<div class="statcast-grid">
+						{#each battingStatConfig.filter((c) => c.category === 'discipline') as conf (conf.key)}
+							{@const percentileVal = battingStatcast.percentiles?.[conf.percentileKey ?? conf.key]}
+							{@const statVal = conf.getValue(battingStatcast)}
 
-								{#if percentileVal !== undefined && percentileVal !== null}
-									<StatcastStatBar
-										label={conf.label}
-										stat={statVal ?? percentileVal}
-										percentile={percentileVal}
-										decimals={0}
-										invertColor={false}
-										tooltipText={conf.description}
-										simple={true}
-									/>
-								{/if}
-							{/each}
-						</div>
-					{:else}
-						<p>Statcast advanced percentile metrics are unavailable for this player.</p>
-					{/if}
+							{#if percentileVal !== undefined && percentileVal !== null}
+								<StatcastStatBar
+									label={conf.label}
+									stat={statVal ?? percentileVal}
+									percentile={percentileVal}
+									decimals={0}
+									invertColor={false}
+									tooltipText={conf.description}
+									simple={true}
+								/>
+							{:else}
+								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
+							{/if}
+						{/each}
+					</div>
+				{:else}
+					{@render statcastSkeletonGrid(
+						battingStatConfig,
+						['expected', 'complete', 'discipline'],
+						false
+					)}
+					<p>{statcastNoDataText}</p>
 				{/if}
 
 				<wa-divider class="section-divider"></wa-divider>
@@ -1051,92 +1113,107 @@
 					>
 				</div>
 
-				{#if pitchingStatcast}
-					{#if isPitchingPercentileStatsLoading}
-						<wa-spinner></wa-spinner> Loading statcast data...
-					{:else if pitchingStatcast}
-						<div class="statcast-grid">
-							{#each pitchingStatsConfig.filter((c) => c.category === 'expected') as conf (conf.key)}
-								{@const percentileVal =
-									pitchingStatcast.pitcherPercentiles?.[conf.percentileKey ?? conf.key]}
-								{@const statVal = conf.getValue(pitchingStatcast)}
+				{#if isPitchingPercentileStatsLoading}
+					{@render statcastSkeletonGrid(
+						pitchingStatsConfig,
+						['expected', 'discipline', 'quality_of_contact', 'pitch_metrics'],
+						true
+					)}
+				{:else if pitchingStatcast && hasPitcherPercentiles}
+					<div class="statcast-grid">
+						{#each pitchingStatsConfig.filter((c) => c.category === 'expected') as conf (conf.key)}
+							{@const percentileVal =
+								pitchingStatcast.pitcherPercentiles?.[conf.percentileKey ?? conf.key]}
+							{@const statVal = conf.getValue(pitchingStatcast)}
 
-								{#if percentileVal !== undefined && percentileVal !== null}
-									<StatcastStatBar
-										label={conf.label}
-										stat={statVal ?? percentileVal}
-										percentile={percentileVal}
-										decimals={conf.decimals ?? 1}
-										invertColor={false}
-										tooltipText={conf.description}
-										simple={conf.simple}
-									/>
-								{/if}
-							{/each}
-						</div>
-						<wa-divider></wa-divider>
-						<div class="statcast-grid">
-							{#each pitchingStatsConfig.filter((c) => c.category === 'discipline') as conf (conf.key)}
-								{@const percentileVal =
-									pitchingStatcast.pitcherPercentiles?.[conf.percentileKey ?? conf.key]}
-								{@const statVal = conf.getValue(pitchingStatcast)}
+							{#if percentileVal !== undefined && percentileVal !== null}
+								<StatcastStatBar
+									label={conf.label}
+									stat={statVal ?? percentileVal}
+									percentile={percentileVal}
+									decimals={conf.decimals ?? 1}
+									invertColor={false}
+									tooltipText={conf.description}
+									simple={conf.simple}
+								/>
+							{:else}
+								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
+							{/if}
+						{/each}
+					</div>
+					<wa-divider></wa-divider>
+					<div class="statcast-grid">
+						{#each pitchingStatsConfig.filter((c) => c.category === 'discipline') as conf (conf.key)}
+							{@const percentileVal =
+								pitchingStatcast.pitcherPercentiles?.[conf.percentileKey ?? conf.key]}
+							{@const statVal = conf.getValue(pitchingStatcast)}
 
-								{#if percentileVal !== undefined && percentileVal !== null}
-									<StatcastStatBar
-										label={conf.label}
-										stat={statVal ?? percentileVal}
-										percentile={percentileVal}
-										decimals={0}
-										invertColor={false}
-										tooltipText={conf.description}
-										simple={true}
-									/>
-								{/if}
-							{/each}
-						</div>
-						<wa-divider></wa-divider>
-						<div class="statcast-grid">
-							{#each pitchingStatsConfig.filter((c) => c.category === 'quality_of_contact') as conf (conf.key)}
-								{@const percentileVal =
-									pitchingStatcast.pitcherPercentiles?.[conf.percentileKey ?? conf.key]}
-								{@const statVal = conf.getValue(pitchingStatcast)}
+							{#if percentileVal !== undefined && percentileVal !== null}
+								<StatcastStatBar
+									label={conf.label}
+									stat={statVal ?? percentileVal}
+									percentile={percentileVal}
+									decimals={0}
+									invertColor={false}
+									tooltipText={conf.description}
+									simple={true}
+								/>
+							{:else}
+								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
+							{/if}
+						{/each}
+					</div>
+					<wa-divider></wa-divider>
+					<div class="statcast-grid">
+						{#each pitchingStatsConfig.filter((c) => c.category === 'quality_of_contact') as conf (conf.key)}
+							{@const percentileVal =
+								pitchingStatcast.pitcherPercentiles?.[conf.percentileKey ?? conf.key]}
+							{@const statVal = conf.getValue(pitchingStatcast)}
 
-								{#if percentileVal !== undefined && percentileVal !== null}
-									<StatcastStatBar
-										label={conf.label}
-										stat={statVal ?? percentileVal}
-										percentile={percentileVal}
-										decimals={conf.decimals ?? 1}
-										invertColor={false}
-										tooltipText={conf.description}
-										simple={false}
-									/>
-								{/if}
-							{/each}
-						</div>
-						<wa-divider></wa-divider>
-						<div class="statcast-grid">
-							{#each pitchingStatsConfig.filter((c) => c.category === 'pitch_metrics') as conf (conf.key)}
-								{@const percentileVal =
-									pitchingStatcast.pitcherPercentiles?.[conf.percentileKey ?? conf.key]}
-								{@const statVal = conf.getValue(pitchingStatcast)}
+							{#if percentileVal !== undefined && percentileVal !== null}
+								<StatcastStatBar
+									label={conf.label}
+									stat={statVal ?? percentileVal}
+									percentile={percentileVal}
+									decimals={conf.decimals ?? 1}
+									invertColor={false}
+									tooltipText={conf.description}
+									simple={false}
+								/>
+							{:else}
+								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
+							{/if}
+						{/each}
+					</div>
+					<wa-divider></wa-divider>
+					<div class="statcast-grid">
+						{#each pitchingStatsConfig.filter((c) => c.category === 'pitch_metrics') as conf (conf.key)}
+							{@const percentileVal =
+								pitchingStatcast.pitcherPercentiles?.[conf.percentileKey ?? conf.key]}
+							{@const statVal = conf.getValue(pitchingStatcast)}
 
-								{#if percentileVal !== undefined && percentileVal !== null}
-									<StatcastStatBar
-										label={conf.label}
-										stat={statVal ?? percentileVal}
-										percentile={percentileVal}
-										decimals={0}
-										invertColor={false}
-										tooltipText={conf.description}
-										simple={true}
-									/>
-								{/if}
-							{/each}
-						</div>
-					{:else}
-						<p>Statcast advanced percentile metrics are unavailable for this player.</p>
-					{/if}
+							{#if percentileVal !== undefined && percentileVal !== null}
+								<StatcastStatBar
+									label={conf.label}
+									stat={statVal ?? percentileVal}
+									percentile={percentileVal}
+									decimals={0}
+									invertColor={false}
+									tooltipText={conf.description}
+									simple={true}
+								/>
+							{:else}
+								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
+							{/if}
+						{/each}
+					</div>
+				{:else}
+					{@render statcastSkeletonGrid(
+						pitchingStatsConfig,
+						['expected', 'discipline', 'quality_of_contact', 'pitch_metrics'],
+						false
+					)}
+					<p>{statcastNoDataText}</p>
 				{/if}
 				<wa-divider class="section-divider"></wa-divider>
 				<div class="horizontal-wrapper">
@@ -1224,12 +1301,58 @@
 					>
 				</div>
 
-				{#if fieldingStatcast}
-					{#if isFieldingPercentileStatsLoading}
-						<wa-spinner></wa-spinner> Loading statcast data...
-					{:else if fieldingStatcast}
+				{#if isFieldingPercentileStatsLoading}
+					{@render statcastSkeletonGrid(fieldingStatcastConfig, ['defense'], true)}
+				{:else if fieldingStatcast && hasFieldingStatcast}
+					<div class="statcast-grid">
+						{#each fieldingStatcastConfig.filter((c) => c.category === 'overall' || c.category === 'defense') as conf (conf.key)}
+							{@const percentileVal =
+								fieldingStatcast.percentiles?.[conf.percentileKey ?? conf.key]}
+							{@const statVal = conf.getValue(fieldingStatcast)}
+
+							{#if statVal !== undefined && statVal !== null}
+								<StatcastStatBar
+									label={conf.label}
+									stat={statVal}
+									decimals={conf.decimals ?? 1}
+									percentile={percentileVal}
+									runValue={conf.runValue ?? false}
+									tooltipText={conf.description}
+									simple={conf.simple ?? (percentileVal === undefined || percentileVal === null)}
+								/>
+							{:else}
+								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
+							{/if}
+						{/each}
+					</div>
+
+					<wa-divider></wa-divider>
+
+					<div class="statcast-grid">
+						{#each fieldingStatcastConfig.filter((c) => c.category === 'strength') as conf (conf.key)}
+							{@const percentileVal = fieldingStatcast.percentiles?.[conf.percentileKey]}
+							{@const statVal = conf.getValue(fieldingStatcast)}
+
+							{#if statVal !== undefined && statVal !== null}
+								<StatcastStatBar
+									label={conf.label}
+									decimals={conf.decimals ?? 1}
+									stat={statVal}
+									percentile={statVal}
+									runValue={conf.runValue ?? false}
+									tooltipText={conf.description}
+									simple={conf.simple ?? (percentileVal === undefined || percentileVal === null)}
+								/>
+							{:else}
+								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
+							{/if}
+						{/each}
+					</div>
+
+					{#if fieldingStatcastConfig.some((c) => c.category === 'catcher' && c.getValue(fieldingStatcast) !== null && c.getValue(fieldingStatcast) !== undefined)}
+						<wa-divider></wa-divider>
 						<div class="statcast-grid">
-							{#each fieldingStatcastConfig.filter((c) => c.category === 'overall' || c.category === 'defense') as conf (conf.key)}
+							{#each fieldingStatcastConfig.filter((c) => c.category === 'catcher') as conf (conf.key)}
 								{@const percentileVal =
 									fieldingStatcast.percentiles?.[conf.percentileKey ?? conf.key]}
 								{@const statVal = conf.getValue(fieldingStatcast)}
@@ -1238,41 +1361,20 @@
 									<StatcastStatBar
 										label={conf.label}
 										stat={statVal}
-										decimals={conf.decimals ?? 1}
-										percentile={percentileVal}
+										decimals={conf.decimals ?? 0}
 										runValue={conf.runValue ?? false}
 										tooltipText={conf.description}
 										simple={conf.simple ?? (percentileVal === undefined || percentileVal === null)}
 									/>
+								{:else}
+									<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
 								{/if}
 							{/each}
 						</div>
-
-						{#if fieldingStatcastConfig.some((c) => c.category === 'catcher' && c.getValue(fieldingStatcast) !== null && c.getValue(fieldingStatcast) !== undefined)}
-							<wa-divider></wa-divider>
-							<div class="statcast-grid">
-								{#each fieldingStatcastConfig.filter((c) => c.category === 'catcher') as conf (conf.key)}
-									{@const percentileVal =
-										fieldingStatcast.percentiles?.[conf.percentileKey ?? conf.key]}
-									{@const statVal = conf.getValue(fieldingStatcast)}
-
-									{#if statVal !== undefined && statVal !== null}
-										<StatcastStatBar
-											label={conf.label}
-											stat={statVal}
-											decimals={conf.decimals ?? 0}
-											runValue={conf.runValue ?? false}
-											tooltipText={conf.description}
-											simple={conf.simple ??
-												(percentileVal === undefined || percentileVal === null)}
-										/>
-									{/if}
-								{/each}
-							</div>
-						{/if}
-					{:else}
-						<p>Statcast advanced fielding metrics are unavailable for this player.</p>
 					{/if}
+				{:else}
+					{@render statcastSkeletonGrid(fieldingStatcastConfig, ['defense'], false)}
+					<p>{statcastNoDataText}</p>
 				{/if}
 
 				<wa-divider class="section-divider"></wa-divider>

@@ -87,15 +87,15 @@ export const fieldingStatcastConfig = [
 		getValue: (data) => data?.fieldingRunValues?.throwing_runs
 	},
 	{
-		key: 'arm_strength',
-		percentileKey: 'arm_strength',
+		key: 'arm_overall',
+		percentileKey: 'arm_overall',
 		label: 'Arm Strength',
-		category: 'defense',
+		category: 'strength',
+		decimals: 1,
 		runValue: false,
-		decimals: 0,
 		simple: true,
 		description:
-			'Percentile the player falls in for how hard they can throw the ball compared to the rest of the league.',
-		getValue: (data) => data?.percentiles?.arm_strength
+			'Average arm strength of a player’s top-effort throws, in mph, based on Statcast tracking (available from 2020).',
+		getValue: (data) => data?.armStrength?.overall
 	}
 ];

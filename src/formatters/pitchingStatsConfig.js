@@ -23,17 +23,6 @@ export const pitchingStatsConfig = [
 		description: 'Average exit velocity allowed on all batted balls.',
 		getValue: (data) => data?.pitcherExitVeloBarrels?.avg_hit_speed ?? data?.custom?.exit_velocity
 	},
-	// {
-	// 	key: 'max_ev',
-	// 	percentileKey: 'max_ev',
-	// 	label: 'Max Exit Velocity',
-	// 	category: 'quality_of_contact',
-	// 	decimals: 1,
-	// 	unit: 'mph',
-	// 	invertColor: true,
-	// 	description: 'The maximum exit velocity allowed on any single batted ball.',
-	// 	getValue: (data) => data?.pitcherExitVeloBarrels?.max_hit_speed
-	// },
 	{
 		key: 'ev95percent',
 		percentileKey: 'hard_hit_percent',
@@ -205,16 +194,5 @@ export const pitchingStatsConfig = [
 		invertColor: true,
 		description: 'Average distance traveled on all batted balls allowed.',
 		getValue: (data) => data?.pitcherExitVeloBarrels?.avg_distance
-	},
-	{
-		key: 'ev50',
-		percentileKey: 'ev50',
-		label: 'EV50',
-		category: 'quality_of_contact',
-		decimals: 1,
-		unit: 'mph',
-		invertColor: true,
-		description: 'Average exit velocity of the top 50% hardest-hit balls allowed.',
-		getValue: (data) => data?.pitcherExitVeloBarrels?.ev50
 	}
 ];

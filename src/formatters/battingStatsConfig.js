@@ -13,16 +13,6 @@ export const battingStatConfig = [
 		getValue: (data) => data?.exitVeloBarrels?.avg_hit_speed ?? data?.custom?.exit_velocity
 	},
 	{
-		key: 'max_ev',
-		percentileKey: 'max_ev',
-		label: 'Max Exit Velocity',
-		category: 'complete',
-		decimals: 1,
-		unit: 'mph',
-		description: 'The absolute maximum speed recorded on any single batted ball.',
-		getValue: (data) => data?.exitVeloBarrels?.max_hit_speed
-	},
-	{
 		key: 'hard_hit_percent',
 		percentileKey: 'hard_hit_percent',
 		label: 'Hard Hit %',
@@ -214,17 +204,6 @@ export const battingStatConfig = [
 		unit: 'ft',
 		description: 'The total length of the bat path in feet during a swing.',
 		getValue: (data) => data?.percentiles?.swing_length_val
-	},
-	{
-		key: 'xiso',
-		percentileKey: 'xiso',
-		label: 'Expected ISO',
-		category: 'expected',
-		decimals: 0,
-		simple: true,
-		description:
-			'Expected Isolated Power (xSLG minus xBA) measuring raw expected extra-base hit power.',
-		getValue: (data) => data?.percentiles?.xiso_val
 	},
 	{
 		key: 'sprint_speed',

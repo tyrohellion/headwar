@@ -25,7 +25,7 @@
 		return Math.min(Math.max(num, 0), 100);
 	});
 
-	const isInvalid = $derived(runValue ? numericStat === null : rawPercentile === null);
+	const isInvalid = $derived(runValue || simple ? numericStat === null : rawPercentile === null);
 
 	const effectivePercentile = $derived.by(() => {
 		if (rawPercentile === null) return 0;
@@ -47,6 +47,8 @@
 		}
 
 		if (isInvalid) return 'var(--wa-color-neutral-500)';
+
+		if (simple && rawPercentile === null) return 'var(--wa-color-neutral-600)';
 
 		const p = effectivePercentile;
 		if (p >= 90) return 'var(--wa-color-success-60)';
