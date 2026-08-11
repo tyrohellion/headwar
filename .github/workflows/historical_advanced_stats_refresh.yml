@@ -28,8 +28,11 @@ jobs:
 
             curl -sL -A "Mozilla/5.0" "$url" -o "$dest"
             
-            if [ ! -s "$dest" ] || grep -q -i "<html" "$dest"; then
+            # Check if file is empty, has <= 1 line, or contains HTML (error response)
+            if [ ! -s "$dest" ] || [ $(wc -l < "$dest") -le 1 ] || grep -q -i "<html" "$dest"; then
               echo "$fallback_header" > "$dest"
+              # Append a row of commas matching header count to ensure DuckDB detects a valid CSV structure
+              echo "$fallback_header" | awk -F',' '{for(i=1;i<NF;i++) printf ","; print ""}' >> "$dest"
             fi
           }
 
@@ -117,8 +120,11 @@ jobs:
 
             curl -sL -A "Mozilla/5.0" "$url" -o "$dest"
             
-            if [ ! -s "$dest" ] || grep -q -i "<html" "$dest"; then
+            # Check if file is empty, has <= 1 line, or contains HTML (error response)
+            if [ ! -s "$dest" ] || [ $(wc -l < "$dest") -le 1 ] || grep -q -i "<html" "$dest"; then
               echo "$fallback_header" > "$dest"
+              # Append a row of commas matching header count to ensure DuckDB detects a valid CSV structure
+              echo "$fallback_header" | awk -F',' '{for(i=1;i<NF;i++) printf ","; print ""}' >> "$dest"
             fi
           }
 
