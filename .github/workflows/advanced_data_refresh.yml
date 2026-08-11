@@ -2,8 +2,8 @@ name: Daily Baseball Data Pipeline
 
 on:
   schedule:
-    # Runs every morning at 10:14am EST
-    - cron: '14 13 * * *'
+    # Runs every morning at 10:14am EST (14:14 UTC)
+    - cron: '14 14 * * *'
   workflow_dispatch:
 
 jobs:
@@ -24,11 +24,71 @@ jobs:
           mkdir -p static/data
 
           duckdb -c "
-            -- 1. B-Ref Daily
-            CREATE TABLE raw_bat AS SELECT * FROM read_csv('https://www.baseball-reference.com/data/war_daily_bat.txt', header=False, columns={'name_common': 'VARCHAR', 'age': 'INTEGER', 'mlb_id': 'VARCHAR', 'player_ID': 'VARCHAR', 'year_ID': 'INTEGER', 'team_ID': 'VARCHAR', 'stint_ID': 'INTEGER', 'lg_ID': 'VARCHAR', 'PA': 'INTEGER', 'G_bat': 'INTEGER', 'inn_def': 'DOUBLE', 'runs_bat': 'DOUBLE', 'runs_br': 'DOUBLE', 'runs_dp': 'DOUBLE', 'runs_field': 'DOUBLE', 'runs_infield': 'DOUBLE', 'runs_outfield': 'DOUBLE', 'runs_catcher': 'DOUBLE', 'runs_good_plays': 'DOUBLE', 'runs_defense': 'DOUBLE', 'runs_position': 'DOUBLE', 'runs_position_p': 'DOUBLE', 'runs_replacement_bat': 'DOUBLE', 'runs_above_rep_bat': 'DOUBLE', 'runs_above_avg_bat': 'DOUBLE', 'runs_above_avg_off': 'DOUBLE', 'runs_above_avg_def': 'DOUBLE', 'waa_bat': 'DOUBLE', 'waa_off': 'DOUBLE', 'waa_def': 'DOUBLE', 'WAR_bat': 'DOUBLE', 'WAR_def': 'DOUBLE', 'WAR_off': 'DOUBLE', 'WAR_rep_bat': 'DOUBLE', 'salary': 'VARCHAR', 'pitcher': 'VARCHAR', 'teamRpG': 'DOUBLE', 'oppRpG': 'DOUBLE', 'oppRpG_rep': 'DOUBLE', 'oppRpG_rep_adj': 'DOUBLE', 'pyth_exponent': 'DOUBLE', 'pyth_exponent_rep': 'DOUBLE', 'waa_win_perc': 'DOUBLE', 'waa_win_perc_off': 'DOUBLE', 'waa_win_perc_def': 'DOUBLE', 'waa_win_perc_rep': 'DOUBLE', 'ops_plus': 'DOUBLE', 'TOB': 'DOUBLE', 'TB': 'DOUBLE'});
-            CREATE TABLE raw_pitch AS SELECT * FROM read_csv('https://www.baseball-reference.com/data/war_daily_pitch.txt', header=False, columns={'name_common': 'VARCHAR', 'age': 'INTEGER', 'mlb_id': 'VARCHAR', 'player_ID': 'VARCHAR', 'year_ID': 'INTEGER', 'team_ID': 'VARCHAR', 'stint_ID': 'INTEGER', 'lg_ID': 'VARCHAR', 'G_pitch': 'INTEGER', 'GS': 'INTEGER', 'IPouts': 'DOUBLE', 'IPouts_start': 'DOUBLE', 'IPouts_relief': 'DOUBLE', 'runs_pitch': 'DOUBLE', 'runs_above_avg_pitch': 'DOUBLE', 'runs_above_rep_pitch': 'DOUBLE', 'runs_replacement_pitch': 'DOUBLE', 'WAR_pitch': 'DOUBLE', 'waa_pitch': 'DOUBLE', 'pitch_salary': 'VARCHAR', 'teamRpG_pitch': 'DOUBLE', 'oppRpG_pitch': 'DOUBLE', 'oppRpG_rep_pitch': 'DOUBLE', 'oppRpG_rep_adj_pitch': 'DOUBLE', 'era_plus': 'DOUBLE'});
-            
-            CREATE TABLE bref_combined AS SELECT COALESCE(b.mlb_id, p.mlb_id) AS mlb_id, COALESCE(b.player_ID, p.player_ID) AS player_ID, COALESCE(b.name_common, p.name_common) AS name_common, COALESCE(b.year_ID, p.year_ID) AS year_ID, COALESCE(b.team_ID, p.team_ID) AS team_ID, COALESCE(b.stint_ID, p.stint_ID) AS stint_ID, COALESCE(b.lg_ID, p.lg_ID) AS lg_ID, COALESCE(b.age, p.age) AS age, ROUND(COALESCE(b.WAR_bat, 0) + COALESCE(p.WAR_pitch, 0), 2) AS WAR_total, COALESCE(b.WAR_bat, 0) AS WAR_bat, COALESCE(p.WAR_pitch, 0) AS WAR_pitch, b.PA, b.G_bat, b.ops_plus, b.runs_bat, b.runs_br, b.runs_defense, p.G_pitch, p.GS, ROUND(COALESCE(p.IPouts, 0) / 3.0, 1) AS IP, p.era_plus FROM raw_bat b FULL OUTER JOIN raw_pitch p ON b.player_ID = p.player_ID AND b.year_ID = p.year_ID AND b.stint_ID = p.stint_ID;
+            -- 1. B-Ref Daily (Using header=True and explicit column casting)
+            CREATE TABLE raw_bat AS 
+            SELECT 
+              CAST(mlb_ID AS VARCHAR) AS mlb_id,
+              CAST(player_ID AS VARCHAR) AS player_ID,
+              CAST(name_common AS VARCHAR) AS name_common,
+              CAST(year_ID AS INTEGER) AS year_ID,
+              CAST(team_ID AS VARCHAR) AS team_ID,
+              CAST(stint_ID AS INTEGER) AS stint_ID,
+              CAST(lg_ID AS VARCHAR) AS lg_ID,
+              CAST(age AS INTEGER) AS age,
+              CAST(PA AS INTEGER) AS PA,
+              CAST(G AS INTEGER) AS G_bat,
+              CAST(OPS_plus AS DOUBLE) AS ops_plus,
+              CAST(WAR AS DOUBLE) AS WAR_bat,
+              CAST(runs_bat AS DOUBLE) AS runs_bat,
+              CAST(runs_br AS DOUBLE) AS runs_br,
+              CAST(runs_defense AS DOUBLE) AS runs_defense
+            FROM read_csv('https://www.baseball-reference.com/data/war_daily_bat.txt', header=True, ignore_errors=True);
+
+            CREATE TABLE raw_pitch AS 
+            SELECT 
+              CAST(mlb_ID AS VARCHAR) AS mlb_id,
+              CAST(player_ID AS VARCHAR) AS player_ID,
+              CAST(name_common AS VARCHAR) AS name_common,
+              CAST(year_ID AS INTEGER) AS year_ID,
+              CAST(team_ID AS VARCHAR) AS team_ID,
+              CAST(stint_ID AS INTEGER) AS stint_ID,
+              CAST(lg_ID AS VARCHAR) AS lg_ID,
+              CAST(age AS INTEGER) AS age,
+              CAST(G AS INTEGER) AS G_pitch,
+              CAST(GS AS INTEGER) AS GS,
+              CAST(IPouts AS DOUBLE) AS IPouts,
+              CAST(WAR AS DOUBLE) AS WAR_pitch,
+              CAST(era_plus AS DOUBLE) AS era_plus
+            FROM read_csv('https://www.baseball-reference.com/data/war_daily_pitch.txt', header=True, ignore_errors=True);
+
+            CREATE TABLE bref_combined AS 
+            SELECT 
+              COALESCE(b.mlb_id, p.mlb_id) AS mlb_id, 
+              COALESCE(b.player_ID, p.player_ID) AS player_ID, 
+              COALESCE(b.name_common, p.name_common) AS name_common, 
+              COALESCE(b.year_ID, p.year_ID) AS year_ID, 
+              COALESCE(b.team_ID, p.team_ID) AS team_ID, 
+              COALESCE(b.stint_ID, p.stint_ID) AS stint_ID, 
+              COALESCE(b.lg_ID, p.lg_ID) AS lg_ID, 
+              COALESCE(b.age, p.age) AS age, 
+              ROUND(COALESCE(b.WAR_bat, 0) + COALESCE(p.WAR_pitch, 0), 2) AS WAR_total, 
+              COALESCE(b.WAR_bat, 0) AS WAR_bat, 
+              COALESCE(p.WAR_pitch, 0) AS WAR_pitch, 
+              b.PA, 
+              b.G_bat, 
+              b.ops_plus, 
+              b.runs_bat, 
+              b.runs_br, 
+              b.runs_defense, 
+              p.G_pitch, 
+              p.GS, 
+              ROUND(COALESCE(p.IPouts, 0) / 3.0, 1) AS IP, 
+              p.era_plus 
+            FROM raw_bat b 
+            FULL OUTER JOIN raw_pitch p 
+              ON b.player_ID = p.player_ID 
+             AND b.year_ID = p.year_ID 
+             AND b.stint_ID = p.stint_ID;
 
             COPY (SELECT * FROM bref_combined ORDER BY player_ID, year_ID DESC) TO 'static/data/bref_daily.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
 
