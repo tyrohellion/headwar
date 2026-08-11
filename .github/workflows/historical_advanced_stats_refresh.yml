@@ -28,8 +28,13 @@ jobs:
 
             curl -sL -A "Mozilla/5.0" "$url" -o "$dest"
             
-            # Check if file is empty, has <= 1 line, or contains HTML (error response)
-            if [ ! -s "$dest" ] || [ $(wc -l < "$dest") -le 1 ] || grep -q -i "<html" "$dest"; then
+            # Strip UTF-8 BOM, which otherwise breaks DuckDB header detection on
+            # files whose first header cell is quoted (e.g. "last_name, first_name")
+            sed -i '1s/^\xef\xbb\xbf//' "$dest"
+
+            # Check if file is empty, has <= 1 line, contains HTML, or is not
+            # CSV-shaped at all (no commas) -> treat as failure and stub it
+            if [ ! -s "$dest" ] || [ $(wc -l < "$dest") -le 1 ] || grep -q -i "<html" "$dest" || ! grep -q ',' "$dest"; then
               echo "$fallback_header" > "$dest"
               # Append a row of commas matching header count to ensure DuckDB detects a valid CSV structure
               echo "$fallback_header" | awk -F',' '{for(i=1;i<NF;i++) printf ","; print ""}' >> "$dest"
@@ -120,8 +125,13 @@ jobs:
 
             curl -sL -A "Mozilla/5.0" "$url" -o "$dest"
             
-            # Check if file is empty, has <= 1 line, or contains HTML (error response)
-            if [ ! -s "$dest" ] || [ $(wc -l < "$dest") -le 1 ] || grep -q -i "<html" "$dest"; then
+            # Strip UTF-8 BOM, which otherwise breaks DuckDB header detection on
+            # files whose first header cell is quoted (e.g. "last_name, first_name")
+            sed -i '1s/^\xef\xbb\xbf//' "$dest"
+
+            # Check if file is empty, has <= 1 line, contains HTML, or is not
+            # CSV-shaped at all (no commas) -> treat as failure and stub it
+            if [ ! -s "$dest" ] || [ $(wc -l < "$dest") -le 1 ] || grep -q -i "<html" "$dest" || ! grep -q ',' "$dest"; then
               echo "$fallback_header" > "$dest"
               # Append a row of commas matching header count to ensure DuckDB detects a valid CSV structure
               echo "$fallback_header" | awk -F',' '{for(i=1;i<NF;i++) printf ","; print ""}' >> "$dest"
@@ -133,29 +143,29 @@ jobs:
             
             fetch_csv "https://baseballsavant.mlb.com/leaderboard/percentile-rankings?type=batter&year=${YEAR}&csv=true" "tmp/bat_pct.csv" "player_id,exit_velocity,hard_hit_percent,brl_percent,brl,xwoba,xba,xslg,whiff_percent,k_percent,bb_percent,chase_percent,sprint_speed"
             fetch_csv "https://baseballsavant.mlb.com/leaderboard/expected_statistics?type=batter&year=${YEAR}&min=1&csv=true" "tmp/bat_xstats.csv" "player_id,ba,est_ba,slg,est_slg,woba,est_woba"
-            fetch_csv "https://baseballsavant.mlb.com/statcast_leaderboard?type=batter&year=${YEAR}&min=1&csv=true" "tmp/bat_ev.csv" "player_id,avg_hit_speed,max_hit_speed,ev50,brl_percent,hard_hit_percent"
+            fetch_csv "https://baseballsavant.mlb.com/statcast_leaderboard?type=batter&year=${YEAR}&min=1&csv=true" "tmp/bat_ev.csv" "player_id,avg_hit_speed,max_hit_speed,ev50,brl_percent,ev95percent"
             fetch_csv "https://baseballsavant.mlb.com/leaderboard/custom?year=${YEAR}&type=batter&filter=&min=1&selections=whiff_percent,chase_percent,swing_percent,sweet_spot_percent&chart=false&csv=true" "tmp/bat_custom.csv" "player_id,whiff_percent,chase_percent,swing_percent,sweet_spot_percent"
-            fetch_csv "https://baseballsavant.mlb.com/leaderboard/swing-take?year=${YEAR}&team=&leverage=Neutral&group=Batter&type=All&sub_type=null&min=1&csv=True" "tmp/bat_rv.csv" "player_id,n_runs_all"
-            fetch_csv "https://baseballsavant.mlb.com/leaderboard/swing-take?year=${YEAR}&team=&leverage=Neutral&group=Pitcher&type=All&sub_type=null&min=1&csv=True" "tmp/pitch_rv.csv" "player_id,n_runs_all"
-            fetch_csv "https://baseballsavant.mlb.com/leaderboard/fielding-run-value?gameType=Regular&seasonStart=${YEAR}&seasonEnd=${YEAR}&type=fielder&position=&minInnings=1&csv=true" "tmp/field_rv.csv" "pos_player_id,fielding_run_value,oaa"
-            fetch_csv "https://baseballsavant.mlb.com/leaderboard/baserunning-run-value?gameType=Regular&season_start=${YEAR}&season_end=${YEAR}&type=Runners&minOpportunities=1&csv=true" "tmp/base_rv.csv" "runner_id,run_value"
+            fetch_csv "https://baseballsavant.mlb.com/leaderboard/swing-take?year=${YEAR}&team=&leverage=Neutral&group=Batter&type=All&sub_type=null&min=1&csv=True" "tmp/bat_rv.csv" "player_id,runs_all"
+            fetch_csv "https://baseballsavant.mlb.com/leaderboard/swing-take?year=${YEAR}&team=&leverage=Neutral&group=Pitcher&type=All&sub_type=null&min=1&csv=True" "tmp/pitch_rv.csv" "player_id,runs_all"
+            fetch_csv "https://baseballsavant.mlb.com/leaderboard/fielding-run-value?gameType=Regular&seasonStart=${YEAR}&seasonEnd=${YEAR}&type=fielder&position=&minInnings=1&csv=true" "tmp/field_rv.csv" "id,total_runs"
+            fetch_csv "https://baseballsavant.mlb.com/leaderboard/baserunning-run-value?gameType=Regular&season_start=${YEAR}&season_end=${YEAR}&type=Runners&minOpportunities=1&csv=true" "tmp/base_rv.csv" "player_id,runner_runs_tot"
 
             duckdb -c "
               CREATE TABLE savant_bat_pct AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(exit_velocity AS INTEGER) AS pct_exit_velocity, CAST(hard_hit_percent AS INTEGER) AS pct_hard_hit, CAST(COALESCE(TRY_CAST(brl_percent AS INTEGER), TRY_CAST(brl AS INTEGER)) AS INTEGER) AS pct_barrel, CAST(xwoba AS INTEGER) AS pct_xwoba, CAST(xba AS INTEGER) AS pct_xba, CAST(xslg AS INTEGER) AS pct_xslg, CAST(whiff_percent AS INTEGER) AS pct_whiff, CAST(k_percent AS INTEGER) AS pct_k_rate, CAST(bb_percent AS INTEGER) AS pct_bb_rate, CAST(chase_percent AS INTEGER) AS pct_chase, CAST(sprint_speed AS INTEGER) AS pct_sprint_speed FROM read_csv('tmp/bat_pct.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
               CREATE TABLE savant_bat_xstats AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(ba AS DOUBLE) AS ba, CAST(est_ba AS DOUBLE) AS xba, CAST(slg AS DOUBLE) AS slg, CAST(est_slg AS DOUBLE) AS xslg, CAST(woba AS DOUBLE) AS woba, CAST(est_woba AS DOUBLE) AS xwoba FROM read_csv('tmp/bat_xstats.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
-              CREATE TABLE savant_bat_ev AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(avg_hit_speed AS DOUBLE) AS avg_exit_velocity, CAST(max_hit_speed AS DOUBLE) AS max_exit_velocity, CAST(ev50 AS DOUBLE) AS ev50, CAST(brl_percent AS DOUBLE) AS barrel_rate, CAST(hard_hit_percent AS DOUBLE) AS hard_hit_rate FROM read_csv('tmp/bat_ev.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
+              CREATE TABLE savant_bat_ev AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(avg_hit_speed AS DOUBLE) AS avg_exit_velocity, CAST(max_hit_speed AS DOUBLE) AS max_exit_velocity, CAST(ev50 AS DOUBLE) AS ev50, CAST(brl_percent AS DOUBLE) AS barrel_rate, CAST(ev95percent AS DOUBLE) AS hard_hit_rate FROM read_csv('tmp/bat_ev.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
               CREATE TABLE savant_bat_custom AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(whiff_percent AS DOUBLE) AS whiff_rate, CAST(chase_percent AS DOUBLE) AS chase_rate, CAST(swing_percent AS DOUBLE) AS swing_rate, CAST(sweet_spot_percent AS DOUBLE) AS sweet_spot_rate FROM read_csv('tmp/bat_custom.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
-              CREATE TABLE savant_bat_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(n_runs_all AS DOUBLE) AS savant_bat_run_val FROM read_csv('tmp/bat_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
+              CREATE TABLE savant_bat_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(runs_all AS DOUBLE) AS savant_bat_run_val FROM read_csv('tmp/bat_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
-              CREATE TABLE savant_pitch_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(n_runs_all AS DOUBLE) AS savant_pitch_run_val FROM read_csv('tmp/pitch_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
+              CREATE TABLE savant_pitch_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(runs_all AS DOUBLE) AS savant_pitch_run_val FROM read_csv('tmp/pitch_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
-              CREATE TABLE savant_field_rv AS SELECT CAST(pos_player_id AS VARCHAR) AS mlb_id, CAST(fielding_run_value AS DOUBLE) AS savant_field_run_val, CAST(oaa AS INTEGER) AS oaa FROM read_csv('tmp/field_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE pos_player_id IS NOT NULL AND CAST(pos_player_id AS VARCHAR) != '';
+              CREATE TABLE savant_field_rv AS SELECT CAST(id AS VARCHAR) AS mlb_id, CAST(total_runs AS DOUBLE) AS savant_field_run_val FROM read_csv('tmp/field_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE id IS NOT NULL AND CAST(id AS VARCHAR) != '';
 
-              CREATE TABLE savant_base_rv AS SELECT CAST(runner_id AS VARCHAR) AS mlb_id, CAST(run_value AS DOUBLE) AS savant_base_run_val FROM read_csv('tmp/base_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE runner_id IS NOT NULL AND CAST(runner_id AS VARCHAR) != '';
+              CREATE TABLE savant_base_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(runner_runs_tot AS DOUBLE) AS savant_base_run_val FROM read_csv('tmp/base_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
               CREATE TABLE savant_keys AS 
               SELECT DISTINCT mlb_id FROM (
@@ -179,7 +189,7 @@ jobs:
                 bc.whiff_rate, bc.chase_rate, bc.swing_rate, bc.sweet_spot_rate, 
                 sb.savant_bat_run_val, 
                 sp.savant_pitch_run_val, 
-                sf.savant_field_run_val, sf.oaa, 
+                sf.savant_field_run_val, 
                 sr.savant_base_run_val 
               FROM savant_keys k
               LEFT JOIN savant_bat_pct bp USING (mlb_id)
