@@ -22,6 +22,21 @@ jobs:
       - name: Fetch and Update B-Ref & Current Season Statcast (2026)
         run: |
           mkdir -p static/data
+          mkdir -p tmp
+
+          # 1. Fetch B-Ref Daily Files
+          curl -sL -A "Mozilla/5.0" "https://www.baseball-reference.com/data/war_daily_bat.txt" -o tmp/war_daily_bat.txt
+          curl -sL -A "Mozilla/5.0" "https://www.baseball-reference.com/data/war_daily_pitch.txt" -o tmp/war_daily_pitch.txt
+
+          # 2. Fetch 2026 Savant Files
+          curl -sL -A "Mozilla/5.0" "https://baseballsavant.mlb.com/leaderboard/percentile-rankings?type=batter&year=2026&csv=true" -o tmp/bat_pct.csv
+          curl -sL -A "Mozilla/5.0" "https://baseballsavant.mlb.com/leaderboard/expected_statistics?type=batter&year=2026&min=1&csv=true" -o tmp/bat_xstats.csv
+          curl -sL -A "Mozilla/5.0" "https://baseballsavant.mlb.com/statcast_leaderboard?type=batter&year=2026&min=1&csv=true" -o tmp/bat_ev.csv
+          curl -sL -A "Mozilla/5.0" "https://baseballsavant.mlb.com/leaderboard/custom?year=2026&type=batter&filter=&min=1&selections=whiff_percent,chase_percent,swing_percent,sweet_spot_percent&chart=false&csv=true" -o tmp/bat_custom.csv
+          curl -sL -A "Mozilla/5.0" "https://baseballsavant.mlb.com/leaderboard/swing-take?year=2026&team=&leverage=Neutral&group=Batter&type=All&sub_type=null&min=1&csv=True" -o tmp/bat_rv.csv
+          curl -sL -A "Mozilla/5.0" "https://baseballsavant.mlb.com/leaderboard/swing-take?year=2026&team=&leverage=Neutral&group=Pitcher&type=All&sub_type=null&min=1&csv=True" -o tmp/pitch_rv.csv
+          curl -sL -A "Mozilla/5.0" "https://baseballsavant.mlb.com/leaderboard/fielding-run-value?gameType=Regular&seasonStart=2026&seasonEnd=2026&type=fielder&position=&minInnings=1&csv=true" -o tmp/field_rv.csv
+          curl -sL -A "Mozilla/5.0" "https://baseballsavant.mlb.com/leaderboard/baserunning-run-value?gameType=Regular&season_start=2026&season_end=2026&type=Runners&minOpportunities=1&csv=true" -o tmp/base_rv.csv
 
           duckdb -c "
             -- 1. B-Ref Daily
@@ -42,7 +57,7 @@ jobs:
               CAST(runs_bat AS DOUBLE) AS runs_bat,
               CAST(runs_br AS DOUBLE) AS runs_br,
               CAST(runs_defense AS DOUBLE) AS runs_defense
-            FROM read_csv('https://www.baseball-reference.com/data/war_daily_bat.txt', header=True, ignore_errors=True, nullstr=['NULL', '']);
+            FROM read_csv('tmp/war_daily_bat.txt', header=True, ignore_errors=True, nullstr=['NULL', '']);
 
             CREATE TABLE raw_pitch AS 
             SELECT 
@@ -59,7 +74,7 @@ jobs:
               CAST(IPouts AS DOUBLE) AS IPouts,
               CAST(WAR AS DOUBLE) AS WAR_pitch,
               CAST(era_plus AS DOUBLE) AS era_plus
-            FROM read_csv('https://www.baseball-reference.com/data/war_daily_pitch.txt', header=True, ignore_errors=True, nullstr=['NULL', '']);
+            FROM read_csv('tmp/war_daily_pitch.txt', header=True, ignore_errors=True, nullstr=['NULL', '']);
 
             CREATE TABLE bref_combined AS 
             SELECT 
@@ -88,31 +103,66 @@ jobs:
             FULL OUTER JOIN raw_pitch p 
               ON b.player_ID = p.player_ID 
              AND b.year_ID = p.year_ID 
-             AND b.stint_ID = p.stint_ID;
+             AND b.stint_ID = p.stint_ID
+             AND COALESCE(b.team_ID, '') = COALESCE(p.team_ID, '');
 
             COPY (SELECT * FROM bref_combined ORDER BY player_ID, year_ID DESC) TO 'static/data/bref_daily.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
 
             -- 2. 2026 Statcast
-            CREATE TABLE savant_bat_pct AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(exit_velocity AS INTEGER) AS pct_exit_velocity, CAST(hard_hit_percent AS INTEGER) AS pct_hard_hit, CAST(COALESCE(TRY_CAST(brl_percent AS INTEGER), TRY_CAST(brl AS INTEGER)) AS INTEGER) AS pct_barrel, CAST(xwoba AS INTEGER) AS pct_xwoba, CAST(xba AS INTEGER) AS pct_xba, CAST(xslg AS INTEGER) AS pct_xslg, CAST(whiff_percent AS INTEGER) AS pct_whiff, CAST(k_percent AS INTEGER) AS pct_k_rate, CAST(bb_percent AS INTEGER) AS pct_bb_rate, CAST(chase_percent AS INTEGER) AS pct_chase, CAST(sprint_speed AS INTEGER) AS pct_sprint_speed FROM read_csv('https://baseballsavant.mlb.com/leaderboard/percentile-rankings?type=batter&year=2026&csv=true', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True);
+            CREATE TABLE savant_bat_pct AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(exit_velocity AS INTEGER) AS pct_exit_velocity, CAST(hard_hit_percent AS INTEGER) AS pct_hard_hit, CAST(COALESCE(TRY_CAST(brl_percent AS INTEGER), TRY_CAST(brl AS INTEGER)) AS INTEGER) AS pct_barrel, CAST(xwoba AS INTEGER) AS pct_xwoba, CAST(xba AS INTEGER) AS pct_xba, CAST(xslg AS INTEGER) AS pct_xslg, CAST(whiff_percent AS INTEGER) AS pct_whiff, CAST(k_percent AS INTEGER) AS pct_k_rate, CAST(bb_percent AS INTEGER) AS pct_bb_rate, CAST(chase_percent AS INTEGER) AS pct_chase, CAST(sprint_speed AS INTEGER) AS pct_sprint_speed FROM read_csv('tmp/bat_pct.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
-            CREATE TABLE savant_bat_xstats AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(ba AS DOUBLE) AS ba, CAST(est_ba AS DOUBLE) AS xba, CAST(slg AS DOUBLE) AS slg, CAST(est_slg AS DOUBLE) AS xslg, CAST(woba AS DOUBLE) AS woba, CAST(est_woba AS DOUBLE) AS xwoba FROM read_csv('https://baseballsavant.mlb.com/leaderboard/expected_statistics?type=batter&year=2026&min=1&csv=true', header=True, ignore_errors=True, nullstr=['NULL', '']);
+            CREATE TABLE savant_bat_xstats AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(ba AS DOUBLE) AS ba, CAST(est_ba AS DOUBLE) AS xba, CAST(slg AS DOUBLE) AS slg, CAST(est_slg AS DOUBLE) AS xslg, CAST(woba AS DOUBLE) AS woba, CAST(est_woba AS DOUBLE) AS xwoba FROM read_csv('tmp/bat_xstats.csv', header=True, ignore_errors=True, nullstr=['NULL', '']) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
-            CREATE TABLE savant_bat_ev AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(avg_hit_speed AS DOUBLE) AS avg_exit_velocity, CAST(max_hit_speed AS DOUBLE) AS max_exit_velocity, CAST(ev50 AS DOUBLE) AS ev50, CAST(brl_percent AS DOUBLE) AS barrel_rate, CAST(hard_hit_percent AS DOUBLE) AS hard_hit_rate FROM read_csv('https://baseballsavant.mlb.com/statcast_leaderboard?type=batter&year=2026&min=1&csv=true', header=True, ignore_errors=True, nullstr=['NULL', '']);
+            CREATE TABLE savant_bat_ev AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(avg_hit_speed AS DOUBLE) AS avg_exit_velocity, CAST(max_hit_speed AS DOUBLE) AS max_exit_velocity, CAST(ev50 AS DOUBLE) AS ev50, CAST(brl_percent AS DOUBLE) AS barrel_rate, CAST(hard_hit_percent AS DOUBLE) AS hard_hit_rate FROM read_csv('tmp/bat_ev.csv', header=True, ignore_errors=True, nullstr=['NULL', '']) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
-            CREATE TABLE savant_bat_custom AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(whiff_percent AS DOUBLE) AS whiff_rate, CAST(chase_percent AS DOUBLE) AS chase_rate, CAST(swing_percent AS DOUBLE) AS swing_rate, CAST(sweet_spot_percent AS DOUBLE) AS sweet_spot_rate FROM read_csv('https://baseballsavant.mlb.com/leaderboard/custom?year=2026&type=batter&filter=&min=1&selections=whiff_percent,chase_percent,swing_percent,sweet_spot_percent&chart=false&csv=true', header=True, ignore_errors=True, nullstr=['NULL', '']);
+            CREATE TABLE savant_bat_custom AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(whiff_percent AS DOUBLE) AS whiff_rate, CAST(chase_percent AS DOUBLE) AS chase_rate, CAST(swing_percent AS DOUBLE) AS swing_rate, CAST(sweet_spot_percent AS DOUBLE) AS sweet_spot_rate FROM read_csv('tmp/bat_custom.csv', header=True, ignore_errors=True, nullstr=['NULL', '']) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
-            CREATE TABLE savant_bat_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(n_runs_all AS DOUBLE) AS savant_bat_run_val FROM read_csv('https://baseballsavant.mlb.com/leaderboard/swing-take?year=2026&team=&leverage=Neutral&group=Batter&type=All&sub_type=null&min=1&csv=True', header=True, ignore_errors=True, nullstr=['NULL', '']);
+            CREATE TABLE savant_bat_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(n_runs_all AS DOUBLE) AS savant_bat_run_val FROM read_csv('tmp/bat_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', '']) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
-            CREATE TABLE savant_pitch_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(n_runs_all AS DOUBLE) AS savant_pitch_run_val FROM read_csv('https://baseballsavant.mlb.com/leaderboard/swing-take?year=2026&team=&leverage=Neutral&group=Pitcher&type=All&sub_type=null&min=1&csv=True', header=True, ignore_errors=True, nullstr=['NULL', '']);
+            CREATE TABLE savant_pitch_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(n_runs_all AS DOUBLE) AS savant_pitch_run_val FROM read_csv('tmp/pitch_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', '']) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
-            CREATE TABLE savant_field_rv AS SELECT CAST(pos_player_id AS VARCHAR) AS mlb_id, CAST(fielding_run_value AS DOUBLE) AS savant_field_run_val, CAST(oaa AS INTEGER) AS oaa FROM read_csv('https://baseballsavant.mlb.com/leaderboard/fielding-run-value?gameType=Regular&seasonStart=2026&seasonEnd=2026&type=fielder&position=&minInnings=1&csv=true', header=True, ignore_errors=True, nullstr=['NULL', '']);
+            CREATE TABLE savant_field_rv AS SELECT CAST(pos_player_id AS VARCHAR) AS mlb_id, CAST(fielding_run_value AS DOUBLE) AS savant_field_run_val, CAST(oaa AS INTEGER) AS oaa FROM read_csv('tmp/field_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', '']) WHERE pos_player_id IS NOT NULL AND CAST(pos_player_id AS VARCHAR) != '';
 
-            CREATE TABLE savant_base_rv AS SELECT CAST(runner_id AS VARCHAR) AS mlb_id, CAST(run_value AS DOUBLE) AS savant_base_run_val FROM read_csv('https://baseballsavant.mlb.com/leaderboard/baserunning-run-value?gameType=Regular&season_start=2026&season_end=2026&type=Runners&minOpportunities=1&csv=true', header=True, ignore_errors=True, nullstr=['NULL', '']);
+            CREATE TABLE savant_base_rv AS SELECT CAST(runner_id AS VARCHAR) AS mlb_id, CAST(run_value AS DOUBLE) AS savant_base_run_val FROM read_csv('tmp/base_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', '']) WHERE runner_id IS NOT NULL AND CAST(runner_id AS VARCHAR) != '';
 
-            CREATE TABLE savant_2026 AS SELECT 2026 AS year_ID, COALESCE(bp.mlb_id, bx.mlb_id, bev.mlb_id, bc.mlb_id, sb.mlb_id, sp.mlb_id, sf.mlb_id, sr.mlb_id) AS mlb_id, bp.pct_exit_velocity, bp.pct_hard_hit, bp.pct_barrel, bp.pct_xwoba, bp.pct_xba, bp.pct_xslg, bp.pct_whiff, bp.pct_k_rate, bp.pct_bb_rate, bp.pct_chase, bp.pct_sprint_speed, bx.xba, bx.xslg, bx.woba, bx.xwoba, bev.avg_exit_velocity, bev.max_exit_velocity, bev.ev50, bev.barrel_rate, bev.hard_hit_rate, bc.whiff_rate, bc.chase_rate, bc.swing_rate, bc.sweet_spot_rate, sb.savant_bat_run_val, sp.savant_pitch_run_val, sf.savant_field_run_val, sf.oaa, sr.savant_base_run_val FROM savant_bat_pct bp FULL OUTER JOIN savant_bat_xstats bx ON bp.mlb_id = bx.mlb_id FULL OUTER JOIN savant_bat_ev bev ON COALESCE(bp.mlb_id, bx.mlb_id) = bev.mlb_id FULL OUTER JOIN savant_bat_custom bc ON COALESCE(bp.mlb_id, bx.mlb_id, bev.mlb_id) = bc.mlb_id FULL OUTER JOIN savant_bat_rv sb ON COALESCE(bp.mlb_id, bx.mlb_id, bev.mlb_id, bc.mlb_id) = sb.mlb_id FULL OUTER JOIN savant_pitch_rv sp ON COALESCE(bp.mlb_id, bx.mlb_id, bev.mlb_id, bc.mlb_id, sb.mlb_id) = sp.mlb_id FULL OUTER JOIN savant_field_rv sf ON COALESCE(bp.mlb_id, bx.mlb_id, bev.mlb_id, bc.mlb_id, sb.mlb_id, sp.mlb_id) = sf.mlb_id FULL OUTER JOIN savant_base_rv sr ON COALESCE(bp.mlb_id, bx.mlb_id, bev.mlb_id, bc.mlb_id, sb.mlb_id, sp.mlb_id, sf.mlb_id) = sr.mlb_id;
+            -- Collect distinct valid keys upfront to eliminate COALESCE chain duplications
+            CREATE TABLE savant_keys AS 
+            SELECT DISTINCT mlb_id FROM (
+              SELECT mlb_id FROM savant_bat_pct UNION
+              SELECT mlb_id FROM savant_bat_xstats UNION
+              SELECT mlb_id FROM savant_bat_ev UNION
+              SELECT mlb_id FROM savant_bat_custom UNION
+              SELECT mlb_id FROM savant_bat_rv UNION
+              SELECT mlb_id FROM savant_pitch_rv UNION
+              SELECT mlb_id FROM savant_field_rv UNION
+              SELECT mlb_id FROM savant_base_rv
+            );
+
+            CREATE TABLE savant_2026 AS 
+            SELECT 
+              2026 AS year_ID, 
+              k.mlb_id, 
+              bp.pct_exit_velocity, bp.pct_hard_hit, bp.pct_barrel, bp.pct_xwoba, bp.pct_xba, bp.pct_xslg, bp.pct_whiff, bp.pct_k_rate, bp.pct_bb_rate, bp.pct_chase, bp.pct_sprint_speed, 
+              bx.xba, bx.xslg, bx.woba, bx.xwoba, 
+              bev.avg_exit_velocity, bev.max_exit_velocity, bev.ev50, bev.barrel_rate, bev.hard_hit_rate, 
+              bc.whiff_rate, bc.chase_rate, bc.swing_rate, bc.sweet_spot_rate, 
+              sb.savant_bat_run_val, 
+              sp.savant_pitch_run_val, 
+              sf.savant_field_run_val, sf.oaa, 
+              sr.savant_base_run_val 
+            FROM savant_keys k
+            LEFT JOIN savant_bat_pct bp USING (mlb_id)
+            LEFT JOIN savant_bat_xstats bx USING (mlb_id)
+            LEFT JOIN savant_bat_ev bev USING (mlb_id)
+            LEFT JOIN savant_bat_custom bc USING (mlb_id)
+            LEFT JOIN savant_bat_rv sb USING (mlb_id)
+            LEFT JOIN savant_pitch_rv sp USING (mlb_id)
+            LEFT JOIN savant_field_rv sf USING (mlb_id)
+            LEFT JOIN savant_base_rv sr USING (mlb_id);
 
             COPY savant_2026 TO 'static/data/savant_2026.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
           "
+          rm -rf tmp
 
       - name: Commit Updated Current Parquet Files
         run: |
