@@ -6,7 +6,7 @@ export default defineConfig({
 	plugins: [
 		sveltekit({
 			compilerOptions: {
-				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.
+				// Force runes mode for the project, except for libraries. Can be removed in Svelte 6.
 				runes: ({ filename }) =>
 					filename.split(/[/\\]/).includes('node_modules') ? undefined : true
 			},
@@ -16,5 +16,8 @@ export default defineConfig({
 			// See https://svelte.dev/docs/kit/adapters for more information about adapters.
 			adapter: adapter()
 		})
-	]
+	],
+	optimizeDeps: {
+		exclude: ['@duckdb/duckdb-wasm']
+	}
 });

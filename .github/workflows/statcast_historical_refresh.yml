@@ -1,0 +1,64 @@
+name: Build Historical Statcast Archive
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-archive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install DuckDB CLI
+        run: |
+          wget https://github.com/duckdb/duckdb/releases/download/v1.0.0/duckdb_cli-linux-amd64.zip
+          unzip duckdb_cli-linux-amd64.zip
+          sudo mv duckdb /usr/local/bin/
+
+      - name: Fetch and Export Baseball-Reference Parquet
+        run: |
+          mkdir -p static/data
+
+          duckdb -c "
+            CREATE TABLE raw_bat AS SELECT * FROM read_csv('https://www.baseball-reference.com/data/war_daily_bat.txt', header=False, columns={'name_common': 'VARCHAR', 'age': 'INTEGER', 'mlb_id': 'VARCHAR', 'player_ID': 'VARCHAR', 'year_ID': 'INTEGER', 'team_ID': 'VARCHAR', 'stint_ID': 'INTEGER', 'lg_ID': 'VARCHAR', 'PA': 'INTEGER', 'G_bat': 'INTEGER', 'inn_def': 'DOUBLE', 'runs_bat': 'DOUBLE', 'runs_br': 'DOUBLE', 'runs_dp': 'DOUBLE', 'runs_field': 'DOUBLE', 'runs_infield': 'DOUBLE', 'runs_outfield': 'DOUBLE', 'runs_catcher': 'DOUBLE', 'runs_good_plays': 'DOUBLE', 'runs_defense': 'DOUBLE', 'runs_position': 'DOUBLE', 'runs_position_p': 'DOUBLE', 'runs_replacement_bat': 'DOUBLE', 'runs_above_rep_bat': 'DOUBLE', 'runs_above_avg_bat': 'DOUBLE', 'runs_above_avg_off': 'DOUBLE', 'runs_above_avg_def': 'DOUBLE', 'waa_bat': 'DOUBLE', 'waa_off': 'DOUBLE', 'waa_def': 'DOUBLE', 'WAR_bat': 'DOUBLE', 'WAR_def': 'DOUBLE', 'WAR_off': 'DOUBLE', 'WAR_rep_bat': 'DOUBLE', 'salary': 'VARCHAR', 'pitcher': 'VARCHAR', 'teamRpG': 'DOUBLE', 'oppRpG': 'DOUBLE', 'oppRpG_rep': 'DOUBLE', 'oppRpG_rep_adj': 'DOUBLE', 'pyth_exponent': 'DOUBLE', 'pyth_exponent_rep': 'DOUBLE', 'waa_win_perc': 'DOUBLE', 'waa_win_perc_off': 'DOUBLE', 'waa_win_perc_def': 'DOUBLE', 'waa_win_perc_rep': 'DOUBLE', 'ops_plus': 'DOUBLE', 'TOB': 'DOUBLE', 'TB': 'DOUBLE'});
+            CREATE TABLE raw_pitch AS SELECT * FROM read_csv('https://www.baseball-reference.com/data/war_daily_pitch.txt', header=False, columns={'name_common': 'VARCHAR', 'age': 'INTEGER', 'mlb_id': 'VARCHAR', 'player_ID': 'VARCHAR', 'year_ID': 'INTEGER', 'team_ID': 'VARCHAR', 'stint_ID': 'INTEGER', 'lg_ID': 'VARCHAR', 'G_pitch': 'INTEGER', 'GS': 'INTEGER', 'IPouts': 'DOUBLE', 'IPouts_start': 'DOUBLE', 'IPouts_relief': 'DOUBLE', 'runs_pitch': 'DOUBLE', 'runs_above_avg_pitch': 'DOUBLE', 'runs_above_rep_pitch': 'DOUBLE', 'runs_replacement_pitch': 'DOUBLE', 'WAR_pitch': 'DOUBLE', 'waa_pitch': 'DOUBLE', 'pitch_salary': 'VARCHAR', 'teamRpG_pitch': 'DOUBLE', 'oppRpG_pitch': 'DOUBLE', 'oppRpG_rep_pitch': 'DOUBLE', 'oppRpG_rep_adj_pitch': 'DOUBLE', 'era_plus': 'DOUBLE'});
+            
+            CREATE TABLE bref_combined AS SELECT COALESCE(b.mlb_id, p.mlb_id) AS mlb_id, COALESCE(b.player_ID, p.player_ID) AS player_ID, COALESCE(b.name_common, p.name_common) AS name_common, COALESCE(b.year_ID, p.year_ID) AS year_ID, COALESCE(b.team_ID, p.team_ID) AS team_ID, COALESCE(b.stint_ID, p.stint_ID) AS stint_ID, COALESCE(b.lg_ID, p.lg_ID) AS lg_ID, COALESCE(b.age, p.age) AS age, ROUND(COALESCE(b.WAR_bat, 0) + COALESCE(p.WAR_pitch, 0), 2) AS WAR_total, COALESCE(b.WAR_bat, 0) AS WAR_bat, COALESCE(p.WAR_pitch, 0) AS WAR_pitch, b.PA, b.G_bat, b.ops_plus, b.runs_bat, b.runs_br, b.runs_defense, p.G_pitch, p.GS, ROUND(COALESCE(p.IPouts, 0) / 3.0, 1) AS IP, p.era_plus FROM raw_bat b FULL OUTER JOIN raw_pitch p ON b.player_ID = p.player_ID AND b.year_ID = p.year_ID AND b.stint_ID = p.stint_ID;
+
+            COPY (SELECT * FROM bref_combined ORDER BY player_ID, year_ID DESC) TO 'static/data/bref_daily.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
+          "
+
+      - name: Build Statcast Parquet Archive (2015 to 2025)
+        run: |
+          for YEAR in {2015..2025}; do
+            echo "Processing Statcast data for year $YEAR..."
+            duckdb -c "
+              CREATE TABLE savant_bat_pct AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(percentile_exit_velocity AS INTEGER) AS pct_exit_velocity, CAST(percentile_hard_hit AS INTEGER) AS pct_hard_hit, CAST(percentile_barrel AS INTEGER) AS pct_barrel, CAST(percentile_xwoba AS INTEGER) AS pct_xwoba, CAST(percentile_xba AS INTEGER) AS pct_xba, CAST(percentile_xslg AS INTEGER) AS pct_xslg, CAST(percentile_whiff_percent AS INTEGER) AS pct_whiff, CAST(percentile_k_percent AS INTEGER) AS pct_k_rate, CAST(percentile_bb_percent AS INTEGER) AS pct_bb_rate, CAST(percentile_chase_percent AS INTEGER) AS pct_chase, CAST(percentile_sprint_speed AS INTEGER) AS pct_sprint_speed FROM read_csv('https://baseballsavant.mlb.com/leaderboard/percentile-rankings?type=batter&year=${YEAR}&csv=true', header=True, ignore_errors=True);
+
+              CREATE TABLE savant_bat_xstats AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(ba AS DOUBLE) AS ba, CAST(est_ba AS DOUBLE) AS xba, CAST(slg AS DOUBLE) AS slg, CAST(est_slg AS DOUBLE) AS xslg, CAST(woba AS DOUBLE) AS woba, CAST(est_woba AS DOUBLE) AS xwoba FROM read_csv('https://baseballsavant.mlb.com/leaderboard/expected_statistics?type=batter&year=${YEAR}&min=1&csv=true', header=True, ignore_errors=True);
+
+              CREATE TABLE savant_bat_ev AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(avg_hit_speed AS DOUBLE) AS avg_exit_velocity, CAST(max_hit_speed AS DOUBLE) AS max_exit_velocity, CAST(ev50 AS DOUBLE) AS ev50, CAST(brl_percent AS DOUBLE) AS barrel_rate, CAST(hard_hit_percent AS DOUBLE) AS hard_hit_rate FROM read_csv('https://baseballsavant.mlb.com/statcast_leaderboard?type=batter&year=${YEAR}&min=1&csv=true', header=True, ignore_errors=True);
+
+              CREATE TABLE savant_bat_custom AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(whiff_percent AS DOUBLE) AS whiff_rate, CAST(chase_percent AS DOUBLE) AS chase_rate, CAST(swing_percent AS DOUBLE) AS swing_rate, CAST(sweet_spot_percent AS DOUBLE) AS sweet_spot_rate FROM read_csv('https://baseballsavant.mlb.com/leaderboard/custom?year=${YEAR}&type=batter&filter=&min=1&selections=whiff_percent,chase_percent,swing_percent,sweet_spot_percent&chart=false&csv=true', header=True, ignore_errors=True);
+
+              CREATE TABLE savant_bat_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(n_runs_all AS DOUBLE) AS savant_bat_run_val FROM read_csv('https://baseballsavant.mlb.com/leaderboard/swing-take?year=${YEAR}&team=&leverage=Neutral&group=Batter&type=All&sub_type=null&min=1&csv=True', header=True, ignore_errors=True);
+
+              CREATE TABLE savant_pitch_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(n_runs_all AS DOUBLE) AS savant_pitch_run_val FROM read_csv('https://baseballsavant.mlb.com/leaderboard/swing-take?year=${YEAR}&team=&leverage=Neutral&group=Pitcher&type=All&sub_type=null&min=1&csv=True', header=True, ignore_errors=True);
+
+              CREATE TABLE savant_field_rv AS SELECT CAST(pos_player_id AS VARCHAR) AS mlb_id, CAST(fielding_run_value AS DOUBLE) AS savant_field_run_val, CAST(oaa AS INTEGER) AS oaa FROM read_csv('https://baseballsavant.mlb.com/leaderboard/fielding-run-value?gameType=Regular&seasonStart=${YEAR}&seasonEnd=${YEAR}&type=fielder&position=&minInnings=1&csv=true', header=True, ignore_errors=True);
+
+              CREATE TABLE savant_base_rv AS SELECT CAST(runner_id AS VARCHAR) AS mlb_id, CAST(run_value AS DOUBLE) AS savant_base_run_val FROM read_csv('https://baseballsavant.mlb.com/leaderboard/baserunning-run-value?gameType=Regular&season_start=${YEAR}&season_end=${YEAR}&type=Runners&minOpportunities=1&csv=true', header=True, ignore_errors=True);
+
+              CREATE TABLE savant_${YEAR} AS SELECT ${YEAR} AS year_ID, COALESCE(bp.mlb_id, bx.mlb_id, bev.mlb_id, bc.mlb_id, sb.mlb_id, sp.mlb_id, sf.mlb_id, sr.mlb_id) AS mlb_id, bp.pct_exit_velocity, bp.pct_hard_hit, bp.pct_barrel, bp.pct_xwoba, bp.pct_xba, bp.pct_xslg, bp.pct_whiff, bp.pct_k_rate, bp.pct_bb_rate, bp.pct_chase, bp.pct_sprint_speed, bx.xba, bx.xslg, bx.woba, bx.xwoba, bev.avg_exit_velocity, bev.max_exit_velocity, bev.ev50, bev.barrel_rate, bev.hard_hit_rate, bc.whiff_rate, bc.chase_rate, bc.swing_rate, bc.sweet_spot_rate, sb.savant_bat_run_val, sp.savant_pitch_run_val, sf.savant_field_run_val, sf.oaa, sr.savant_base_run_val FROM savant_bat_pct bp FULL OUTER JOIN savant_bat_xstats bx ON bp.mlb_id = bx.mlb_id FULL OUTER JOIN savant_bat_ev bev ON COALESCE(bp.mlb_id, bx.mlb_id) = bev.mlb_id FULL OUTER JOIN savant_bat_custom bc ON COALESCE(bp.mlb_id, bx.mlb_id, bev.mlb_id) = bc.mlb_id FULL OUTER JOIN savant_bat_rv sb ON COALESCE(bp.mlb_id, bx.mlb_id, bev.mlb_id, bc.mlb_id) = sb.mlb_id FULL OUTER JOIN savant_pitch_rv sp ON COALESCE(bp.mlb_id, bx.mlb_id, bev.mlb_id, bc.mlb_id, sb.mlb_id) = sp.mlb_id FULL OUTER JOIN savant_field_rv sf ON COALESCE(bp.mlb_id, bx.mlb_id, bev.mlb_id, bc.mlb_id, sb.mlb_id, sp.mlb_id) = sf.mlb_id FULL OUTER JOIN savant_base_rv sr ON COALESCE(bp.mlb_id, bx.mlb_id, bev.mlb_id, bc.mlb_id, sb.mlb_id, sp.mlb_id, sf.mlb_id) = sr.mlb_id;
+
+              COPY savant_${YEAR} TO 'static/data/savant_${YEAR}.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
+            "
+          done
+
+      - name: Commit Archive Parquet Files
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add static/data/
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: generate historical bref and savant parquet archives (2015-2025)" && git push)

@@ -22,8 +22,10 @@
 	},
 	"dependencies": {
 		"@awesome.me/webawesome": "^3.9.0",
+		"@duckdb/duckdb-wasm": "^1.33.1-dev57.0",
 		"@fontsource-variable/jetbrains-mono": "^5.2.8",
 		"@lucide/svelte": "^1.21.0",
-		"animejs": "^4.5.0"
+		"animejs": "^4.5.0",
+		"apache-arrow": "^21.2.0"
 	}
 }
