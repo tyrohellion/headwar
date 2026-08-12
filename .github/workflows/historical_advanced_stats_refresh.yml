@@ -3,30 +3,45 @@ name: Build Historical Statcast Archive
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
+concurrency:
+  group: baseball-data-pipeline
+  cancel-in-progress: false
+
 jobs:
   build-archive:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Install DuckDB CLI
         run: |
-          wget https://github.com/duckdb/duckdb/releases/download/v1.0.0/duckdb_cli-linux-amd64.zip
-          unzip duckdb_cli-linux-amd64.zip
+          set -euo pipefail
+          wget -q --retry 3 https://github.com/duckdb/duckdb/releases/download/v1.0.0/duckdb_cli-linux-amd64.zip
+          unzip -o duckdb_cli-linux-amd64.zip
           sudo mv duckdb /usr/local/bin/
+          duckdb --version
 
       - name: Fetch and Export Baseball-Reference Parquet
         run: |
+          set -euo pipefail
           mkdir -p static/data
           mkdir -p tmp
+
+          # Always wipe the old file before writing a new one so a failed or
+          # interrupted run can never leave a stale/truncated parquet in place
+          rm -f static/data/bref_daily.parquet
 
           fetch_csv() {
             local url="$1"
             local dest="$2"
             local fallback_header="$3"
 
-            curl -sL -A "Mozilla/5.0" "$url" -o "$dest"
+            curl -sL --retry 3 --retry-delay 2 -A "Mozilla/5.0" "$url" -o "$dest"
             
             # Strip UTF-8 BOM, which otherwise breaks DuckDB header detection on
             # files whose first header cell is quoted (e.g. "last_name, first_name")
@@ -108,22 +123,34 @@ jobs:
             FULL OUTER JOIN raw_pitch p 
               ON b.player_ID = p.player_ID 
              AND b.year_ID = p.year_ID 
-             AND b.stint_ID = p.stint_ID;
+             AND b.stint_ID = p.stint_ID
+             AND COALESCE(b.team_ID, '') = COALESCE(p.team_ID, '');
 
             COPY (SELECT * FROM bref_combined ORDER BY player_ID, year_ID DESC) TO 'static/data/bref_daily.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
           "
+          bref_rows=$(duckdb -csv -noheader -c "SELECT count(*) FROM read_parquet('static/data/bref_daily.parquet');")
+          bref_rows=${bref_rows//[^0-9]/}
+          echo "bref_daily.parquet rows: $bref_rows"
+          if [ -z "$bref_rows" ] || [ "$bref_rows" -eq 0 ]; then
+            echo "ERROR: bref_daily.parquet is empty; refusing to commit broken data"
+            exit 1
+          fi
           rm -rf tmp/*.txt
 
-      - name: Build Statcast Parquet Archive (2015 to 2025)
+      - name: Build Statcast Parquet Archive (2015 to previous season)
         run: |
+          set -euo pipefail
           mkdir -p tmp
+
+          START_YEAR=2015
+          END_YEAR=$(( $(date +%Y) - 1 ))
 
           fetch_csv() {
             local url="$1"
             local dest="$2"
             local fallback_header="$3"
 
-            curl -sL -A "Mozilla/5.0" "$url" -o "$dest"
+            curl -sL --retry 3 --retry-delay 2 -A "Mozilla/5.0" "$url" -o "$dest"
             
             # Strip UTF-8 BOM, which otherwise breaks DuckDB header detection on
             # files whose first header cell is quoted (e.g. "last_name, first_name")
@@ -138,8 +165,11 @@ jobs:
             fi
           }
 
-          for YEAR in {2015..2025}; do
+          for YEAR in $(seq "$START_YEAR" "$END_YEAR"); do
             echo "Processing Statcast data for year $YEAR..."
+            
+            # Wipe the old file so a failed fetch/stub can't leave stale data behind
+            rm -f static/data/savant_${YEAR}.parquet
             
             fetch_csv "https://baseballsavant.mlb.com/leaderboard/percentile-rankings?type=batter&year=${YEAR}&csv=true" "tmp/bat_pct.csv" "player_id,exit_velocity,hard_hit_percent,brl_percent,brl,xwoba,xba,xslg,whiff_percent,k_percent,bb_percent,chase_percent,sprint_speed"
             fetch_csv "https://baseballsavant.mlb.com/leaderboard/expected_statistics?type=batter&year=${YEAR}&min=1&csv=true" "tmp/bat_xstats.csv" "player_id,ba,est_ba,slg,est_slg,woba,est_woba"
@@ -227,6 +257,17 @@ jobs:
 
               COPY savant_${YEAR} TO 'static/data/savant_${YEAR}.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
             "
+
+            # Sanity-check the output: a stub-failed fetch produces an empty
+            # parquet, which we must never commit
+            savant_rows=$(duckdb -csv -noheader -c "SELECT count(*) FROM read_parquet('static/data/savant_${YEAR}.parquet');")
+            savant_rows=${savant_rows//[^0-9]/}
+            echo "savant_${YEAR}.parquet rows: $savant_rows"
+            if [ -z "$savant_rows" ] || [ "$savant_rows" -eq 0 ]; then
+              echo "ERROR: savant_${YEAR}.parquet is empty; refusing to commit broken data"
+              exit 1
+            fi
+
             rm -rf tmp/*.csv
             sleep 1
           done
@@ -234,7 +275,10 @@ jobs:
 
       - name: Commit Archive Parquet Files
         run: |
+          set -euo pipefail
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          START_YEAR=2015
+          END_YEAR=$(( $(date +%Y) - 1 ))
           git add static/data/
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: generate historical bref and savant parquet archives (2015-2025)" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: generate historical bref and savant parquet archives (${START_YEAR}-${END_YEAR})" && git push)

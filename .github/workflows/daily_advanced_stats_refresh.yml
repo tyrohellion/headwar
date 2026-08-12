@@ -6,23 +6,40 @@ on:
     - cron: '14 14 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
+concurrency:
+  group: baseball-data-pipeline
+  cancel-in-progress: false
+
 jobs:
   build-current-season:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Install DuckDB CLI
         run: |
-          wget https://github.com/duckdb/duckdb/releases/download/v1.0.0/duckdb_cli-linux-amd64.zip
-          unzip duckdb_cli-linux-amd64.zip
+          set -euo pipefail
+          wget -q --retry 3 https://github.com/duckdb/duckdb/releases/download/v1.0.0/duckdb_cli-linux-amd64.zip
+          unzip -o duckdb_cli-linux-amd64.zip
           sudo mv duckdb /usr/local/bin/
+          duckdb --version
 
-      - name: Fetch and Update B-Ref & Current Season Statcast (2026)
+      - name: Fetch and Update B-Ref & Current Season Statcast
         run: |
+          set -euo pipefail
           mkdir -p static/data
           mkdir -p tmp
+
+          YEAR=$(date +%Y)
+
+          # Always wipe the old files before writing new ones so a failed or
+          # interrupted run can never leave a stale/truncated parquet in place
+          rm -f static/data/bref_daily.parquet static/data/savant_${YEAR}.parquet
 
           # Helper function to safely fetch CSVs and stub fallback headers + empty row if blank/HTML
           fetch_csv() {
@@ -30,7 +47,7 @@ jobs:
             local dest="$2"
             local fallback_header="$3"
 
-            curl -sL -A "Mozilla/5.0" "$url" -o "$dest"
+            curl -sL --retry 3 --retry-delay 2 -A "Mozilla/5.0" "$url" -o "$dest"
 
             # Strip UTF-8 BOM, which otherwise breaks DuckDB header detection on
             # files whose first header cell is quoted (e.g. "last_name, first_name")
@@ -49,19 +66,19 @@ jobs:
           fetch_csv "https://www.baseball-reference.com/data/war_daily_bat.txt" "tmp/war_daily_bat.txt" "mlb_ID,player_ID,name_common,year_ID,team_ID,stint_ID,lg_ID,age,PA,G,OPS_plus,WAR,runs_bat,runs_br,runs_defense"
           fetch_csv "https://www.baseball-reference.com/data/war_daily_pitch.txt" "tmp/war_daily_pitch.txt" "mlb_ID,player_ID,name_common,year_ID,team_ID,stint_ID,lg_ID,age,G,GS,IPouts,WAR,era_plus"
 
-          # 2. Fetch 2026 Savant Files with Header Fallbacks
-          fetch_csv "https://baseballsavant.mlb.com/leaderboard/percentile-rankings?type=batter&year=2026&csv=true" "tmp/bat_pct.csv" "player_id,exit_velocity,hard_hit_percent,brl_percent,brl,xwoba,xba,xslg,whiff_percent,k_percent,bb_percent,chase_percent,sprint_speed"
-          fetch_csv "https://baseballsavant.mlb.com/leaderboard/expected_statistics?type=batter&year=2026&min=1&csv=true" "tmp/bat_xstats.csv" "player_id,ba,est_ba,slg,est_slg,woba,est_woba"
-          fetch_csv "https://baseballsavant.mlb.com/statcast_leaderboard?type=batter&year=2026&min=1&csv=true" "tmp/bat_ev.csv" "player_id,avg_hit_speed,max_hit_speed,ev50,brl_percent,ev95percent"
-          fetch_csv "https://baseballsavant.mlb.com/leaderboard/custom?year=2026&type=batter&filter=&min=1&selections=whiff_percent,chase_percent,swing_percent,sweet_spot_percent&chart=false&csv=true" "tmp/bat_custom.csv" "player_id,whiff_percent,chase_percent,swing_percent,sweet_spot_percent"
-          fetch_csv "https://baseballsavant.mlb.com/leaderboard/swing-take?year=2026&team=&leverage=Neutral&group=Batter&type=All&sub_type=null&min=1&csv=True" "tmp/bat_rv.csv" "player_id,runs_all"
-          fetch_csv "https://baseballsavant.mlb.com/leaderboard/swing-take?year=2026&team=&leverage=Neutral&group=Pitcher&type=All&sub_type=null&min=1&csv=True" "tmp/pitch_rv.csv" "player_id,runs_all"
-          fetch_csv "https://baseballsavant.mlb.com/leaderboard/percentile-rankings?type=pitcher&year=2026&csv=true" "tmp/pitch_pct.csv" "player_id,xwoba,xba,xslg,brl_percent,exit_velocity,hard_hit_percent,k_percent,bb_percent,whiff_percent,chase_percent,arm_strength,xera,fb_velocity,fb_spin,curve_spin"
-          fetch_csv "https://baseballsavant.mlb.com/leaderboard/expected_statistics?type=pitcher&year=2026&min=1&csv=true" "tmp/pitch_xstats.csv" "player_id,woba,est_woba,est_ba,est_slg,xera"
-          fetch_csv "https://baseballsavant.mlb.com/statcast_leaderboard?type=pitcher&year=2026&min=1&csv=true" "tmp/pitch_ev.csv" "player_id,avg_hit_speed,max_hit_speed,ev50,brl_percent,ev95percent,avg_hit_angle,anglesweetspotpercent,avg_distance"
-          fetch_csv "https://baseballsavant.mlb.com/leaderboard/fielding-run-value?gameType=Regular&seasonStart=2026&seasonEnd=2026&type=fielder&position=&minInnings=1&csv=true" "tmp/field_rv.csv" "id,total_runs,inf_of_runs,range_runs,arm_runs,dp_runs,catching_runs,framing_runs,throwing_runs,blocking_runs"
-          fetch_csv "https://baseballsavant.mlb.com/leaderboard/arm-strength?year=2026&minThrows=1&pos=arm_of&team=&type=player&csv=true" "tmp/arm_str.csv" "player_id,arm_overall,max_arm_strength"
-          fetch_csv "https://baseballsavant.mlb.com/leaderboard/baserunning-run-value?gameType=Regular&season_start=2026&season_end=2026&type=Runners&minOpportunities=1&csv=true" "tmp/base_rv.csv" "player_id,runner_runs_tot"
+          # 2. Fetch Current Season Savant Files with Header Fallbacks
+          fetch_csv "https://baseballsavant.mlb.com/leaderboard/percentile-rankings?type=batter&year=${YEAR}&csv=true" "tmp/bat_pct.csv" "player_id,exit_velocity,hard_hit_percent,brl_percent,brl,xwoba,xba,xslg,whiff_percent,k_percent,bb_percent,chase_percent,sprint_speed"
+          fetch_csv "https://baseballsavant.mlb.com/leaderboard/expected_statistics?type=batter&year=${YEAR}&min=1&csv=true" "tmp/bat_xstats.csv" "player_id,ba,est_ba,slg,est_slg,woba,est_woba"
+          fetch_csv "https://baseballsavant.mlb.com/statcast_leaderboard?type=batter&year=${YEAR}&min=1&csv=true" "tmp/bat_ev.csv" "player_id,avg_hit_speed,max_hit_speed,ev50,brl_percent,ev95percent"
+          fetch_csv "https://baseballsavant.mlb.com/leaderboard/custom?year=${YEAR}&type=batter&filter=&min=1&selections=whiff_percent,chase_percent,swing_percent,sweet_spot_percent&chart=false&csv=true" "tmp/bat_custom.csv" "player_id,whiff_percent,chase_percent,swing_percent,sweet_spot_percent"
+          fetch_csv "https://baseballsavant.mlb.com/leaderboard/swing-take?year=${YEAR}&team=&leverage=Neutral&group=Batter&type=All&sub_type=null&min=1&csv=True" "tmp/bat_rv.csv" "player_id,runs_all"
+          fetch_csv "https://baseballsavant.mlb.com/leaderboard/swing-take?year=${YEAR}&team=&leverage=Neutral&group=Pitcher&type=All&sub_type=null&min=1&csv=True" "tmp/pitch_rv.csv" "player_id,runs_all"
+          fetch_csv "https://baseballsavant.mlb.com/leaderboard/percentile-rankings?type=pitcher&year=${YEAR}&csv=true" "tmp/pitch_pct.csv" "player_id,xwoba,xba,xslg,brl_percent,exit_velocity,hard_hit_percent,k_percent,bb_percent,whiff_percent,chase_percent,arm_strength,xera,fb_velocity,fb_spin,curve_spin"
+          fetch_csv "https://baseballsavant.mlb.com/leaderboard/expected_statistics?type=pitcher&year=${YEAR}&min=1&csv=true" "tmp/pitch_xstats.csv" "player_id,woba,est_woba,est_ba,est_slg,xera"
+          fetch_csv "https://baseballsavant.mlb.com/statcast_leaderboard?type=pitcher&year=${YEAR}&min=1&csv=true" "tmp/pitch_ev.csv" "player_id,avg_hit_speed,max_hit_speed,ev50,brl_percent,ev95percent,avg_hit_angle,anglesweetspotpercent,avg_distance"
+          fetch_csv "https://baseballsavant.mlb.com/leaderboard/fielding-run-value?gameType=Regular&seasonStart=${YEAR}&seasonEnd=${YEAR}&type=fielder&position=&minInnings=1&csv=true" "tmp/field_rv.csv" "id,total_runs,inf_of_runs,range_runs,arm_runs,dp_runs,catching_runs,framing_runs,throwing_runs,blocking_runs"
+          fetch_csv "https://baseballsavant.mlb.com/leaderboard/arm-strength?year=${YEAR}&minThrows=1&pos=arm_of&team=&type=player&csv=true" "tmp/arm_str.csv" "player_id,arm_overall,max_arm_strength"
+          fetch_csv "https://baseballsavant.mlb.com/leaderboard/baserunning-run-value?gameType=Regular&season_start=${YEAR}&season_end=${YEAR}&type=Runners&minOpportunities=1&csv=true" "tmp/base_rv.csv" "player_id,runner_runs_tot"
 
           duckdb -c "
             -- 1. B-Ref Daily
@@ -133,7 +150,7 @@ jobs:
 
             COPY (SELECT * FROM bref_combined ORDER BY player_ID, year_ID DESC) TO 'static/data/bref_daily.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
 
-            -- 2. 2026 Statcast
+            -- 2. Current Season Statcast
             CREATE TABLE savant_bat_pct AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(exit_velocity AS INTEGER) AS pct_exit_velocity, CAST(hard_hit_percent AS INTEGER) AS pct_hard_hit, CAST(COALESCE(TRY_CAST(brl_percent AS INTEGER), TRY_CAST(brl AS INTEGER)) AS INTEGER) AS pct_barrel, CAST(xwoba AS INTEGER) AS pct_xwoba, CAST(xba AS INTEGER) AS pct_xba, CAST(xslg AS INTEGER) AS pct_xslg, CAST(whiff_percent AS INTEGER) AS pct_whiff, CAST(k_percent AS INTEGER) AS pct_k_rate, CAST(bb_percent AS INTEGER) AS pct_bb_rate, CAST(chase_percent AS INTEGER) AS pct_chase, CAST(sprint_speed AS INTEGER) AS pct_sprint_speed FROM read_csv('tmp/bat_pct.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
             CREATE TABLE savant_bat_xstats AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(ba AS DOUBLE) AS ba, CAST(est_ba AS DOUBLE) AS xba, CAST(slg AS DOUBLE) AS slg, CAST(est_slg AS DOUBLE) AS xslg, CAST(woba AS DOUBLE) AS woba, CAST(est_woba AS DOUBLE) AS xwoba FROM read_csv('tmp/bat_xstats.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
@@ -174,9 +191,9 @@ jobs:
               SELECT mlb_id FROM savant_pitch_ev
             );
 
-            CREATE TABLE savant_2026 AS 
+            CREATE TABLE savant_${YEAR} AS 
             SELECT 
-              2026 AS year_ID, 
+              ${YEAR} AS year_ID, 
               k.mlb_id, 
               bp.pct_exit_velocity, bp.pct_hard_hit, bp.pct_barrel, bp.pct_xwoba, bp.pct_xba, bp.pct_xslg, bp.pct_whiff, bp.pct_k_rate, bp.pct_bb_rate, bp.pct_chase, bp.pct_sprint_speed, 
               bx.xba, bx.xslg, bx.woba, bx.xwoba, 
@@ -204,13 +221,34 @@ jobs:
             LEFT JOIN savant_pitch_xstats px USING (mlb_id)
             LEFT JOIN savant_pitch_ev pe USING (mlb_id);
 
-            COPY savant_2026 TO 'static/data/savant_2026.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
+            COPY savant_${YEAR} TO 'static/data/savant_${YEAR}.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
           "
+
+          # Sanity-check the outputs: a stub-failed fetch produces an empty
+          # parquet, which we must never commit
+          bref_rows=$(duckdb -csv -noheader -c "SELECT count(*) FROM read_parquet('static/data/bref_daily.parquet');")
+          bref_rows=${bref_rows//[^0-9]/}
+          echo "bref_daily.parquet rows: $bref_rows"
+          if [ -z "$bref_rows" ] || [ "$bref_rows" -eq 0 ]; then
+            echo "ERROR: bref_daily.parquet is empty; refusing to commit broken data"
+            exit 1
+          fi
+
+          savant_rows=$(duckdb -csv -noheader -c "SELECT count(*) FROM read_parquet('static/data/savant_${YEAR}.parquet');")
+          savant_rows=${savant_rows//[^0-9]/}
+          echo "savant_${YEAR}.parquet rows: $savant_rows"
+          if [ -z "$savant_rows" ] || [ "$savant_rows" -eq 0 ]; then
+            echo "ERROR: savant_${YEAR}.parquet is empty; refusing to commit broken data"
+            exit 1
+          fi
+
           rm -rf tmp
 
       - name: Commit Updated Current Parquet Files
         run: |
+          set -euo pipefail
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add static/data/bref_daily.parquet static/data/savant_2026.parquet
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: daily update bref and 2026 savant parquet files" && git push)
+          YEAR=$(date +%Y)
+          git add static/data/bref_daily.parquet static/data/savant_${YEAR}.parquet
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: daily update bref and ${YEAR} savant parquet files" && git push)
