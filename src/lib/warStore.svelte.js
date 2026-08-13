@@ -1,4 +1,4 @@
-import { getPlayerBrefMetrics } from './parquetData.js';
+import { getPlayerBrefMetrics } from './advancedData.js';
 
 let state = $state({
 	careerWar: 'N/A',

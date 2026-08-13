@@ -1,6 +1,6 @@
 <script>
 	import { advancedStats, loadAdvancedMetrics } from '$lib/warStore.svelte.js';
-	import { getPlayerStatcastProfile } from '$lib/parquetData.js';
+	import { getPlayerStatcastProfile } from '$lib/advancedData.js';
 	import { getPlayerPictureLarge } from '../../../api/getPlayerPicture';
 	import { getPlayerInfo } from '../../../api/getPlayerInfo';
 	import { getTeamLogo } from '../../../api/getTeamLogo';

@@ -10,7 +10,7 @@ This website is a non-commercial, open-source educational project built for fun.
 
 - Webawesome components + lots of custom components
 - Sveltekit for front-end
-- Parquet & DuckDB for backend database files and queries
+- Precomputed JSON data files served from /data (built by GitHub Actions using DuckDB for aggregation, then committed as static JSON)
 - anime.js for number animations
 
 - Baseball Reference war_daily_bat & war_daily_pitch for WAR, OPS+ and ERA+ values

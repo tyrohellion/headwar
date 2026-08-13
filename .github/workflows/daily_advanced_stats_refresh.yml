@@ -29,44 +29,20 @@ jobs:
           sudo mv duckdb /usr/local/bin/
           duckdb --version
 
-      - name: Fetch and Update B-Ref & Current Season Statcast
+      - name: Fetch B-Ref & Current Season Statcast Data
         run: |
           set -euo pipefail
           mkdir -p static/data
           mkdir -p tmp
+          source .github/scripts/fetch_csv.sh
 
           YEAR=$(date +%Y)
 
-          # Always wipe the old files before writing new ones so a failed or
-          # interrupted run can never leave a stale/truncated parquet in place
-          rm -f static/data/bref_${YEAR}.parquet static/data/savant_${YEAR}.parquet
-
-          # Helper function to safely fetch CSVs and stub fallback headers + empty row if blank/HTML
-          fetch_csv() {
-            local url="$1"
-            local dest="$2"
-            local fallback_header="$3"
-
-            curl -sL --retry 3 --retry-delay 2 -A "Mozilla/5.0" "$url" -o "$dest"
-
-            # Strip UTF-8 BOM, which otherwise breaks DuckDB header detection on
-            # files whose first header cell is quoted (e.g. "last_name, first_name")
-            sed -i '1s/^\xef\xbb\xbf//' "$dest"
-
-            # Check if file is empty, has <= 1 line, contains HTML, or is not
-            # CSV-shaped at all (no commas) -> treat as failure and stub it
-            if [ ! -s "$dest" ] || [ $(wc -l < "$dest") -le 1 ] || grep -q -i "<html" "$dest" || ! grep -q ',' "$dest"; then
-              echo "$fallback_header" > "$dest"
-              # Append a row of commas matching header count to ensure DuckDB detects a valid CSV structure
-              echo "$fallback_header" | awk -F',' '{for(i=1;i<NF;i++) printf ","; print ""}' >> "$dest"
-            fi
-          }
-
-          # 1. Fetch B-Ref Daily Files
+          # war_daily files contain every season, so the full bref index can be
+          # rebuilt from scratch on every run.
           fetch_csv "https://www.baseball-reference.com/data/war_daily_bat.txt" "tmp/war_daily_bat.txt" "mlb_ID,player_ID,name_common,year_ID,team_ID,stint_ID,lg_ID,age,PA,G,OPS_plus,WAR,runs_bat,runs_br,runs_defense"
           fetch_csv "https://www.baseball-reference.com/data/war_daily_pitch.txt" "tmp/war_daily_pitch.txt" "mlb_ID,player_ID,name_common,year_ID,team_ID,stint_ID,lg_ID,age,G,GS,IPouts,WAR,era_plus"
 
-          # 2. Fetch Current Season Savant Files with Header Fallbacks
           fetch_csv "https://baseballsavant.mlb.com/leaderboard/percentile-rankings?type=batter&year=${YEAR}&csv=true" "tmp/bat_pct.csv" "player_id,exit_velocity,hard_hit_percent,brl_percent,brl,xwoba,xba,xslg,whiff_percent,k_percent,bb_percent,chase_percent,sprint_speed"
           fetch_csv "https://baseballsavant.mlb.com/leaderboard/expected_statistics?type=batter&year=${YEAR}&min=1&csv=true" "tmp/bat_xstats.csv" "player_id,ba,est_ba,slg,est_slg,woba,est_woba"
           fetch_csv "https://baseballsavant.mlb.com/statcast_leaderboard?type=batter&year=${YEAR}&min=1&csv=true" "tmp/bat_ev.csv" "player_id,avg_hit_speed,max_hit_speed,ev50,brl_percent,ev95percent"
@@ -80,175 +56,19 @@ jobs:
           fetch_csv "https://baseballsavant.mlb.com/leaderboard/arm-strength?year=${YEAR}&minThrows=1&pos=arm_of&team=&type=player&csv=true" "tmp/arm_str.csv" "player_id,arm_overall,max_arm_strength"
           fetch_csv "https://baseballsavant.mlb.com/leaderboard/baserunning-run-value?gameType=Regular&season_start=${YEAR}&season_end=${YEAR}&type=Runners&minOpportunities=1&csv=true" "tmp/base_rv.csv" "player_id,runner_runs_tot"
 
-          duckdb -c "
-            -- 1. B-Ref Daily
-            CREATE TABLE raw_bat AS 
-            SELECT 
-              CAST(mlb_ID AS VARCHAR) AS mlb_id,
-              CAST(player_ID AS VARCHAR) AS player_ID,
-              CAST(name_common AS VARCHAR) AS name_common,
-              CAST(year_ID AS INTEGER) AS year_ID,
-              CAST(team_ID AS VARCHAR) AS team_ID,
-              CAST(stint_ID AS INTEGER) AS stint_ID,
-              CAST(lg_ID AS VARCHAR) AS lg_ID,
-              CAST(age AS INTEGER) AS age,
-              CAST(PA AS INTEGER) AS PA,
-              CAST(G AS INTEGER) AS G_bat,
-              CAST(OPS_plus AS DOUBLE) AS ops_plus,
-              CAST(WAR AS DOUBLE) AS WAR_bat,
-              CAST(runs_bat AS DOUBLE) AS runs_bat,
-              CAST(runs_br AS DOUBLE) AS runs_br,
-              CAST(runs_defense AS DOUBLE) AS runs_defense
-            FROM read_csv('tmp/war_daily_bat.txt', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True);
-
-            CREATE TABLE raw_pitch AS 
-            SELECT 
-              CAST(mlb_ID AS VARCHAR) AS mlb_id,
-              CAST(player_ID AS VARCHAR) AS player_ID,
-              CAST(name_common AS VARCHAR) AS name_common,
-              CAST(year_ID AS INTEGER) AS year_ID,
-              CAST(team_ID AS VARCHAR) AS team_ID,
-              CAST(stint_ID AS INTEGER) AS stint_ID,
-              CAST(lg_ID AS VARCHAR) AS lg_ID,
-              CAST(age AS INTEGER) AS age,
-              CAST(G AS INTEGER) AS G_pitch,
-              CAST(GS AS INTEGER) AS GS,
-              CAST(IPouts AS DOUBLE) AS IPouts,
-              CAST(WAR AS DOUBLE) AS WAR_pitch,
-              CAST(era_plus AS DOUBLE) AS era_plus
-            FROM read_csv('tmp/war_daily_pitch.txt', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True);
-
-            CREATE TABLE bref_combined AS 
-            SELECT 
-              COALESCE(b.mlb_id, p.mlb_id) AS mlb_id, 
-              COALESCE(b.player_ID, p.player_ID) AS player_ID, 
-              COALESCE(b.name_common, p.name_common) AS name_common, 
-              COALESCE(b.year_ID, p.year_ID) AS year_ID, 
-              COALESCE(b.team_ID, p.team_ID) AS team_ID, 
-              COALESCE(b.stint_ID, p.stint_ID) AS stint_ID, 
-              COALESCE(b.lg_ID, p.lg_ID) AS lg_ID, 
-              COALESCE(b.age, p.age) AS age, 
-              ROUND(COALESCE(b.WAR_bat, 0) + COALESCE(p.WAR_pitch, 0), 2) AS WAR_total, 
-              COALESCE(b.WAR_bat, 0) AS WAR_bat, 
-              COALESCE(p.WAR_pitch, 0) AS WAR_pitch, 
-              b.PA, 
-              b.G_bat, 
-              b.ops_plus, 
-              b.runs_bat, 
-              b.runs_br, 
-              b.runs_defense, 
-              p.G_pitch, 
-              p.GS, 
-              ROUND(COALESCE(p.IPouts, 0) / 3.0, 1) AS IP, 
-              p.era_plus 
-            FROM raw_bat b 
-            FULL OUTER JOIN raw_pitch p 
-              ON b.player_ID = p.player_ID 
-             AND b.year_ID = p.year_ID 
-             AND b.stint_ID = p.stint_ID
-             AND COALESCE(b.team_ID, '') = COALESCE(p.team_ID, '');
-
-            COPY (SELECT * FROM bref_combined WHERE year_ID = ${YEAR} ORDER BY player_ID) TO 'static/data/bref_${YEAR}.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
-
-            -- 2. Current Season Statcast
-            CREATE TABLE savant_bat_pct AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(exit_velocity AS INTEGER) AS pct_exit_velocity, CAST(hard_hit_percent AS INTEGER) AS pct_hard_hit, CAST(COALESCE(TRY_CAST(brl_percent AS INTEGER), TRY_CAST(brl AS INTEGER)) AS INTEGER) AS pct_barrel, CAST(xwoba AS INTEGER) AS pct_xwoba, CAST(xba AS INTEGER) AS pct_xba, CAST(xslg AS INTEGER) AS pct_xslg, CAST(whiff_percent AS INTEGER) AS pct_whiff, CAST(k_percent AS INTEGER) AS pct_k_rate, CAST(bb_percent AS INTEGER) AS pct_bb_rate, CAST(chase_percent AS INTEGER) AS pct_chase, CAST(sprint_speed AS INTEGER) AS pct_sprint_speed FROM read_csv('tmp/bat_pct.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
-
-            CREATE TABLE savant_bat_xstats AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(ba AS DOUBLE) AS ba, CAST(est_ba AS DOUBLE) AS xba, CAST(slg AS DOUBLE) AS slg, CAST(est_slg AS DOUBLE) AS xslg, CAST(woba AS DOUBLE) AS woba, CAST(est_woba AS DOUBLE) AS xwoba FROM read_csv('tmp/bat_xstats.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
-
-            CREATE TABLE savant_bat_ev AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(avg_hit_speed AS DOUBLE) AS avg_exit_velocity, CAST(max_hit_speed AS DOUBLE) AS max_exit_velocity, CAST(ev50 AS DOUBLE) AS ev50, CAST(brl_percent AS DOUBLE) AS barrel_rate, CAST(ev95percent AS DOUBLE) AS hard_hit_rate FROM read_csv('tmp/bat_ev.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
-
-            CREATE TABLE savant_bat_custom AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(whiff_percent AS DOUBLE) AS whiff_rate, CAST(chase_percent AS DOUBLE) AS chase_rate, CAST(swing_percent AS DOUBLE) AS swing_rate, CAST(sweet_spot_percent AS DOUBLE) AS sweet_spot_rate FROM read_csv('tmp/bat_custom.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
-
-            CREATE TABLE savant_bat_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(runs_all AS DOUBLE) AS savant_bat_run_val FROM read_csv('tmp/bat_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
-
-            CREATE TABLE savant_pitch_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(runs_all AS DOUBLE) AS savant_pitch_run_val FROM read_csv('tmp/pitch_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
-
-            CREATE TABLE savant_field_rv AS SELECT CAST(id AS VARCHAR) AS mlb_id, CAST(total_runs AS DOUBLE) AS savant_field_run_val, CAST(total_runs AS DOUBLE) AS f_total_runs, CAST(inf_of_runs AS DOUBLE) AS f_inf_of_runs, CAST(range_runs AS DOUBLE) AS f_range_runs, CAST(arm_runs AS DOUBLE) AS f_arm_runs, CAST(dp_runs AS DOUBLE) AS f_dp_runs, CAST(catching_runs AS DOUBLE) AS f_catching_runs, CAST(framing_runs AS DOUBLE) AS f_framing_runs, CAST(throwing_runs AS DOUBLE) AS f_throwing_runs, CAST(blocking_runs AS DOUBLE) AS f_blocking_runs FROM read_csv('tmp/field_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE id IS NOT NULL AND CAST(id AS VARCHAR) != '';
-
-            CREATE TABLE savant_base_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(runner_runs_tot AS DOUBLE) AS savant_base_run_val FROM read_csv('tmp/base_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
-
-            CREATE TABLE savant_arm_str AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(arm_overall AS DOUBLE) AS f_arm_overall, CAST(max_arm_strength AS DOUBLE) AS f_max_arm_strength FROM read_csv('tmp/arm_str.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
-
-            CREATE TABLE savant_pitch_pct AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(xwoba AS INTEGER) AS p_pct_xwoba, CAST(xba AS INTEGER) AS p_pct_xba, CAST(xslg AS INTEGER) AS p_pct_xslg, CAST(brl_percent AS INTEGER) AS p_pct_brl_percent, CAST(exit_velocity AS INTEGER) AS p_pct_exit_velocity, CAST(hard_hit_percent AS INTEGER) AS p_pct_hard_hit, CAST(k_percent AS INTEGER) AS p_pct_k_rate, CAST(bb_percent AS INTEGER) AS p_pct_bb_rate, CAST(whiff_percent AS INTEGER) AS p_pct_whiff, CAST(chase_percent AS INTEGER) AS p_pct_chase, CAST(arm_strength AS INTEGER) AS p_pct_arm_strength, CAST(xera AS INTEGER) AS p_pct_xera, CAST(fb_velocity AS INTEGER) AS p_pct_fb_velocity, CAST(fb_spin AS INTEGER) AS p_pct_fb_spin, CAST(curve_spin AS INTEGER) AS p_pct_curve_spin FROM read_csv('tmp/pitch_pct.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
-
-            CREATE TABLE savant_pitch_xstats AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(est_ba AS DOUBLE) AS p_est_ba, CAST(est_slg AS DOUBLE) AS p_est_slg, CAST(est_woba AS DOUBLE) AS p_est_woba, CAST(woba AS DOUBLE) AS p_woba, CAST(xera AS DOUBLE) AS p_xera FROM read_csv('tmp/pitch_xstats.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
-
-            CREATE TABLE savant_pitch_ev AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(avg_hit_speed AS DOUBLE) AS p_avg_exit_velocity, CAST(max_hit_speed AS DOUBLE) AS p_max_exit_velocity, CAST(ev50 AS DOUBLE) AS p_ev50, CAST(brl_percent AS DOUBLE) AS p_barrel_rate, CAST(ev95percent AS DOUBLE) AS p_hard_hit_rate, CAST(avg_hit_angle AS DOUBLE) AS p_avg_hit_angle, CAST(anglesweetspotpercent AS DOUBLE) AS p_angle_sweet_spot, CAST(avg_distance AS DOUBLE) AS p_avg_distance FROM read_csv('tmp/pitch_ev.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
-
-            CREATE TABLE savant_keys AS 
-            SELECT DISTINCT mlb_id FROM (
-              SELECT mlb_id FROM savant_bat_pct UNION
-              SELECT mlb_id FROM savant_bat_xstats UNION
-              SELECT mlb_id FROM savant_bat_ev UNION
-              SELECT mlb_id FROM savant_bat_custom UNION
-              SELECT mlb_id FROM savant_bat_rv UNION
-              SELECT mlb_id FROM savant_pitch_rv UNION
-              SELECT mlb_id FROM savant_field_rv UNION
-              SELECT mlb_id FROM savant_arm_str UNION
-              SELECT mlb_id FROM savant_base_rv UNION
-              SELECT mlb_id FROM savant_pitch_pct UNION
-              SELECT mlb_id FROM savant_pitch_xstats UNION
-              SELECT mlb_id FROM savant_pitch_ev
-            );
-
-            CREATE TABLE savant_${YEAR} AS 
-            SELECT 
-              ${YEAR} AS year_ID, 
-              k.mlb_id, 
-              bp.pct_exit_velocity, bp.pct_hard_hit, bp.pct_barrel, bp.pct_xwoba, bp.pct_xba, bp.pct_xslg, bp.pct_whiff, bp.pct_k_rate, bp.pct_bb_rate, bp.pct_chase, bp.pct_sprint_speed, 
-              bx.xba, bx.xslg, bx.woba, bx.xwoba, 
-              bev.avg_exit_velocity, bev.max_exit_velocity, bev.ev50, bev.barrel_rate, bev.hard_hit_rate, 
-              bc.whiff_rate, bc.chase_rate, bc.swing_rate, bc.sweet_spot_rate, 
-              sb.savant_bat_run_val, 
-              sp.savant_pitch_run_val, 
-              sf.savant_field_run_val, sf.f_total_runs, sf.f_inf_of_runs, sf.f_range_runs, sf.f_arm_runs, sf.f_dp_runs, sf.f_catching_runs, sf.f_framing_runs, sf.f_throwing_runs, sf.f_blocking_runs, 
-              as_.f_arm_overall, as_.f_max_arm_strength, 
-              sr.savant_base_run_val, 
-              pp.p_pct_xwoba, pp.p_pct_xba, pp.p_pct_xslg, pp.p_pct_brl_percent, pp.p_pct_exit_velocity, pp.p_pct_hard_hit, pp.p_pct_k_rate, pp.p_pct_bb_rate, pp.p_pct_whiff, pp.p_pct_chase, pp.p_pct_arm_strength, pp.p_pct_xera, pp.p_pct_fb_velocity, pp.p_pct_fb_spin, pp.p_pct_curve_spin, 
-              px.p_est_ba, px.p_est_slg, px.p_est_woba, px.p_woba, px.p_xera, 
-              pe.p_avg_exit_velocity, pe.p_max_exit_velocity, pe.p_ev50, pe.p_barrel_rate, pe.p_hard_hit_rate, pe.p_avg_hit_angle, pe.p_angle_sweet_spot, pe.p_avg_distance 
-            FROM savant_keys k
-            LEFT JOIN savant_bat_pct bp USING (mlb_id)
-            LEFT JOIN savant_bat_xstats bx USING (mlb_id)
-            LEFT JOIN savant_bat_ev bev USING (mlb_id)
-            LEFT JOIN savant_bat_custom bc USING (mlb_id)
-            LEFT JOIN savant_bat_rv sb USING (mlb_id)
-            LEFT JOIN savant_pitch_rv sp USING (mlb_id)
-            LEFT JOIN savant_field_rv sf USING (mlb_id)
-            LEFT JOIN savant_arm_str as_ USING (mlb_id)
-            LEFT JOIN savant_base_rv sr USING (mlb_id)
-            LEFT JOIN savant_pitch_pct pp USING (mlb_id)
-            LEFT JOIN savant_pitch_xstats px USING (mlb_id)
-            LEFT JOIN savant_pitch_ev pe USING (mlb_id);
-
-            COPY savant_${YEAR} TO 'static/data/savant_${YEAR}.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
-          "
-
-          # Sanity-check the outputs: a stub-failed fetch produces an empty
-          # parquet, which we must never commit
-          bref_rows=$(duckdb -csv -noheader -c "SELECT count(*) FROM read_parquet('static/data/bref_${YEAR}.parquet');")
-          bref_rows=${bref_rows//[^0-9]/}
-          echo "bref_${YEAR}.parquet rows: $bref_rows"
-          if [ -z "$bref_rows" ] || [ "$bref_rows" -eq 0 ]; then
-            echo "ERROR: bref_${YEAR}.parquet is empty; refusing to commit broken data"
-            exit 1
-          fi
-
-          savant_rows=$(duckdb -csv -noheader -c "SELECT count(*) FROM read_parquet('static/data/savant_${YEAR}.parquet');")
-          savant_rows=${savant_rows//[^0-9]/}
-          echo "savant_${YEAR}.parquet rows: $savant_rows"
-          if [ -z "$savant_rows" ] || [ "$savant_rows" -eq 0 ]; then
-            echo "ERROR: savant_${YEAR}.parquet is empty; refusing to commit broken data"
-            exit 1
-          fi
+      - name: Build Browser Data Files
+        run: |
+          set -euo pipefail
+          bash .github/scripts/build_bref_index.sh
+          bash .github/scripts/build_savant_json.sh "$(date +%Y)"
 
           rm -rf tmp
 
-      - name: Commit Updated Current Parquet Files
+      - name: Commit Updated JSON Data Files
         run: |
           set -euo pipefail
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           YEAR=$(date +%Y)
-          git add static/data/bref_${YEAR}.parquet static/data/savant_${YEAR}.parquet
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: daily update ${YEAR} bref and savant parquet files" && git push)
+          git add static/data/bref_index.json static/data/savant_${YEAR}.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: daily update bref index and ${YEAR} savant data" && git push)
