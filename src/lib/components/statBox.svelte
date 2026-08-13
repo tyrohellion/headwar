@@ -17,7 +17,7 @@
 
 	const isCareer = $derived(label.toLowerCase().includes('career'));
 	const isNormalizedStat = $derived(abbr === 'OPS+' || abbr === 'ERA+');
-	const isWarStat = $derived(abbr === 'WAR');
+	const isWarStat = $derived(abbr === 'WAR' || abbr === 'hWAR');
 
 	const isCareerWar = $derived(isCareer && isWarStat);
 
@@ -78,7 +78,7 @@
 					<wa-badge appearance="filled" size="m" variant="brand">{rank}</wa-badge>
 				{/if}
 				{#if progressContext !== ''}
-					{#if abbr === 'WAR'}
+					{#if isWarStat}
 						<wa-badge appearance="outlined" size="m" variant="neutral">
 							<AnimatedCounter value={progressContext} /> Games
 						</wa-badge>

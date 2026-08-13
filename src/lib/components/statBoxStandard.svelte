@@ -19,6 +19,8 @@
 	const isPRV = $derived(abbr.toUpperCase() === 'PRV');
 	const isFRV = $derived(abbr.toUpperCase() === 'FRV');
 	const isEra = $derived(abbr.toUpperCase() === 'ERA');
+	const isFip = $derived(abbr.toUpperCase() === 'FIP');
+	const isHwar = $derived(abbr.toUpperCase() === 'HWAR');
 	const isAvg = $derived(abbr.toUpperCase() === 'AVG' || abbr.toUpperCase() === 'BA');
 	const isObp = $derived(abbr.toUpperCase() === 'OBP');
 	const isSlg = $derived(abbr.toUpperCase() === 'SLG');
@@ -40,10 +42,18 @@
 			return 'var(--wa-color-danger-70)';
 		}
 
-		if (isEra) {
+		if (isEra || isFip) {
 			if (numericValue <= 3.0) return 'var(--wa-color-success-60)';
 			if (numericValue <= 4.0) return 'var(--wa-color-success-80)';
 			if (numericValue <= 4.8) return 'var(--wa-color-neutral-50)';
+			return 'var(--wa-color-danger-70)';
+		}
+
+		if (isHwar) {
+			if (numericValue >= 8) return 'var(--wa-color-success-60)';
+			if (numericValue >= 5) return 'var(--wa-color-success-70)';
+			if (numericValue >= 2) return 'var(--wa-color-success-80)';
+			if (numericValue >= 0) return 'var(--wa-color-neutral-50)';
 			return 'var(--wa-color-danger-70)';
 		}
 

@@ -1,6 +1,15 @@
 <script>
 	import { advancedStats, loadAdvancedMetrics } from '$lib/warStore.svelte.js';
 	import { getPlayerStatcastProfile } from '$lib/advancedData.js';
+	import {
+		computePitcherHwar,
+		computeHitterHwar,
+		computeWobaBattingRuns,
+		computeGamesByPosition,
+		deriveFieldingPosition,
+		inningsToDecimal
+	} from '$lib/warCalculator.js';
+	import { getLeagueContext } from '$lib/leagueContext.js';
 	import { getPlayerPictureLarge } from '../../../api/getPlayerPicture';
 	import { getPlayerInfo } from '../../../api/getPlayerInfo';
 	import { getTeamLogo } from '../../../api/getTeamLogo';
@@ -309,6 +318,62 @@
 			endDate
 		})
 	);
+
+	let leagueContext = $derived(
+		getLeagueContext(Number(userSelectedYear) || new Date().getFullYear())
+	);
+
+	let battingPosition = $derived(
+		deriveFieldingPosition(
+			playerProfile?.primaryPosition?.abbreviation,
+			fieldingStatsBlock?.splits,
+			{
+				season: userSelectedYear,
+				isCareerMode,
+				gamesPlayed: activeSeasonStats?.gamesPlayed
+			}
+		)
+	);
+
+	let battingGamesByPosition = $derived(
+		computeGamesByPosition(fieldingStatsBlock?.splits, {
+			season: userSelectedYear,
+			isCareerMode
+		}).gamesByPosition
+	);
+
+	let pitcherAdvanced = $derived.by(() => {
+		if (!activePitchingStats?.inningsPitched) return null;
+		if (!(inningsToDecimal(activePitchingStats.inningsPitched) > 0)) return null;
+		return computePitcherHwar(activePitchingStats, leagueContext);
+	});
+
+	let hitterAdvanced = $derived.by(() => {
+		if (!activeSeasonStats?.plateAppearances || battingPosition === 'P') return null;
+		const battingRuns =
+			computeWobaBattingRuns(activeSeasonStats, leagueContext) ??
+			battingStatcast?.runValues?.runs_all;
+		if (typeof battingRuns !== 'number') return null;
+		return computeHitterHwar(
+			{
+				battingRuns,
+				baserunningRuns: battingStatcast?.baserunningRunValues?.runner_runs_tot,
+				fieldingRuns: battingStatcast?.fieldingRunValues?.total_runs,
+				plateAppearances: activeSeasonStats.plateAppearances,
+				gamesPlayed: activeSeasonStats.gamesPlayed,
+				position: battingPosition,
+				gamesByPosition: battingGamesByPosition
+			},
+			leagueContext
+		);
+	});
+
+	let seasonHwar = $derived.by(() => {
+		const pitching = pitcherAdvanced?.hwar ?? 0;
+		const batting = hitterAdvanced ?? 0;
+		if (pitching === 0 && batting === 0) return null;
+		return pitching + batting;
+	});
 
 	let activeFieldingStats = $derived(
 		calculateActiveFieldingStats({
@@ -743,6 +808,19 @@
 									isRetired={advancedStats.isRetired}
 									tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player throughout the selected season. 2.0+ is a solid starter, 5.0+ is an All-Star, and 8.0+ is an MVP-caliber performance. This stat is additive over the year. The percentage value is how far into the MLB season we are."
 								/>
+
+								{#if seasonHwar}
+									<StatBox
+										label="{userSelectedYear} hWAR"
+										abbr="hWAR"
+										progressContext={playerProfile?.primaryPosition?.abbreviation === 'P'
+											? `${activePitchingStats?.gamesPlayed ?? 0} G`
+											: `${activeSeasonStats?.gamesPlayed ?? 0} G`}
+										percentile={seasonHwar.toFixed(1)}
+										isRetired={advancedStats.isRetired}
+										tooltipText="headwar-style Wins Above Replacement for the selected season. Batters: wOBA-based batting runs (wRAA) plus Statcast baserunning and fielding, then positional and replacement adjustments. Pitchers: built from FIP. Two-way players combine both. Approximates FanGraphs' fWAR methodology. 2.0+ is a solid starter, 5.0+ is an All-Star, 8.0+ is MVP-caliber."
+									/>
+								{/if}
 							{/if}
 
 							<StatBox
@@ -776,6 +854,15 @@
 									? 'Park and league-adjusted pitching efficiency for their career. 100 is perfectly average; higher numbers are better (e.g., 125 means 25% better at preventing runs).'
 									: 'Park and league-adjusted pitching efficiency for this season. 100 is perfectly average; higher numbers are better (e.g., 125 means 25% better at preventing runs).'}
 							/>
+
+							{#if pitcherAdvanced}
+								<StatBoxStandard
+									label={isCareerMode ? 'Career FIP' : `${userSelectedYear} FIP`}
+									stat={pitcherAdvanced.fip.toFixed(2)}
+									abbr="FIP"
+									tooltipText="An estimate of a pitcher's ERA based only on events they control: strikeouts, walks, hit-by-pitches and home runs. League-average FIP equals league ERA, so it is directly comparable to ERA. Lower is better."
+								/>
+							{/if}
 						</div>
 					{/if}
 					{#if !isCareerMode && !isDateFilterActive && (isBattingPercentileStatsLoading || battingStatcast?.runValues?.runs_all !== undefined || battingStatcast?.baserunningRunValues?.runs_all !== undefined || battingStatcast?.pitcherRunValues?.runs_all !== undefined || battingStatcast?.fieldingRunValues?.total_runs !== undefined)}
@@ -1534,10 +1621,13 @@
 	}
 
 	.overview-boxes-wrapper {
-		display: flex;
-		justify-content: flex-start;
-		flex-wrap: wrap;
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 		gap: 1rem;
+	}
+
+	.overview-boxes-wrapper:has(:nth-child(4)) {
+		grid-template-columns: repeat(2, 1fr);
 	}
 	.team-logo {
 		max-width: 32px;
@@ -1551,12 +1641,14 @@
 	}
 
 	.overview-boxes-wrapper-standard {
-		display: flex;
-		justify-content: flex-start;
-		align-items: center;
+		display: grid;
+		grid-template-columns: repeat(auto-fit, minmax(224px, 1fr));
 		width: 100%;
-		flex-wrap: wrap;
 		gap: 1rem;
+	}
+
+	.overview-boxes-wrapper-standard:has(:nth-child(4)) {
+		grid-template-columns: repeat(2, 1fr);
 	}
 
 	.dropdown-and-switch-wrapper {
