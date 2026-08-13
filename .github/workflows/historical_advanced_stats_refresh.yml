@@ -32,9 +32,15 @@ jobs:
           mkdir -p static/data
           mkdir -p tmp
 
-          # Always wipe the old files before writing new ones so a failed or
-          # interrupted run can never leave a stale/truncated parquet in place
-          rm -f static/data/bref_*.parquet
+          # Always wipe the old historical files before writing new ones so a
+          # failed or interrupted run can never leave a stale/truncated parquet
+          # in place. Never touch the current season's bref file - the daily
+          # workflow owns it and will be deleted from the repo if we do.
+          BREF_START_YEAR=1871
+          END_YEAR=$(( $(date +%Y) - 1 ))
+          for YEAR in $(seq "$BREF_START_YEAR" "$END_YEAR"); do
+            rm -f static/data/bref_${YEAR}.parquet
+          done
 
           fetch_csv() {
             local url="$1"
@@ -126,7 +132,7 @@ jobs:
              AND b.stint_ID = p.stint_ID
              AND COALESCE(b.team_ID, '') = COALESCE(p.team_ID, '');
 
-            # Build the full all-time combined table once, then slice it per year below.
+            -- Build the full all-time combined table once, then slice it per year below.
             COPY bref_combined TO 'tmp/bref_all.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
           "
           bref_rows=$(duckdb -csv -noheader -c "SELECT count(*) FROM read_parquet('tmp/bref_all.parquet');")
@@ -136,9 +142,6 @@ jobs:
             echo "ERROR: bref_all.parquet is empty; refusing to commit broken data"
             exit 1
           fi
-
-          BREF_START_YEAR=1871
-          END_YEAR=$(( $(date +%Y) - 1 ))
 
           for YEAR in $(seq "$BREF_START_YEAR" "$END_YEAR"); do
             echo "Writing B-Ref data for year $YEAR..."
