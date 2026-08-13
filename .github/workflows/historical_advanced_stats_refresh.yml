@@ -26,15 +26,15 @@ jobs:
           sudo mv duckdb /usr/local/bin/
           duckdb --version
 
-      - name: Fetch and Export Baseball-Reference Parquet
+      - name: Fetch and Build Baseball-Reference Parquet Archive (1871 to previous season)
         run: |
           set -euo pipefail
           mkdir -p static/data
           mkdir -p tmp
 
-          # Always wipe the old file before writing a new one so a failed or
+          # Always wipe the old files before writing new ones so a failed or
           # interrupted run can never leave a stale/truncated parquet in place
-          rm -f static/data/bref_daily.parquet
+          rm -f static/data/bref_*.parquet
 
           fetch_csv() {
             local url="$1"
@@ -126,22 +126,43 @@ jobs:
              AND b.stint_ID = p.stint_ID
              AND COALESCE(b.team_ID, '') = COALESCE(p.team_ID, '');
 
-            COPY (SELECT * FROM bref_combined ORDER BY player_ID, year_ID DESC) TO 'static/data/bref_daily.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
+            # Build the full all-time combined table once, then slice it per year below.
+            COPY bref_combined TO 'tmp/bref_all.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
           "
-          bref_rows=$(duckdb -csv -noheader -c "SELECT count(*) FROM read_parquet('static/data/bref_daily.parquet');")
+          bref_rows=$(duckdb -csv -noheader -c "SELECT count(*) FROM read_parquet('tmp/bref_all.parquet');")
           bref_rows=${bref_rows//[^0-9]/}
-          echo "bref_daily.parquet rows: $bref_rows"
+          echo "bref_all.parquet rows: $bref_rows"
           if [ -z "$bref_rows" ] || [ "$bref_rows" -eq 0 ]; then
-            echo "ERROR: bref_daily.parquet is empty; refusing to commit broken data"
+            echo "ERROR: bref_all.parquet is empty; refusing to commit broken data"
             exit 1
           fi
-          rm -rf tmp/*.txt
+
+          BREF_START_YEAR=1871
+          END_YEAR=$(( $(date +%Y) - 1 ))
+
+          for YEAR in $(seq "$BREF_START_YEAR" "$END_YEAR"); do
+            echo "Writing B-Ref data for year $YEAR..."
+            duckdb -c "COPY (SELECT * FROM read_parquet('tmp/bref_all.parquet') WHERE year_ID = ${YEAR} ORDER BY player_ID) TO 'static/data/bref_${YEAR}.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);"
+
+            bref_year_rows=$(duckdb -csv -noheader -c "SELECT count(*) FROM read_parquet('static/data/bref_${YEAR}.parquet');")
+            bref_year_rows=${bref_year_rows//[^0-9]/}
+            echo "bref_${YEAR}.parquet rows: $bref_year_rows"
+            if [ -z "$bref_year_rows" ] || [ "$bref_year_rows" -eq 0 ]; then
+              echo "ERROR: bref_${YEAR}.parquet is empty; refusing to commit broken data"
+              exit 1
+            fi
+          done
+
+          rm -rf tmp
 
       - name: Build Statcast Parquet Archive (2015 to previous season)
         run: |
           set -euo pipefail
           mkdir -p tmp
 
+          # Statcast did not exist before 2015, so hard-code the start year and
+          # never attempt savant fetches for earlier seasons. Years before 2015
+          # get B-Ref-only parquet files (built in the previous step).
           START_YEAR=2015
           END_YEAR=$(( $(date +%Y) - 1 ))
 
@@ -280,5 +301,6 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           START_YEAR=2015
           END_YEAR=$(( $(date +%Y) - 1 ))
+          BREF_START_YEAR=1871
           git add static/data/
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: generate historical bref and savant parquet archives (${START_YEAR}-${END_YEAR})" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: generate historical bref (${BREF_START_YEAR}-${END_YEAR}) and savant (${START_YEAR}-${END_YEAR}) parquet archives" && git push)

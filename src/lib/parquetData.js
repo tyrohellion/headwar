@@ -9,8 +9,8 @@ import coi_pthread_worker from '@duckdb/duckdb-wasm/dist/duckdb-browser-coi.pthr
 
 export const CURRENT_SEASON = new Date().getFullYear();
 export const SAVANT_MIN_YEAR = 2015;
+export const BREF_MIN_YEAR = 1871;
 
-const BREF_FILE = 'bref_daily.parquet';
 const OPS_QUALIFIED_PA = 200;
 const ERA_QUALIFIED_IP = 50;
 
@@ -23,6 +23,26 @@ export function savantFileName(year) {
 	const y = Number(year);
 	if (!Number.isFinite(y) || y < SAVANT_MIN_YEAR || y > CURRENT_SEASON) return null;
 	return `savant_${y}.parquet`;
+}
+
+export function brefFileName(year) {
+	const y = Number(year);
+	if (!Number.isFinite(y) || y < BREF_MIN_YEAR || y > CURRENT_SEASON) return null;
+	return `bref_${y}.parquet`;
+}
+
+function brefFileNames() {
+	const files = [];
+	for (let year = BREF_MIN_YEAR; year <= CURRENT_SEASON; year++) {
+		files.push(brefFileName(year));
+	}
+	return files;
+}
+
+function brefReadSource() {
+	return `read_parquet([${brefFileNames()
+		.map((f) => `'${f}'`)
+		.join(', ')}])`;
 }
 
 export function isCurrentSeason(year) {
@@ -68,7 +88,10 @@ async function initDb() {
 	await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
 
 	const baseUrl = `${window.location.origin}/data/`;
-	const files = [BREF_FILE];
+	const files = [];
+	for (let year = BREF_MIN_YEAR; year <= CURRENT_SEASON; year++) {
+		files.push(brefFileName(year));
+	}
 	for (let year = SAVANT_MIN_YEAR; year <= CURRENT_SEASON; year++) {
 		files.push(savantFileName(year));
 	}
@@ -90,7 +113,7 @@ async function runQuery(sql) {
 }
 
 // ---------------------------------------------------------------
-// B-Ref metrics (bref_daily.parquet, single file for all seasons)
+// B-Ref metrics (bref_<year>.parquet, one file per season)
 // ---------------------------------------------------------------
 
 async function getBrefCareerMap() {
@@ -98,7 +121,7 @@ async function getBrefCareerMap() {
 
 	const rows = await runQuery(
 		`SELECT mlb_id, ROUND(SUM(WAR_total), 1) AS career_war
-		 FROM read_parquet('${BREF_FILE}')
+		 FROM ${brefReadSource()}
 		 WHERE mlb_id IS NOT NULL
 		 GROUP BY mlb_id`
 	);
@@ -124,7 +147,7 @@ async function getBrefSeasonCache() {
 		        ROUND(SUM(IP), 1) AS ip,
 		        ROUND(arg_max(ops_plus, PA)) AS ops,
 		        ROUND(arg_max(era_plus, IP)) AS era
-		 FROM read_parquet('${BREF_FILE}')
+		 FROM ${brefReadSource()}
 		 WHERE mlb_id IS NOT NULL
 		 GROUP BY year_ID, mlb_id`
 	);

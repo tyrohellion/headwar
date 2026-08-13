@@ -39,7 +39,7 @@ jobs:
 
           # Always wipe the old files before writing new ones so a failed or
           # interrupted run can never leave a stale/truncated parquet in place
-          rm -f static/data/bref_daily.parquet static/data/savant_${YEAR}.parquet
+          rm -f static/data/bref_${YEAR}.parquet static/data/savant_${YEAR}.parquet
 
           # Helper function to safely fetch CSVs and stub fallback headers + empty row if blank/HTML
           fetch_csv() {
@@ -148,7 +148,7 @@ jobs:
              AND b.stint_ID = p.stint_ID
              AND COALESCE(b.team_ID, '') = COALESCE(p.team_ID, '');
 
-            COPY (SELECT * FROM bref_combined ORDER BY player_ID, year_ID DESC) TO 'static/data/bref_daily.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
+            COPY (SELECT * FROM bref_combined WHERE year_ID = ${YEAR} ORDER BY player_ID) TO 'static/data/bref_${YEAR}.parquet' (FORMAT PARQUET, COMPRESSION ZSTD);
 
             -- 2. Current Season Statcast
             CREATE TABLE savant_bat_pct AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(exit_velocity AS INTEGER) AS pct_exit_velocity, CAST(hard_hit_percent AS INTEGER) AS pct_hard_hit, CAST(COALESCE(TRY_CAST(brl_percent AS INTEGER), TRY_CAST(brl AS INTEGER)) AS INTEGER) AS pct_barrel, CAST(xwoba AS INTEGER) AS pct_xwoba, CAST(xba AS INTEGER) AS pct_xba, CAST(xslg AS INTEGER) AS pct_xslg, CAST(whiff_percent AS INTEGER) AS pct_whiff, CAST(k_percent AS INTEGER) AS pct_k_rate, CAST(bb_percent AS INTEGER) AS pct_bb_rate, CAST(chase_percent AS INTEGER) AS pct_chase, CAST(sprint_speed AS INTEGER) AS pct_sprint_speed FROM read_csv('tmp/bat_pct.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
@@ -226,11 +226,11 @@ jobs:
 
           # Sanity-check the outputs: a stub-failed fetch produces an empty
           # parquet, which we must never commit
-          bref_rows=$(duckdb -csv -noheader -c "SELECT count(*) FROM read_parquet('static/data/bref_daily.parquet');")
+          bref_rows=$(duckdb -csv -noheader -c "SELECT count(*) FROM read_parquet('static/data/bref_${YEAR}.parquet');")
           bref_rows=${bref_rows//[^0-9]/}
-          echo "bref_daily.parquet rows: $bref_rows"
+          echo "bref_${YEAR}.parquet rows: $bref_rows"
           if [ -z "$bref_rows" ] || [ "$bref_rows" -eq 0 ]; then
-            echo "ERROR: bref_daily.parquet is empty; refusing to commit broken data"
+            echo "ERROR: bref_${YEAR}.parquet is empty; refusing to commit broken data"
             exit 1
           fi
 
@@ -250,5 +250,5 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           YEAR=$(date +%Y)
-          git add static/data/bref_daily.parquet static/data/savant_${YEAR}.parquet
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: daily update bref and ${YEAR} savant parquet files" && git push)
+          git add static/data/bref_${YEAR}.parquet static/data/savant_${YEAR}.parquet
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: daily update ${YEAR} bref and savant parquet files" && git push)
