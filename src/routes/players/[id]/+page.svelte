@@ -43,6 +43,7 @@
 	import StatcastStatBar from '$lib/components/statcastStatBar.svelte';
 	import StatcastStatBarSkeleton from '$lib/components/statcastStatBarSkeleton.svelte';
 	import StatBox from '$lib/components/statBox.svelte';
+	import StatBoxSkeleton from '$lib/components/statBoxSkeleton.svelte';
 	import StatBoxStandard from '$lib/components/statBoxStandard.svelte';
 	import StatBoxStandardPitching from '$lib/components/statBoxStandardPitching.svelte';
 
@@ -694,7 +695,18 @@
 							>
 						</div>
 						<div class="overview-boxes-wrapper">
-							{#if isCareerMode}
+							{#if advancedStats.loading}
+								{#if isCareerMode}
+									<StatBoxSkeleton abbr="WAR" careerSeasonLength={1} />
+									<StatBoxSkeleton abbr="OPS+" progressContext="x" />
+									<StatBoxSkeleton abbr="ERA+" progressContext="x" />
+								{:else}
+									<StatBoxSkeleton abbr="WAR" careerSeasonLength={1} />
+									<StatBoxSkeleton abbr="WAR" progressContext="x" rank={1} />
+									<StatBoxSkeleton abbr="OPS+" progressContext="x" rank={1} />
+									<StatBoxSkeleton abbr="ERA+" progressContext="x" rank={1} />
+								{/if}
+							{:else if isCareerMode}
 								<StatBox
 									label="Career bWAR"
 									abbr="WAR"
@@ -766,7 +778,7 @@
 							/>
 						</div>
 					{/if}
-					{#if !isCareerMode && !isDateFilterActive && (battingStatcast?.runValues?.runs_all !== undefined || battingStatcast?.baserunningRunValues?.runs_all !== undefined || battingStatcast?.pitcherRunValues?.runs_all !== undefined || battingStatcast?.fieldingRunValues?.total_runs !== undefined)}
+					{#if !isCareerMode && !isDateFilterActive && (isBattingPercentileStatsLoading || battingStatcast?.runValues?.runs_all !== undefined || battingStatcast?.baserunningRunValues?.runs_all !== undefined || battingStatcast?.pitcherRunValues?.runs_all !== undefined || battingStatcast?.fieldingRunValues?.total_runs !== undefined)}
 						<wa-divider></wa-divider>
 						<div class="horizontal-wrapper">
 							<h3>{userSelectedYear} Run Values</h3>
@@ -777,15 +789,13 @@
 						</div>
 
 						<div class="overview-boxes-wrapper-standard">
-							{#if battingStatcast.runValues}
-								{#if isBattingPercentileStatsLoading}
-									<StatBoxStandard
-										label="Batting Run Value"
-										stat="loading.."
-										abbr="BRV"
-										tooltipText="Total run value contributed across all baserunning outcomes."
-									/>
-								{:else}
+							{#if isBattingPercentileStatsLoading}
+								<StatBoxSkeleton abbr="BRV" />
+								<StatBoxSkeleton abbr="PRV" />
+								<StatBoxSkeleton abbr="FRV" />
+								<StatBoxSkeleton abbr="BRRV" />
+							{:else}
+								{#if battingStatcast.runValues}
 									<StatBoxStandard
 										label="Batting Run Value"
 										stat={Math.round((battingStatcast.runValues?.runs_all ?? 0) * 10) / 10}
@@ -793,17 +803,8 @@
 										tooltipText="Total run value contributed across all batting outcomes."
 									/>
 								{/if}
-							{/if}
 
-							{#if battingStatcast.pitcherRunValues}
-								{#if isBattingPercentileStatsLoading}
-									<StatBoxStandard
-										label="Pitching Run Value"
-										stat="loading.."
-										abbr="PRV"
-										tooltipText="Total run value contributed across all baserunning outcomes."
-									/>
-								{:else}
+								{#if battingStatcast.pitcherRunValues}
 									<StatBoxStandard
 										label="Pitching Run Value"
 										stat={Math.round((battingStatcast.pitcherRunValues?.runs_all ?? 0) * 10) / 10}
@@ -811,17 +812,8 @@
 										tooltipText="Total run value contributed across all pitching outcomes."
 									/>
 								{/if}
-							{/if}
 
-							{#if battingStatcast.fieldingRunValues}
-								{#if isBattingPercentileStatsLoading}
-									<StatBoxStandard
-										label="Fielding Run Value"
-										stat="loading.."
-										abbr="FRV"
-										tooltipText="Total run value contributed across all fielding outcomes."
-									/>
-								{:else}
+								{#if battingStatcast.fieldingRunValues}
 									<StatBoxStandard
 										label="Fielding Run Value"
 										stat={Math.round((battingStatcast.fieldingRunValues?.total_runs ?? 0) * 10) /
@@ -830,17 +822,8 @@
 										tooltipText="Total run value contributed across all fielding outcomes."
 									/>
 								{/if}
-							{/if}
 
-							{#if battingStatcast.baserunningRunValues}
-								{#if isBattingPercentileStatsLoading}
-									<StatBoxStandard
-										label="Baserunning Run Value"
-										stat="loading.."
-										abbr="BRRV"
-										tooltipText="Total run value contributed across all baserunning outcomes."
-									/>
-								{:else}
+								{#if battingStatcast.baserunningRunValues}
 									<StatBoxStandard
 										label="Baserunning Run Value"
 										stat={Math.round(
