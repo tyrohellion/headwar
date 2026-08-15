@@ -818,7 +818,7 @@
 											: `${activeSeasonStats?.gamesPlayed ?? 0} G`}
 										percentile={seasonHwar.toFixed(1)}
 										isRetired={advancedStats.isRetired}
-										tooltipText="headwar-style Wins Above Replacement for the selected season. Batters: wOBA-based batting runs (wRAA) plus Statcast baserunning and fielding, then positional and replacement adjustments. Pitchers: built from FIP. Two-way players combine both. Approximates FanGraphs' fWAR methodology. 2.0+ is a solid starter, 5.0+ is an All-Star, 8.0+ is MVP-caliber."
+										tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player throughout the selected season. Batters: wOBA-based batting runs (wRAA) plus Statcast baserunning and fielding, then positional and replacement adjustments. Pitchers: built from FIP. Two-way players combine both. Very similar formula to fWAR, but branded as hWAR because it varies slightly. 2.0+ is a solid starter, 5.0+ is an All-Star, 8.0+ is MVP-caliber."
 									/>
 								{/if}
 							{/if}
@@ -1643,7 +1643,6 @@
 	.overview-boxes-wrapper-standard {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(224px, 1fr));
-		width: 100%;
 		gap: 1rem;
 	}
 
