@@ -149,7 +149,6 @@
 			<HorizontalDatePicker bind:selectedDate daysRange={10} />
 
 			<section class="page-section" class:is-loading-opaque={isScheduleLoading}>
-				<h3>Games for this day</h3>
 				{#if homepageSchedule.length === 0}
 					<div class="empty-inline-state">
 						<p>No games scheduled for this date.</p>
@@ -188,7 +187,6 @@
 			</section>
 
 			<section class="page-section">
-				<h3>League Leaders</h3>
 				<div class="spotlight-three-column-grid">
 					<div class="spotlight-leaderboard-card">
 						<div class="column-header-title">OPS Leaders</div>
@@ -246,7 +244,6 @@
 			</section>
 
 			<section class="page-section">
-				<h3>Division Standings</h3>
 				{#if divisionRecords.length === 0}
 					<div class="empty-inline-state">
 						<p>Standings data temporarily unavailable.</p>
@@ -288,23 +285,16 @@
 		padding: 2rem 1rem;
 		display: flex;
 		flex-direction: column;
-		gap: 2rem;
 	}
 
 	.page-section {
 		transition: opacity 200ms ease;
+		padding-top: 2rem;
 	}
 
-	/* Prevents layout jarring when picking alternate schedule dates */
 	.page-section.is-loading-opaque {
 		opacity: 0.4;
 		pointer-events: none;
-	}
-
-	.page-section h3 {
-		font-size: 1.5rem;
-		margin: 0 0 1.25rem 0;
-		color: var(--wa-color-filled-on-normal);
 	}
 
 	.spotlight-three-column-grid {
@@ -457,9 +447,9 @@
 	}
 
 	.homepage-card-item {
-		flex: 1 1 calc(33.333% - 1.25rem);
+		flex: 1 1 calc(33.333% - 1rem);
 		min-width: 300px;
-		max-width: calc(33.333% - 1.25rem);
+		max-width: calc(33.333% - 1rem);
 	}
 
 	.standings-dashboard-grid {

@@ -2,8 +2,14 @@
 	import { onMount } from 'svelte';
 	import WaTabGroup from '@awesome.me/webawesome/dist/components/tab-group/tab-group.js';
 	import WaTab from '@awesome.me/webawesome/dist/components/tab/tab.js';
+	import WaDialog from '@awesome.me/webawesome/dist/components/dialog/dialog.js';
+	import WaButton from '@awesome.me/webawesome/dist/components/button/button.js';
+	import WaIcon from '@awesome.me/webawesome/dist/components/icon/icon.js';
+	import CalendarGrid from './calendarGrid.svelte';
 
 	let { selectedDate = $bindable(), daysRange = 30 } = $props();
+
+	let isCalendarOpen = $state(false);
 
 	const today = new Date();
 	const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -63,6 +69,11 @@
 			todayTabEl = node;
 		}
 	}
+
+	function handleCalendarDateSelect(dateStr) {
+		selectedDate = dateStr;
+		isCalendarOpen = false;
+	}
 </script>
 
 <div class="calendar-tabs-wrapper">
@@ -84,10 +95,41 @@
 				</div>
 			</wa-tab>
 		{/each}
+		<wa-button
+			class="calendar-button"
+			slot="nav"
+			variant="neutral"
+			size="s"
+			tabindex="-1"
+			onclick={() => (isCalendarOpen = true)}
+			aria-label="Open calendar picker"
+		>
+			<wa-icon name="calendar"></wa-icon>
+		</wa-button>
 	</wa-tab-group>
 </div>
 
+<wa-dialog
+	label="Select a date"
+	class="calendar-dialog"
+	open={isCalendarOpen}
+	onwa-hide={() => (isCalendarOpen = false)}
+>
+	<CalendarGrid {selectedDate} ondateselect={handleCalendarDateSelect} />
+	<div slot="footer">
+		<wa-button variant="neutral" size="s" onclick={() => (isCalendarOpen = false)}>
+			Cancel
+		</wa-button>
+	</div>
+</wa-dialog>
+
 <style>
+	.calendar-button {
+		display: flex;
+		justify-content: center;
+		align-items: center;
+		padding: 0 0.5rem 0 0.5rem;
+	}
 	.calendar-tabs-wrapper {
 		width: 100%;
 	}
@@ -136,5 +178,11 @@
 		height: 4px;
 		border-radius: 0.25rem;
 		background-color: var(--wa-color-brand-text-default, currentColor);
+	}
+
+	wa-dialog::part(panel) {
+		width: auto;
+		min-width: 320px;
+		max-width: 90vw;
 	}
 </style>

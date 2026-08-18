@@ -1,6 +1,7 @@
 <script>
 	import { getTeamLogo } from '../../api/getTeamLogo';
 	import GameCard from './gameCard.svelte';
+	import ArrowButton from './arrowButton.svelte';
 
 	let { upcomingSchedule = [], currentTeamId = null } = $props();
 
@@ -74,15 +75,12 @@
 
 <div class="schedule-container">
 	<div class="carousel-layout-grid">
-		<button
-			type="button"
-			class="control-btn"
+		<ArrowButton
+			direction="prev"
 			disabled={scrollX <= 5}
+			label="Previous game"
 			onclick={() => scroll(-1)}
-			aria-label="Previous game"
-		>
-			&larr;
-		</button>
+		/>
 
 		<div class="carousel-viewport">
 			<div bind:this={sliderEl} onscroll={updateScrollState} class="schedule-molecule">
@@ -94,15 +92,12 @@
 			</div>
 		</div>
 
-		<button
-			type="button"
-			class="control-btn"
+		<ArrowButton
+			direction="next"
 			disabled={scrollX >= maxScroll - 5}
+			label="Next game"
 			onclick={() => scroll(1)}
-			aria-label="Next game"
-		>
-			&rarr;
-		</button>
+		/>
 	</div>
 </div>
 
@@ -130,36 +125,6 @@
 		height: 100%;
 		display: flex;
 		overflow: hidden;
-	}
-
-	.control-btn {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		width: 32px;
-		height: 32px;
-		border-radius: var(--wa-border-radius-circle, 50%);
-		border: 1px solid var(--wa-color-border-quiet);
-		background-color: var(--wa-color-fill-normal);
-		color: var(--wa-color-filled-on-normal);
-		cursor: pointer;
-		font-size: var(--wa-font-size-m);
-		transition: all 100ms ease;
-		flex-shrink: 0;
-	}
-
-	.control-btn:hover:not(:disabled) {
-		background-color: var(--wa-color-fill-brand);
-		transform: scale(1.03);
-	}
-
-	.control-btn:active:not(:disabled) {
-		transform: scale(0.9);
-	}
-
-	.control-btn:disabled {
-		opacity: 0.25;
-		cursor: not-allowed;
 	}
 
 	.schedule-molecule {

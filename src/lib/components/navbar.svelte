@@ -76,33 +76,13 @@
 			</wa-button>
 		</a>
 
-		<wa-button-group size="s" label="Players">
-			<a href="/players" class="group-lead-anchor">
-				<wa-button size="s" appearance="filled">Players</wa-button>
-			</a>
-			<wa-dropdown size="s" placement="bottom">
-				<wa-button size="s" appearance="filled" slot="trigger">
-					<wa-icon name="chevron-down" label="More options"></wa-icon>
-				</wa-button>
-				<wa-dropdown-item>WAR Leaders</wa-dropdown-item>
-				<wa-dropdown-item>OPS Leaders</wa-dropdown-item>
-				<wa-dropdown-item>ERA Leaders</wa-dropdown-item>
-			</wa-dropdown>
-		</wa-button-group>
+		<a href="/players" class="group-lead-anchor">
+			<wa-button size="s" appearance="filled">Players</wa-button>
+		</a>
 
-		<wa-button-group size="s" label="Teams">
-			<a href="/teams" class="group-lead-anchor">
-				<wa-button size="s" appearance="filled">Teams</wa-button>
-			</a>
-			<wa-dropdown size="s" placement="bottom">
-				<wa-button size="s" appearance="filled" slot="trigger">
-					<wa-icon name="chevron-down" label="More options"></wa-icon>
-				</wa-button>
-				<wa-dropdown-item>Record Leaders</wa-dropdown-item>
-				<wa-dropdown-item>National League</wa-dropdown-item>
-				<wa-dropdown-item>American League</wa-dropdown-item>
-			</wa-dropdown>
-		</wa-button-group>
+		<a href="/teams" class="group-lead-anchor">
+			<wa-button size="s" appearance="filled">Teams</wa-button>
+		</a>
 	</div>
 
 	<div class="float-right-wrapper">
@@ -177,26 +157,27 @@
 </div>
 
 <wa-drawer
-	label="Navigation"
+	label="headwar"
 	open={isMenuOpen}
 	onwa-hide={() => (isMenuOpen = false)}
 	placement="start"
 	class="mobile-drawer"
 >
 	<div class="mobile-nav-links">
-		<a href="/">Home</a>
-		<wa-divider></wa-divider>
-		<div class="drawer-section-title">Players</div>
-		<a href="/players">All Players</a>
-		<a href="/players?tab=war">WAR Leaders</a>
-		<a href="/players?tab=ops">OPS Leaders</a>
-		<a href="/players?tab=era">ERA Leaders</a>
-		<wa-divider></wa-divider>
-		<div class="drawer-section-title">Teams</div>
-		<a href="/teams">All Teams</a>
-		<a href="/teams?tab=records">Record Leaders</a>
-		<a href="/teams?tab=nl">National League</a>
-		<a href="/teams?tab=al">American League</a>
+		<a href="/" aria-label="Home">
+			<wa-button size="s" variant="brand" style="width: 100%;" appearance="filled">
+				<wa-icon name="house" label="Home"></wa-icon>
+				Home
+			</wa-button>
+		</a>
+
+		<a href="/players" class="group-lead-anchor">
+			<wa-button size="s" appearance="filled" style="width: 100%;">Players</wa-button>
+		</a>
+
+		<a href="/teams" class="group-lead-anchor">
+			<wa-button size="s" appearance="filled" style="width: 100%;">Teams</wa-button>
+		</a>
 	</div>
 </wa-drawer>
 
@@ -403,7 +384,6 @@
 		color: var(--wa-color-on-blue);
 		text-decoration: none;
 		font-weight: 700;
-		font-family: var(--font-mono);
 		font-size: var(--wa-font-size-m);
 		padding: 0.5rem;
 	}
