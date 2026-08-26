@@ -887,7 +887,7 @@
 										label="Batting Run Value"
 										stat={Math.round((battingStatcast.runValues?.runs_all ?? 0) * 10) / 10}
 										abbr="BRV"
-										tooltipText="Total run value contributed across all batting outcomes."
+										tooltipText="Total run value contributed across all batting outcomes according to statcast data. A value of 0 is league average."
 									/>
 								{/if}
 
@@ -896,7 +896,7 @@
 										label="Pitching Run Value"
 										stat={Math.round((battingStatcast.pitcherRunValues?.runs_all ?? 0) * 10) / 10}
 										abbr="PRV"
-										tooltipText="Total run value contributed across all pitching outcomes."
+										tooltipText="Total run value contributed across all pitching outcomes according to statcast data. A value of 0 is league average."
 									/>
 								{/if}
 
@@ -906,7 +906,7 @@
 										stat={Math.round((battingStatcast.fieldingRunValues?.total_runs ?? 0) * 10) /
 											10}
 										abbr="FRV"
-										tooltipText="Total run value contributed across all fielding outcomes."
+										tooltipText="Total run value contributed across all fielding outcomes according to statcast data. A value of 0 is league average."
 									/>
 								{/if}
 
@@ -917,7 +917,7 @@
 											(battingStatcast.baserunningRunValues?.runner_runs_tot ?? 0) * 10
 										) / 10}
 										abbr="BRRV"
-										tooltipText="Total run value contributed across all baserunning outcomes."
+										tooltipText="Total run value contributed across all baserunning outcomes according to statcast data. A value of 0 is league average."
 									/>
 								{/if}
 							{/if}
@@ -1642,7 +1642,7 @@
 
 	.overview-boxes-wrapper-standard {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(224px, 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(280px, 312px));
 		gap: 1rem;
 	}
 

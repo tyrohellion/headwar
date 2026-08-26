@@ -124,7 +124,7 @@
 		flex-direction: column;
 		align-items: start;
 		gap: 1rem;
-		min-width: 224px;
+		min-width: 280px;
 		cursor: help;
 		padding: 1rem 3rem 1.25rem 1rem;
 		transition: all 100ms ease;
