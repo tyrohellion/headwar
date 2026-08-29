@@ -822,7 +822,7 @@
 									? { rank: `#${advancedStats.currentSeasonOpsPlusRank}` }
 									: {}}
 								isRetired={advancedStats.isRetired}
-								progressContext={activeSeasonStats?.plateAppearances}
+								progressContext={activeSeasonStats?.atBats}
 								tooltipText={isCareerMode
 									? 'Park-adjusted offensive production over their career. 100 is league average; a 150 score means the hitter was 50% better than the rest of the league.'
 									: 'Park-adjusted offensive production for this season. 100 is league average; a 150 score means the hitter was 50% better than the rest of the league.'}
@@ -1047,6 +1047,27 @@
 					<wa-divider></wa-divider>
 					<div class="statcast-grid">
 						{#each battingStatConfig.filter((c) => c.category === 'discipline') as conf (conf.key)}
+							{@const percentileVal = battingStatcast.percentiles?.[conf.percentileKey ?? conf.key]}
+							{@const statVal = conf.getValue(battingStatcast)}
+
+							{#if percentileVal !== undefined && percentileVal !== null}
+								<StatcastStatBar
+									label={conf.label}
+									stat={statVal ?? percentileVal}
+									percentile={percentileVal}
+									decimals={0}
+									invertColor={false}
+									tooltipText={conf.description}
+									simple={true}
+								/>
+							{:else}
+								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
+							{/if}
+						{/each}
+					</div>
+					<wa-divider></wa-divider>
+					<div class="statcast-grid">
+						{#each battingStatConfig.filter((c) => c.category === 'running') as conf (conf.key)}
 							{@const percentileVal = battingStatcast.percentiles?.[conf.percentileKey ?? conf.key]}
 							{@const statVal = conf.getValue(battingStatcast)}
 
