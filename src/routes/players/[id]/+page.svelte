@@ -783,17 +783,6 @@
 									).length} seasons"
 								/>
 							{:else}
-								<StatBox
-									label="Career bWAR"
-									abbr="WAR"
-									careerSeasonLength={Object.keys(advancedStats.seasons).length}
-									percentile={advancedStats.careerWar}
-									isRetired={advancedStats.isRetired}
-									tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player. 60+ WAR is the standard benchmark for the Hall of Fame. {playerProfile.fullName} accumulated this amount over {Object.keys(
-										advancedStats.seasons
-									).length} seasons"
-								/>
-
 								{const currentYear = new Date().getFullYear()}
 								<StatBox
 									label="{userSelectedYear} bWAR"
@@ -1620,15 +1609,6 @@
 		margin-bottom: 2rem;
 	}
 
-	.overview-boxes-wrapper {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-		gap: 1rem;
-	}
-
-	.overview-boxes-wrapper:has(:nth-child(4)) {
-		grid-template-columns: repeat(2, 1fr);
-	}
 	.team-logo {
 		max-width: 32px;
 		width: 32px;
@@ -1640,14 +1620,10 @@
 		transition: all 100ms ease;
 	}
 
-	.overview-boxes-wrapper-standard {
+	.overview-boxes-wrapper-standard, .overview-boxes-wrapper {
 		display: grid;
 		grid-template-columns: repeat(auto-fit, minmax(280px, 312px));
 		gap: 1rem;
-	}
-
-	.overview-boxes-wrapper-standard:has(:nth-child(4)) {
-		grid-template-columns: repeat(2, 1fr);
 	}
 
 	.dropdown-and-switch-wrapper {
@@ -1861,6 +1837,12 @@
 			mask-image: linear-gradient(to right, black calc(100% - 32px), transparent 100%);
 			-webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
 			gap: 1.5rem;
+		}
+	}
+
+	@media (max-width: 1300px) {
+		.overview-boxes-wrapper-standard, .overview-boxes-wrapper {
+			grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
 		}
 	}
 
