@@ -55,6 +55,7 @@
 	import StatBoxSkeleton from '$lib/components/statBoxSkeleton.svelte';
 	import StatBoxStandard from '$lib/components/statBoxStandard.svelte';
 	import StatBoxStandardPitching from '$lib/components/statBoxStandardPitching.svelte';
+	import StatBoxStandardDual from '$lib/components/statBoxStandardDual.svelte';
 
 	const seasonProgress = $derived.by(() => getSeasonProgressPercentage());
 
@@ -845,11 +846,49 @@
 							/>
 
 							{#if pitcherAdvanced}
-								<StatBoxStandard
-									label={isCareerMode ? 'Career FIP' : `${userSelectedYear} FIP`}
-									stat={pitcherAdvanced.fip.toFixed(2)}
-									abbr="FIP"
-									tooltipText="An estimate of a pitcher's ERA based only on events they control: strikeouts, walks, hit-by-pitches and home runs. League-average FIP equals league ERA, so it is directly comparable to ERA. Lower is better."
+								{@const eraDisplay =
+									activePitchingStats?.era != null
+										? (typeof activePitchingStats.era === 'number'
+												? activePitchingStats.era
+												: parseFloat(activePitchingStats.era)
+											).toFixed(2)
+										: 'N/A'}
+								<StatBoxStandardDual
+									label="ERA"
+									abbr="ERA"
+									stat={eraDisplay}
+									label2="FIP"
+									abbr2="FIP"
+									stat2={pitcherAdvanced.fip.toFixed(2)}
+									tooltipText="ERA measures actual runs allowed per nine innings, while FIP estimates the runs a pitcher 'should' have allowed based only on events they control (strikeouts, walks, hit-by-pitches, home runs). A large gap between them hints at good or bad luck. Lower is better for both."
+								/>
+							{/if}
+
+							{#if activeSeasonStats && activeSeasonStats.atBats > 0}
+								{@const avgDisplay =
+									activeSeasonStats.avg != null
+										? (typeof activeSeasonStats.avg === 'number'
+												? activeSeasonStats.avg
+												: parseFloat(activeSeasonStats.avg)
+											).toFixed(3)
+											.replace(/^0/, '')
+										: 'N/A'}
+								{@const opsDisplay =
+									activeSeasonStats.ops != null
+										? (typeof activeSeasonStats.ops === 'number'
+												? activeSeasonStats.ops
+												: parseFloat(activeSeasonStats.ops)
+											).toFixed(3)
+											.replace(/^0/, '')
+										: 'N/A'}
+								<StatBoxStandardDual
+									label="AVG"
+									abbr="AVG"
+									stat={avgDisplay}
+									label2="OPS"
+									abbr2="OPS"
+									stat2={opsDisplay}
+									tooltipText="Batting Average measures how often a batter gets a hit per at-bat (H / AB). OPS combines On-Base Percentage and Slugging Percentage into one number that captures both contact and power. Both are standard measures of offensive production."
 								/>
 							{/if}
 						</div>
@@ -987,7 +1026,7 @@
 					always going to be the league average.
 				</wa-tooltip>
 				<div class="horizontal-wrapper">
-					<h3 id="battingExplanation" class="help-trigger">Batting Percentiles</h3>
+					<h3 id="battingExplanation" class="help-trigger">Advanced Batting</h3>
 					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
 					<wa-badge variant="brand" appearance="filled">Higher number is better</wa-badge>
 					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
@@ -1183,7 +1222,7 @@
 					always going to be the league average.
 				</wa-tooltip>
 				<div class="horizontal-wrapper">
-					<h3 id="pitchingExplanation" class="help-trigger">Pitching Percentiles</h3>
+					<h3 id="pitchingExplanation" class="help-trigger">Advanced Pitching</h3>
 					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
 					<wa-badge variant="brand" appearance="filled">Higher percentile is better</wa-badge>
 					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
@@ -1370,7 +1409,7 @@
 					always going to be the league average.
 				</wa-tooltip>
 				<div class="horizontal-wrapper">
-					<h3 id="fieldingExplanation" class="help-trigger">Fielding Percentiles</h3>
+					<h3 id="fieldingExplanation" class="help-trigger">Advanced Fielding</h3>
 					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
 					<wa-badge variant="brand" appearance="filled">Higher number is better</wa-badge>
 					<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
