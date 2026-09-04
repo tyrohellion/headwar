@@ -15,37 +15,13 @@ CREATE TABLE savant_bat_ev AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(
 
 CREATE TABLE savant_bat_custom AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(whiff_percent AS DOUBLE) AS whiff_rate, CAST(chase_percent AS DOUBLE) AS chase_rate, CAST(swing_percent AS DOUBLE) AS swing_rate, CAST(sweet_spot_percent AS DOUBLE) AS sweet_spot_rate FROM read_csv('tmp/bat_custom.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
-CREATE TABLE savant_bat_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(runs_all AS DOUBLE) AS savant_bat_run_val FROM read_csv('tmp/bat_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
-ALTER TABLE savant_bat_rv ADD COLUMN pct_bat_run_val INTEGER;
-UPDATE savant_bat_rv SET pct_bat_run_val = ROUND(PERCENT_RANK() OVER (ORDER BY savant_bat_run_val) * 100);
+CREATE TABLE savant_bat_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(runs_all AS DOUBLE) AS savant_bat_run_val, ROUND(PERCENT_RANK() OVER (ORDER BY CAST(runs_all AS DOUBLE)) * 100)::INTEGER AS pct_bat_run_val FROM read_csv('tmp/bat_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
-CREATE TABLE savant_pitch_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(runs_all AS DOUBLE) AS savant_pitch_run_val FROM read_csv('tmp/pitch_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
-ALTER TABLE savant_pitch_rv ADD COLUMN pct_pitch_run_val INTEGER;
-UPDATE savant_pitch_rv SET pct_pitch_run_val = ROUND(PERCENT_RANK() OVER (ORDER BY savant_pitch_run_val) * 100);
+CREATE TABLE savant_pitch_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(runs_all AS DOUBLE) AS savant_pitch_run_val, ROUND(PERCENT_RANK() OVER (ORDER BY CAST(runs_all AS DOUBLE)) * 100)::INTEGER AS pct_pitch_run_val FROM read_csv('tmp/pitch_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
-CREATE TABLE savant_field_rv AS SELECT CAST(id AS VARCHAR) AS mlb_id, CAST(total_runs AS DOUBLE) AS savant_field_run_val, CAST(total_runs AS DOUBLE) AS f_total_runs, CAST(inf_of_runs AS DOUBLE) AS f_inf_of_runs, CAST(range_runs AS DOUBLE) AS f_range_runs, CAST(arm_runs AS DOUBLE) AS f_arm_runs, CAST(dp_runs AS DOUBLE) AS f_dp_runs, CAST(catching_runs AS DOUBLE) AS f_catching_runs, CAST(framing_runs AS DOUBLE) AS f_framing_runs, CAST(throwing_runs AS DOUBLE) AS f_throwing_runs, CAST(blocking_runs AS DOUBLE) AS f_blocking_runs FROM read_csv('tmp/field_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE id IS NOT NULL AND CAST(id AS VARCHAR) != '';
-ALTER TABLE savant_field_rv ADD COLUMN pct_f_total_runs INTEGER;
-ALTER TABLE savant_field_rv ADD COLUMN pct_f_inf_of_runs INTEGER;
-ALTER TABLE savant_field_rv ADD COLUMN pct_f_range_runs INTEGER;
-ALTER TABLE savant_field_rv ADD COLUMN pct_f_arm_runs INTEGER;
-ALTER TABLE savant_field_rv ADD COLUMN pct_f_dp_runs INTEGER;
-ALTER TABLE savant_field_rv ADD COLUMN pct_f_catching_runs INTEGER;
-ALTER TABLE savant_field_rv ADD COLUMN pct_f_framing_runs INTEGER;
-ALTER TABLE savant_field_rv ADD COLUMN pct_f_throwing_runs INTEGER;
-ALTER TABLE savant_field_rv ADD COLUMN pct_f_blocking_runs INTEGER;
-UPDATE savant_field_rv SET pct_f_total_runs = ROUND(PERCENT_RANK() OVER (ORDER BY f_total_runs) * 100);
-UPDATE savant_field_rv SET pct_f_inf_of_runs = ROUND(PERCENT_RANK() OVER (ORDER BY f_inf_of_runs) * 100);
-UPDATE savant_field_rv SET pct_f_range_runs = ROUND(PERCENT_RANK() OVER (ORDER BY f_range_runs) * 100);
-UPDATE savant_field_rv SET pct_f_arm_runs = ROUND(PERCENT_RANK() OVER (ORDER BY f_arm_runs) * 100);
-UPDATE savant_field_rv SET pct_f_dp_runs = ROUND(PERCENT_RANK() OVER (ORDER BY f_dp_runs) * 100);
-UPDATE savant_field_rv SET pct_f_catching_runs = ROUND(PERCENT_RANK() OVER (ORDER BY f_catching_runs) * 100);
-UPDATE savant_field_rv SET pct_f_framing_runs = ROUND(PERCENT_RANK() OVER (ORDER BY f_framing_runs) * 100);
-UPDATE savant_field_rv SET pct_f_throwing_runs = ROUND(PERCENT_RANK() OVER (ORDER BY f_throwing_runs) * 100);
-UPDATE savant_field_rv SET pct_f_blocking_runs = ROUND(PERCENT_RANK() OVER (ORDER BY f_blocking_runs) * 100);
+CREATE TABLE savant_field_rv AS SELECT CAST(id AS VARCHAR) AS mlb_id, CAST(total_runs AS DOUBLE) AS savant_field_run_val, CAST(total_runs AS DOUBLE) AS f_total_runs, CAST(inf_of_runs AS DOUBLE) AS f_inf_of_runs, CAST(range_runs AS DOUBLE) AS f_range_runs, CAST(arm_runs AS DOUBLE) AS f_arm_runs, CAST(dp_runs AS DOUBLE) AS f_dp_runs, CAST(catching_runs AS DOUBLE) AS f_catching_runs, CAST(framing_runs AS DOUBLE) AS f_framing_runs, CAST(throwing_runs AS DOUBLE) AS f_throwing_runs, CAST(blocking_runs AS DOUBLE) AS f_blocking_runs, ROUND(PERCENT_RANK() OVER (ORDER BY CAST(total_runs AS DOUBLE)) * 100)::INTEGER AS pct_f_total_runs, ROUND(PERCENT_RANK() OVER (ORDER BY CAST(inf_of_runs AS DOUBLE)) * 100)::INTEGER AS pct_f_inf_of_runs, ROUND(PERCENT_RANK() OVER (ORDER BY CAST(range_runs AS DOUBLE)) * 100)::INTEGER AS pct_f_range_runs, ROUND(PERCENT_RANK() OVER (ORDER BY CAST(arm_runs AS DOUBLE)) * 100)::INTEGER AS pct_f_arm_runs, ROUND(PERCENT_RANK() OVER (ORDER BY CAST(dp_runs AS DOUBLE)) * 100)::INTEGER AS pct_f_dp_runs, ROUND(PERCENT_RANK() OVER (ORDER BY CAST(catching_runs AS DOUBLE)) * 100)::INTEGER AS pct_f_catching_runs, ROUND(PERCENT_RANK() OVER (ORDER BY CAST(framing_runs AS DOUBLE)) * 100)::INTEGER AS pct_f_framing_runs, ROUND(PERCENT_RANK() OVER (ORDER BY CAST(throwing_runs AS DOUBLE)) * 100)::INTEGER AS pct_f_throwing_runs, ROUND(PERCENT_RANK() OVER (ORDER BY CAST(blocking_runs AS DOUBLE)) * 100)::INTEGER AS pct_f_blocking_runs FROM read_csv('tmp/field_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE id IS NOT NULL AND CAST(id AS VARCHAR) != '';
 
-CREATE TABLE savant_base_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(runner_runs_tot AS DOUBLE) AS savant_base_run_val FROM read_csv('tmp/base_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
-ALTER TABLE savant_base_rv ADD COLUMN pct_base_run_val INTEGER;
-UPDATE savant_base_rv SET pct_base_run_val = ROUND(PERCENT_RANK() OVER (ORDER BY savant_base_run_val) * 100);
+CREATE TABLE savant_base_rv AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(runner_runs_tot AS DOUBLE) AS savant_base_run_val, ROUND(PERCENT_RANK() OVER (ORDER BY CAST(runner_runs_tot AS DOUBLE)) * 100)::INTEGER AS pct_base_run_val FROM read_csv('tmp/base_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
 CREATE TABLE savant_arm_str AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(arm_overall AS DOUBLE) AS f_arm_overall, CAST(max_arm_strength AS DOUBLE) AS f_max_arm_strength FROM read_csv('tmp/arm_str.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
