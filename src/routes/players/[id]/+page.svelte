@@ -799,7 +799,7 @@
 									tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player throughout the selected season. 2.0+ is a solid starter, 5.0+ is an All-Star, and 8.0+ is an MVP-caliber performance. This stat is additive over the year. The percentage value is how far into the MLB season we are."
 								/>
 
-								{#if seasonHwar}
+								{#if seasonHwar && userSelectedYear > 2014}
 									<StatBox
 										label="{userSelectedYear} hWAR"
 										abbr="hWAR"
