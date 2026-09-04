@@ -845,7 +845,7 @@
 									: 'Park and league-adjusted pitching efficiency for this season. 100 is perfectly average; higher numbers are better (e.g., 125 means 25% better at preventing runs).'}
 							/>
 
-							{#if pitcherAdvanced}
+							{#if pitcherAdvanced && activePitchingStats?.inningsPitched > 9}
 								{@const eraDisplay =
 									activePitchingStats?.era != null
 										? (typeof activePitchingStats.era === 'number'
@@ -864,7 +864,7 @@
 								/>
 							{/if}
 
-							{#if activeSeasonStats && activeSeasonStats.atBats > 0}
+							{#if activeSeasonStats && activeSeasonStats?.plateAppearances > 19}
 								{@const avgDisplay =
 									activeSeasonStats.avg != null
 										? (typeof activeSeasonStats.avg === 'number'
@@ -910,7 +910,7 @@
 								<StatcastStatBarSkeleton label="Fielding Run Value" />
 								<StatcastStatBarSkeleton label="Baserunning Run Value" />
 							{:else}
-								{#if battingStatcast.runValues}
+								{#if battingStatcast.runValues && activeSeasonStats?.plateAppearances > 19}
 									<StatcastStatBar
 										label="Batting Run Value"
 										stat={battingStatcast.runValues?.runs_all}
@@ -921,7 +921,7 @@
 									/>
 								{/if}
 
-								{#if battingStatcast.pitcherRunValues}
+								{#if battingStatcast.pitcherRunValues && activePitchingStats?.inningsPitched > 9}
 									<StatcastStatBar
 										label="Pitching Run Value"
 										stat={battingStatcast.pitcherRunValues?.runs_all}
