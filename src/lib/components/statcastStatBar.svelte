@@ -71,7 +71,7 @@
   <div class="statcast-pill" id={tooltipId}>
     <div class="pill-header">
       <span class="stat-label">{label}</span>
-      {#if !simple && !runValue && rawPercentile !== null}
+      {#if !simple && rawPercentile !== null}
         <wa-badge appearance="filled" size="s">
           {Math.round(rawPercentile)}
         </wa-badge>
@@ -88,7 +88,7 @@
       </span>
     </div>
 
-    {#if !runValue && rawPercentile !== null}
+    {#if rawPercentile !== null}
       <div class="percentile-track">
         <div class="league-avg-tick" title="50th Percentile (League Avg)"></div>
         <div

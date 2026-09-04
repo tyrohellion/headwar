@@ -155,7 +155,18 @@ function buildStatcastProfile(row, year) {
 			chase_percent: pct(row.pct_chase),
 			sprint_speed: pct(row.pct_sprint_speed),
 			sprint_speed_val: pct(row.pct_sprint_speed),
-			arm_strength: pct(row.p_pct_arm_strength)
+			arm_strength: pct(row.p_pct_arm_strength),
+			bat_run_val: pct(row.pct_bat_run_val),
+			base_run_val: pct(row.pct_base_run_val),
+			total_runs: pct(row.pct_f_total_runs),
+			inf_of_runs: pct(row.pct_f_inf_of_runs),
+			range_runs: pct(row.pct_f_range_runs),
+			arm_runs: pct(row.pct_f_arm_runs),
+			dp_runs: pct(row.pct_f_dp_runs),
+			catching_runs: pct(row.pct_f_catching_runs),
+			framing_runs: pct(row.pct_f_framing_runs),
+			throwing_runs: pct(row.pct_f_throwing_runs),
+			blocking_runs: pct(row.pct_f_blocking_runs)
 		},
 		expectedStats: {
 			est_ba: num(row.xba),
@@ -192,7 +203,8 @@ function buildStatcastProfile(row, year) {
 			fb_spin: pct(row.p_pct_fb_spin),
 			fb_spin_val: pct(row.p_pct_fb_spin),
 			curve_spin: pct(row.p_pct_curve_spin),
-			curve_spin_val: pct(row.p_pct_curve_spin)
+			curve_spin_val: pct(row.p_pct_curve_spin),
+			pitch_run_val: pct(row.pct_pitch_run_val)
 		},
 		pitcherExpectedStats: {
 			xera: num(row.p_xera),

@@ -194,5 +194,15 @@ export const pitchingStatsConfig = [
 		invertColor: true,
 		description: 'Average distance traveled on all batted balls allowed.',
 		getValue: (data) => data?.pitcherExitVeloBarrels?.avg_distance
+	},
+	{
+		key: 'runs_all',
+		percentileKey: 'pitch_run_val',
+		label: 'Pitching Run Value',
+		category: 'run_value',
+		decimals: 1,
+		runValue: true,
+		description: 'Total run value contributed across all pitching outcomes based on the Swing-Take model.',
+		getValue: (data) => data?.pitcherRunValues?.runs_all
 	}
 ];

@@ -903,48 +903,53 @@
 							>
 						</div>
 
-						<div class="overview-boxes-wrapper-standard">
+						<div class="statcast-grid">
 							{#if isBattingPercentileStatsLoading}
-								<StatBoxSkeleton abbr="BRV" />
-								<StatBoxSkeleton abbr="PRV" />
-								<StatBoxSkeleton abbr="FRV" />
-								<StatBoxSkeleton abbr="BRRV" />
+								<StatcastStatBarSkeleton label="Batting Run Value" />
+								<StatcastStatBarSkeleton label="Pitching Run Value" />
+								<StatcastStatBarSkeleton label="Fielding Run Value" />
+								<StatcastStatBarSkeleton label="Baserunning Run Value" />
 							{:else}
 								{#if battingStatcast.runValues}
-									<StatBoxStandard
+									<StatcastStatBar
 										label="Batting Run Value"
-										stat={Math.round((battingStatcast.runValues?.runs_all ?? 0) * 10) / 10}
-										abbr="BRV"
+										stat={battingStatcast.runValues?.runs_all}
+										percentile={battingStatcast.percentiles?.bat_run_val}
+										decimals={1}
+										runValue={true}
 										tooltipText="Total run value contributed across all batting outcomes according to statcast data. A value of 0 is league average."
 									/>
 								{/if}
 
 								{#if battingStatcast.pitcherRunValues}
-									<StatBoxStandard
+									<StatcastStatBar
 										label="Pitching Run Value"
-										stat={Math.round((battingStatcast.pitcherRunValues?.runs_all ?? 0) * 10) / 10}
-										abbr="PRV"
+										stat={battingStatcast.pitcherRunValues?.runs_all}
+										percentile={battingStatcast.pitcherPercentiles?.pitch_run_val}
+										decimals={1}
+										runValue={true}
 										tooltipText="Total run value contributed across all pitching outcomes according to statcast data. A value of 0 is league average."
 									/>
 								{/if}
 
 								{#if battingStatcast.fieldingRunValues}
-									<StatBoxStandard
+									<StatcastStatBar
 										label="Fielding Run Value"
-										stat={Math.round((battingStatcast.fieldingRunValues?.total_runs ?? 0) * 10) /
-											10}
-										abbr="FRV"
+										stat={battingStatcast.fieldingRunValues?.total_runs}
+										percentile={battingStatcast.percentiles?.total_runs}
+										decimals={1}
+										runValue={true}
 										tooltipText="Total run value contributed across all fielding outcomes according to statcast data. A value of 0 is league average."
 									/>
 								{/if}
 
 								{#if battingStatcast.baserunningRunValues}
-									<StatBoxStandard
+									<StatcastStatBar
 										label="Baserunning Run Value"
-										stat={Math.round(
-											(battingStatcast.baserunningRunValues?.runner_runs_tot ?? 0) * 10
-										) / 10}
-										abbr="BRRV"
+										stat={battingStatcast.baserunningRunValues?.runner_runs_tot}
+										percentile={battingStatcast.percentiles?.base_run_val}
+										decimals={1}
+										runValue={true}
 										tooltipText="Total run value contributed across all baserunning outcomes according to statcast data. A value of 0 is league average."
 									/>
 								{/if}
@@ -1056,6 +1061,7 @@
 									invertColor={false}
 									tooltipText={conf.description}
 									simple={conf.simple}
+									runValue={conf.runValue ?? false}
 								/>
 							{:else}
 								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
@@ -1077,6 +1083,7 @@
 									invertColor={false}
 									tooltipText={conf.description}
 									simple={false}
+									runValue={conf.runValue ?? false}
 								/>
 							{:else}
 								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
@@ -1098,6 +1105,7 @@
 									invertColor={false}
 									tooltipText={conf.description}
 									simple={true}
+									runValue={conf.runValue ?? false}
 								/>
 							{:else}
 								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
@@ -1119,6 +1127,7 @@
 									invertColor={false}
 									tooltipText={conf.description}
 									simple={true}
+									runValue={conf.runValue ?? false}
 								/>
 							{:else}
 								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
@@ -1128,7 +1137,7 @@
 				{:else}
 					{@render statcastSkeletonGrid(
 						battingStatConfig,
-						['expected', 'complete', 'discipline'],
+						['expected', 'complete', 'discipline', 'running'],
 						false
 					)}
 				{/if}
@@ -1234,7 +1243,7 @@
 				{#if isPitchingPercentileStatsLoading}
 					{@render statcastSkeletonGrid(
 						pitchingStatsConfig,
-						['expected', 'discipline', 'quality_of_contact', 'pitch_metrics'],
+						['expected', 'discipline', 'quality_of_contact', 'pitch_metrics', 'run_value'],
 						true
 					)}
 				{:else if pitchingStatcast && hasPitcherPercentiles}
@@ -1253,6 +1262,7 @@
 									invertColor={false}
 									tooltipText={conf.description}
 									simple={conf.simple}
+									runValue={conf.runValue ?? false}
 								/>
 							{:else}
 								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
@@ -1275,6 +1285,7 @@
 									invertColor={false}
 									tooltipText={conf.description}
 									simple={true}
+									runValue={conf.runValue ?? false}
 								/>
 							{:else}
 								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
@@ -1297,6 +1308,7 @@
 									invertColor={false}
 									tooltipText={conf.description}
 									simple={false}
+									runValue={conf.runValue ?? false}
 								/>
 							{:else}
 								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
@@ -1319,6 +1331,7 @@
 									invertColor={false}
 									tooltipText={conf.description}
 									simple={true}
+									runValue={conf.runValue ?? false}
 								/>
 							{:else}
 								<StatcastStatBarSkeleton label={conf.label} tooltipText={conf.description} />
@@ -1328,7 +1341,7 @@
 				{:else}
 					{@render statcastSkeletonGrid(
 						pitchingStatsConfig,
-						['expected', 'discipline', 'quality_of_contact', 'pitch_metrics'],
+						['expected', 'discipline', 'quality_of_contact', 'pitch_metrics', 'run_value'],
 						false
 					)}
 				{/if}

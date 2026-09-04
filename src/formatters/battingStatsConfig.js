@@ -230,24 +230,26 @@ export const battingStatConfig = [
       "Feet per second in a player’s top 1-second window on full sprint plays.",
     getValue: (data) => data?.percentiles?.pct_sprint_speed,
   },
-  //   {
-  //     key: "runner_runs_tot",
-  //     percentileKey: "runner_runs_tot",
-  //     label: "Baserunning Run Value",
-  //     category: "running",
-  //     decimals: 1,
-  //     description:
-  //       "Total runs added or lost on the basepaths relative to an average runner.",
-  //     getValue: (data) => data?.baserunningRunValues?.runner_runs_tot,
-  //   },
-  //   {
-  //     key: "runs_all",
-  //     percentileKey: "runs_all",
-  //     label: "Batting Run Value",
-  //     category: "run_value",
-  //     decimals: 1,
-  //     description:
-  //       "Total run value added by taking plate appearances based on the Swing-Take model.",
-  //     getValue: (data) => data?.runValues?.runs_all,
-  //   },
+  {
+    key: "runner_runs_tot",
+    percentileKey: "base_run_val",
+    label: "Baserunning Run Value",
+    category: "running",
+    decimals: 1,
+    runValue: true,
+    description:
+      "Total runs added or lost on the basepaths relative to an average runner.",
+    getValue: (data) => data?.baserunningRunValues?.runner_runs_tot,
+  },
+  {
+    key: "runs_all",
+    percentileKey: "bat_run_val",
+    label: "Batting Run Value",
+    category: "running",
+    decimals: 1,
+    runValue: true,
+    description:
+      "Total run value added by taking plate appearances based on the Swing-Take model.",
+    getValue: (data) => data?.runValues?.runs_all,
+  },
 ];
