@@ -50,6 +50,7 @@ export const fieldingStatcastConfig = [
     category: "catcher",
     decimals: 1,
     runValue: true,
+    simple: true,
     description:
       "Overall runs saved by the catcher across framing, blocking, and throwing components.",
     getValue: (data) => data?.fieldingRunValues?.catching_runs,
@@ -61,6 +62,7 @@ export const fieldingStatcastConfig = [
     category: "catcher",
     decimals: 1,
     runValue: true,
+    simple: true,
     description:
       "Runs saved by converting borderline pitches into called strikes for the pitching staff.",
     getValue: (data) => data?.fieldingRunValues?.framing_runs,
@@ -72,6 +74,7 @@ export const fieldingStatcastConfig = [
     category: "catcher",
     decimals: 1,
     runValue: true,
+    simple: true,
     description:
       "Runs saved by preventing passed balls and wild pitches on pitches out of the strike zone.",
     getValue: (data) => data?.fieldingRunValues?.blocking_runs,
@@ -82,6 +85,7 @@ export const fieldingStatcastConfig = [
     label: "Throwing Runs",
     category: "catcher",
     runValue: true,
+    simple: true,
     decimals: 1,
     description:
       "Runs saved by controlling the opposition running game and throwing out stolen base attempts.",
