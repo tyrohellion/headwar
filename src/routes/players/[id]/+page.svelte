@@ -1082,9 +1082,9 @@
           {/if}
 
           <!-- BASIC STATS BLOCK -->
-          {#if (activeSeasonStats && activeSeasonStats.atBats > 0) || pitchingStatsBlock?.splits?.length > 0}
+          
             <div class="basics-section">
-              {#if activeSeasonStats && activeSeasonStats.atBats > 0}
+            {#if activeSeasonStats && activeSeasonStats.atBats > 3}
                 <div class="basics-heading-row">
                   <h4 class="basics-heading">Batting</h4>
                   <div class="basics-sample">
@@ -1145,7 +1145,7 @@
                 </div>
               {/if}
 
-              {#if pitchingStatsBlock?.splits?.length > 0}
+              {#if activePitchingStats?.inningsPitched > 1}
                 <div class="basics-heading-row">
                   <h4 class="basics-heading">Pitching</h4>
                   <div class="basics-sample">
@@ -1212,7 +1212,7 @@
                 </div>
               {/if}
             </div>
-          {/if}
+         
         </div>
       </wa-tab-panel>
 
