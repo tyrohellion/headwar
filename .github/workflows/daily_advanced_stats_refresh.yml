@@ -47,20 +47,23 @@ jobs:
           fetch_csv "https://baseballsavant.mlb.com/leaderboard/expected_statistics?type=batter&year=${YEAR}&min=1&csv=true" "tmp/bat_xstats.csv" "player_id,ba,est_ba,slg,est_slg,woba,est_woba"
           fetch_csv "https://baseballsavant.mlb.com/statcast_leaderboard?type=batter&year=${YEAR}&min=1&csv=true" "tmp/bat_ev.csv" "player_id,avg_hit_speed,max_hit_speed,ev50,brl_percent,ev95percent"
           fetch_csv "https://baseballsavant.mlb.com/leaderboard/custom?year=${YEAR}&type=batter&filter=&min=1&selections=whiff_percent,chase_percent,swing_percent,sweet_spot_percent&chart=false&csv=true" "tmp/bat_custom.csv" "player_id,whiff_percent,chase_percent,swing_percent,sweet_spot_percent"
-          fetch_csv "https://baseballsavant.mlb.com/leaderboard/swing-take?year=${YEAR}&team=&leverage=Neutral&group=Batter&type=All&sub_type=null&min=1&csv=True" "tmp/bat_rv.csv" "player_id,runs_all"
-          fetch_csv "https://baseballsavant.mlb.com/leaderboard/swing-take?year=${YEAR}&team=&leverage=Neutral&group=Pitcher&type=All&sub_type=null&min=1&csv=True" "tmp/pitch_rv.csv" "player_id,runs_all"
+          fetch_csv "https://baseballsavant.mlb.com/leaderboard/swing-take?year=${YEAR}&team=&leverage=Neutral&group=Batter&type=All&sub_type=null&min=1&csv=True" "tmp/bat_rv.csv" "player_id,pa,runs_all"
+          fetch_csv "https://baseballsavant.mlb.com/leaderboard/swing-take?year=${YEAR}&team=&leverage=Neutral&group=Pitcher&type=All&sub_type=null&min=1&csv=True" "tmp/pitch_rv.csv" "player_id,pa,runs_all"
           fetch_csv "https://baseballsavant.mlb.com/leaderboard/percentile-rankings?type=pitcher&year=${YEAR}&csv=true" "tmp/pitch_pct.csv" "player_id,xwoba,xba,xslg,brl_percent,exit_velocity,hard_hit_percent,k_percent,bb_percent,whiff_percent,chase_percent,arm_strength,xera,fb_velocity,fb_spin,curve_spin"
           fetch_csv "https://baseballsavant.mlb.com/leaderboard/expected_statistics?type=pitcher&year=${YEAR}&min=1&csv=true" "tmp/pitch_xstats.csv" "player_id,woba,est_woba,est_ba,est_slg,xera"
           fetch_csv "https://baseballsavant.mlb.com/statcast_leaderboard?type=pitcher&year=${YEAR}&min=1&csv=true" "tmp/pitch_ev.csv" "player_id,avg_hit_speed,max_hit_speed,ev50,brl_percent,ev95percent,avg_hit_angle,anglesweetspotpercent,avg_distance"
-          fetch_csv "https://baseballsavant.mlb.com/leaderboard/fielding-run-value?gameType=Regular&seasonStart=${YEAR}&seasonEnd=${YEAR}&type=fielder&position=&minInnings=1&csv=true" "tmp/field_rv.csv" "id,total_runs,inf_of_runs,range_runs,arm_runs,dp_runs,catching_runs,framing_runs,throwing_runs,blocking_runs"
+          fetch_csv "https://baseballsavant.mlb.com/leaderboard/fielding-run-value?gameType=Regular&seasonStart=${YEAR}&seasonEnd=${YEAR}&type=fielder&position=&minInnings=1&csv=true" "tmp/field_rv.csv" "id,outs_total,total_runs,inf_of_runs,range_runs,arm_runs,dp_runs,catching_runs,framing_runs,throwing_runs,blocking_runs"
           fetch_csv "https://baseballsavant.mlb.com/leaderboard/arm-strength?year=${YEAR}&minThrows=1&pos=arm_of&team=&type=player&csv=true" "tmp/arm_str.csv" "player_id,arm_overall,max_arm_strength"
-          fetch_csv "https://baseballsavant.mlb.com/leaderboard/baserunning-run-value?gameType=Regular&season_start=${YEAR}&season_end=${YEAR}&type=Runners&minOpportunities=1&csv=true" "tmp/base_rv.csv" "player_id,runner_runs_tot"
+          fetch_csv "https://baseballsavant.mlb.com/leaderboard/baserunning-run-value?gameType=Regular&season_start=${YEAR}&season_end=${YEAR}&type=Runners&minOpportunities=1&csv=true" "tmp/base_rv.csv" "player_id,pa,runner_runs_tot"
 
       - name: Build Browser Data Files
         run: |
           set -euo pipefail
+          source .github/scripts/compute_qualification_thresholds.sh
+          YEAR=$(date +%Y)
+          compute_thresholds "$YEAR"
           bash .github/scripts/build_bref_index.sh
-          bash .github/scripts/build_savant_json.sh "$(date +%Y)"
+          bash .github/scripts/build_savant_json.sh "$YEAR" "$BAT_THRESHOLD" "$PITCH_THRESHOLD" "$FIELD_THRESHOLD"
 
           rm -rf tmp
 
