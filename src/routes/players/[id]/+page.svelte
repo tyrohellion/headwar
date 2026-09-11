@@ -637,6 +637,10 @@
   });
 </script>
 
+<svelte:head>
+  <title>{playerProfile?.fullName ?? 'headwar'}</title>
+</svelte:head>
+
 {#if loading}
   <div class="status-message">
     <wa-spinner style="font-size: 3rem;"></wa-spinner>
