@@ -7,20 +7,21 @@
  * @returns {string}
  */
 export function formatGamesPlayedLabel({ total, byLevel } = {}) {
-	if (!total || total <= 0) return '';
+  if (!total || total <= 0) return "";
 
-	const base = `${total} ${total === 1 ? 'game' : 'games'}`;
-	const minors = (byLevel || []).filter(
-		(entry) => entry.level !== 'MLB' && entry.games > 0
-	);
-	if (minors.length === 0) return base;
+  const base = `${total} ${total === 1 ? "Game" : "Games"}`;
+  const minors = (byLevel || []).filter(
+    (entry) => entry.level !== "MLB" && entry.games > 0,
+  );
+  if (minors.length === 0) return base;
 
-	const mlb = (byLevel || []).find((entry) => entry.level === 'MLB')?.games || 0;
-	if (mlb > 0) {
-		const parts = minors.map((entry) => `${entry.games} in ${entry.label}`);
-		return `${base} (${parts.join(', ')})`;
-	}
+  const mlb =
+    (byLevel || []).find((entry) => entry.level === "MLB")?.games || 0;
+  if (mlb > 0) {
+    const parts = minors.map((entry) => `${entry.games} in ${entry.label}`);
+    return `${base} (${parts.join(", ")})`;
+  }
 
-	const levels = minors.map((entry) => entry.label).join(', ');
-	return `${base} (${levels})`;
+  const levels = minors.map((entry) => entry.label).join(", ");
+  return `${base} (${levels})`;
 }
