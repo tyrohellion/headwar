@@ -35,6 +35,19 @@ function isInjuredListActivation(description = '') {
 	);
 }
 
+// Closing moves sometimes omit the list qualifier entirely, e.g.
+// "Atlanta Braves activated LHP Chris Sale." — accept a bare activated/reinstated
+// move (mentioning no list at all, so bereavement etc. are excluded) as a fallback
+// closing event for a still-open injured-list stint.
+function isBareActivation(description = '') {
+	const lower = description.toLowerCase();
+	if (/all[- ]stars?/.test(lower)) return false;
+	return (
+		(lower.includes('activated') || lower.includes('reinstated')) &&
+		!/\blist\b/.test(lower)
+	);
+}
+
 function daysBetween(laterDate, earlierDate) {
 	if (!laterDate || !earlierDate) return 0;
 	const later = new Date(`${laterDate}T00:00:00`);
@@ -72,6 +85,7 @@ export function summarizeSeasonInjuries(transactions = [], season) {
 
 	const byReason = new Map();
 	const activations = [];
+	const bareActivations = [];
 
 	for (const t of transactions) {
 		const effective = t?.effectiveDate || t?.date || '';
@@ -92,22 +106,36 @@ export function summarizeSeasonInjuries(transactions = [], season) {
 			}
 		} else if (isInjuredListActivation(t.description)) {
 			activations.push(effective.slice(0, 10));
+		} else if (isBareActivation(t.description)) {
+			bareActivations.push(effective.slice(0, 10));
 		}
 	}
 
 	// Pair each injury's earliest placement with the next unused activation. An
 	// activation is consumed once, so duplicate re-announced placements of the
-	// same stint (which share a reason) never "close" another stint's clock. A
-	// stint with no closing activation in the window is still ongoing.
+	// same stint (which share a reason) never "close" another stint's clock.
+	// List-qualified activations are preferred; a combination of activations and
+	// bare activations (e.g. "Atlanta Braves activated LHP Chris Sale.") closes
+	// one stint. A stint with no closing activation in the window is ongoing.
 	const entries = [...byReason.values()].sort((a, b) =>
 		a.date.localeCompare(b.date)
 	);
-	const pool = [...new Set(activations)].sort();
+	const explicitPool = [...new Set(activations)].sort();
+	const barePool = [...new Set(bareActivations)].sort();
 
 	for (const entry of entries) {
-		const index = pool.findIndex((date) => date >= entry.date);
+		const index = explicitPool.findIndex((date) => date >= entry.date);
+		let end;
 		if (index !== -1) {
-			const [end] = pool.splice(index, 1);
+			[end] = explicitPool.splice(index, 1);
+		} else {
+			const bareIndex = barePool.findIndex((date) => date >= entry.date);
+			if (bareIndex !== -1) {
+				[end] = barePool.splice(bareIndex, 1);
+			}
+		}
+
+		if (end) {
 			entry.days = daysBetween(end, entry.date);
 			entry.ongoing = false;
 		} else {

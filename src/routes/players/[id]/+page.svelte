@@ -712,11 +712,12 @@
     if (!seasonInjuries || seasonInjuries.count === 0) return "";
     const lines = seasonInjuries.injuries.map((injury) => {
       const prefix = formatShortDate(injury.date);
-      const suffix = injury.ongoing
-        ? " (ongoing)"
-        : injury.days > 0
-          ? ` (${injury.days} ${injury.days === 1 ? "day" : "days"})`
-          : "";
+      const suffix =
+        injury.ongoing && isInjuryOngoing
+          ? " (ongoing)"
+          : injury.days > 0
+            ? ` (${injury.days} ${injury.days === 1 ? "day" : "days"})`
+            : "";
       return prefix
         ? `${prefix} — ${injury.reason}${suffix}`
         : `${injury.reason}${suffix}`;
