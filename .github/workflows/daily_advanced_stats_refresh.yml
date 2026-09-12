@@ -62,7 +62,7 @@ jobs:
           source .github/scripts/compute_qualification_thresholds.sh
           YEAR=$(date +%Y)
           compute_thresholds "$YEAR"
-          bash .github/scripts/build_bref_index.sh
+          bash .github/scripts/build_bref_index.sh "$YEAR" "$BAT_THRESHOLD" "$ERA_IP_THRESHOLD"
           bash .github/scripts/build_savant_json.sh "$YEAR" "$BAT_THRESHOLD" "$PITCH_THRESHOLD" "$FIELD_THRESHOLD"
 
           rm -rf tmp

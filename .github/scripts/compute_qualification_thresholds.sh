@@ -1,11 +1,17 @@
 #!/usr/bin/env bash
-# Computes qualification thresholds for run value percentiles.
+# Computes season-progress-scaled qualification thresholds. Used both for
+# statcast run value percentiles (build_savant_json.sh) and for the B-Ref
+# OPS+/ERA+ MLB rankings (build_bref_index.sh).
 # Source this file, then call: compute_thresholds YEAR
-# Sets BAT_THRESHOLD, PITCH_THRESHOLD, FIELD_THRESHOLD environment variables.
+# Sets BAT_THRESHOLD, PITCH_THRESHOLD, ERA_IP_THRESHOLD, FIELD_THRESHOLD env vars.
 #
 # Thresholds are based on Baseball Savant's methodology but adjusted:
 #   - Batting:     2.0 PA per team game  (Savant uses 2.1)
 #   - Pitching:   ~200 batters_faced over a 162-game season (Savant uses ~1.25 BF/game)
+#   - ERA+/OPS+ (bref_index): the same batting (PA) and pitching qualifiers,
+#                 but pitching is expressed in innings because
+#                 war_daily_pitch.txt has no batters-faced column
+#                 (~200 BF / ~3.3 BF per inning ≈ 60 IP over a full season)
 #   - Fielding:   ~100 innings over a 162-game season, expressed in outs
 #                 (100 IP = 300 outs; matches Savant's fielding RV threshold)
 #   - Baserunning: same as batting (qualified by the batters' PA threshold)
@@ -22,6 +28,7 @@ compute_thresholds() {
   # Default: no qualification (empty — caller should handle this)
   BAT_THRESHOLD=""
   PITCH_THRESHOLD=""
+  ERA_IP_THRESHOLD=""
   FIELD_THRESHOLD=""
 
   if [ -z "$YEAR" ] || [ "$YEAR" -gt "$CURRENT_YEAR" ]; then
@@ -75,9 +82,12 @@ compute_thresholds() {
   BAT_THRESHOLD=$((GAMES * 2))
   # Pitching: ~200 batters faced over a full season (200/162 ≈ 1.234 per game)
   PITCH_THRESHOLD=$((GAMES * 100 / 81))
+  # ERA+ (bref_index): same ~200-BF pitching qualifier in innings
+  # (~60 IP over a full season; 60/162 ≈ 0.370 per game)
+  ERA_IP_THRESHOLD=$((GAMES * 10 / 27))
   # Fielding: ~100 innings over a full season = 300 outs (300/162 ≈ 1.852 outs per game)
   FIELD_THRESHOLD=$((GAMES * 50 / 27))
 
-  export BAT_THRESHOLD PITCH_THRESHOLD FIELD_THRESHOLD
-  echo "Year: $YEAR, Est Games: $GAMES, BAT: $BAT_THRESHOLD, PITCH: $PITCH_THRESHOLD, FIELD: $FIELD_THRESHOLD"
+  export BAT_THRESHOLD PITCH_THRESHOLD ERA_IP_THRESHOLD FIELD_THRESHOLD
+  echo "Year: $YEAR, Est Games: $GAMES, BAT: $BAT_THRESHOLD, PITCH: $PITCH_THRESHOLD, ERA_IP: $ERA_IP_THRESHOLD, FIELD: $FIELD_THRESHOLD"
 }

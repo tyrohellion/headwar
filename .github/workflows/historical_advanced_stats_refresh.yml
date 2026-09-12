@@ -32,13 +32,16 @@ jobs:
           mkdir -p static/data
           mkdir -p tmp
           source .github/scripts/fetch_csv.sh
+          source .github/scripts/compute_qualification_thresholds.sh
 
           # Rebuild the full bref index as a safety net in case the daily
           # workflow has not been updating it.
           fetch_csv "https://www.baseball-reference.com/data/war_daily_bat.txt" "tmp/war_daily_bat.txt" "mlb_ID,player_ID,name_common,year_ID,team_ID,stint_ID,lg_ID,age,PA,G,OPS_plus,WAR,runs_bat,runs_br,runs_defense"
           fetch_csv "https://www.baseball-reference.com/data/war_daily_pitch.txt" "tmp/war_daily_pitch.txt" "mlb_ID,player_ID,name_common,year_ID,team_ID,stint_ID,lg_ID,age,G,GS,IPouts,WAR,era_plus"
 
-          bash .github/scripts/build_bref_index.sh
+          CURRENT_YEAR=$(date +%Y)
+          compute_thresholds "$CURRENT_YEAR"
+          bash .github/scripts/build_bref_index.sh "$CURRENT_YEAR" "$BAT_THRESHOLD" "$ERA_IP_THRESHOLD"
 
           rm -rf tmp
 

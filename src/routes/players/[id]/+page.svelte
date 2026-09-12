@@ -12,6 +12,10 @@
   import { getLeagueContext } from "$lib/leagueContext.js";
   import { getPlayerPictureLarge } from "../../../api/getPlayerPicture";
   import { getPlayerInfo } from "../../../api/getPlayerInfo";
+  import {
+    getPlayerSeasonInjuries,
+    getCachedSeasonInjuries,
+  } from "../../../api/getPlayerInjuries";
   import { getTeamLogo } from "../../../api/getTeamLogo";
   import { standardBattingConfig } from "../../../formatters/standardBattingStatsConfig";
   import { battingStatConfig } from "../../../formatters/battingStatsConfig";
@@ -69,6 +73,8 @@
   let pitchingStatcast = $state(null);
   let isBattingPercentileStatsLoading = $state(false);
   let isPitchingPercentileStatsLoading = $state(false);
+
+  let seasonInjuries = $state(null);
 
   let hasPitcherPercentiles = $derived(
     pitchingStatcast && hasAnyValue(pitchingStatcast.pitcherPercentiles),
@@ -481,6 +487,42 @@
     };
   });
 
+  $effect(() => {
+    const id = $page.params.id;
+    const targetYear = userSelectedYear;
+    const active = !!(id && targetYear && !isCareerMode && !isDateFilterActive);
+    let cancelled = false;
+
+    untrack(() => {
+      if (!active) {
+        seasonInjuries = null;
+        return;
+      }
+
+      const cached = getCachedSeasonInjuries(id, targetYear);
+      if (cached !== undefined) {
+        seasonInjuries = cached;
+        return;
+      }
+
+      seasonInjuries = null;
+      getPlayerSeasonInjuries(id, targetYear)
+        .then((summary) => {
+          if (cancelled) return;
+          seasonInjuries = summary;
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          console.error("[Injuries Effect Error]:", err);
+          seasonInjuries = null;
+        });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  });
+
   let availableFieldingPositions = $derived(
     getAvailableFieldingPositions(
       fieldingStatsBlock,
@@ -634,6 +676,57 @@
       });
     }
     return badges;
+  });
+
+  function formatShortDate(dateStr) {
+    if (!dateStr) return "";
+    const d = new Date(`${dateStr}T00:00:00`);
+    if (Number.isNaN(d.getTime())) return "";
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  }
+
+  const isInjuryOngoing = $derived.by(() => {
+    if (!seasonInjuries || seasonInjuries.count === 0) return false;
+    return (
+      new Date().getFullYear() === Number(userSelectedYear) &&
+      seasonInjuries.injuries.some((injury) => injury.ongoing)
+    );
+  });
+
+  const injuryBadgeLabel = $derived.by(() => {
+    if (!seasonInjuries || seasonInjuries.count === 0) return "";
+    const base =
+      seasonInjuries.count === 1
+        ? "1 injury"
+        : `${seasonInjuries.count} injuries`;
+    if (isInjuryOngoing && seasonInjuries.count === 1) {
+      return `${base} (ongoing)`;
+    }
+    if (seasonInjuries.days <= 0) return base;
+    const days =
+      seasonInjuries.days === 1 ? "1 day" : `${seasonInjuries.days} days`;
+    return `${base} (${days})`;
+  });
+
+  const injuryTooltipText = $derived.by(() => {
+    if (!seasonInjuries || seasonInjuries.count === 0) return "";
+    const lines = seasonInjuries.injuries.map((injury) => {
+      const prefix = formatShortDate(injury.date);
+      const suffix = injury.ongoing
+        ? " (ongoing)"
+        : injury.days > 0
+          ? ` (${injury.days} ${injury.days === 1 ? "day" : "days"})`
+          : "";
+      return prefix
+        ? `${prefix} — ${injury.reason}${suffix}`
+        : `${injury.reason}${suffix}`;
+    });
+    if (seasonInjuries.count === 1) {
+      return `${userSelectedYear}: ${lines[0]}`;
+    }
+    return `${userSelectedYear} (${seasonInjuries.count} injuries): ${lines.join(
+      ", ",
+    )}`;
   });
 </script>
 
@@ -848,17 +941,27 @@
       <wa-tab-panel name="overview">
         <div class="advanced-tab-panel">
           {#if !isDateFilterActive}
-            <div class="horizontal-wrapper">
+<div class="horizontal-wrapper">
               {#if !isCareerMode}
                 <h3>{userSelectedYear} Overview</h3>
               {:else}
                 <h3>Career Overview</h3>
               {/if}
-              <wa-divider orientation="vertical" id="verticalDividers"
-              ></wa-divider>
-              <wa-badge variant="neutral" appearance="outlined"
-                >not filterable by team or custom date range</wa-badge
-              >
+              {#if seasonInjuries && seasonInjuries.count > 0}
+                <wa-divider orientation="vertical" id="verticalDividers"
+                ></wa-divider>
+                <wa-tooltip for="injuryCountBadge"
+                  >{injuryTooltipText}</wa-tooltip
+                >
+                <wa-badge
+                  id="injuryCountBadge"
+                  appearance="filled"
+                  size="l"
+                  variant={isInjuryOngoing ? "danger" : "neutral"}
+                >
+                  {injuryBadgeLabel}
+                </wa-badge>
+              {/if}
             </div>
             <div class="overview-boxes-wrapper">
               {#if advancedStats.loading}
@@ -1007,11 +1110,6 @@
             <wa-divider></wa-divider>
             <div class="horizontal-wrapper">
               <h3>{userSelectedYear} Run Values</h3>
-              <wa-divider orientation="vertical" id="verticalDividers"
-              ></wa-divider>
-              <wa-badge variant="neutral" appearance="outlined"
-                >not filterable by team or custom date range</wa-badge
-              >
             </div>
 
             <div class="statcast-grid">
@@ -1230,10 +1328,6 @@
           <wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
           <wa-badge variant="brand" appearance="filled"
             >Higher number is better</wa-badge
-          >
-          <wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
-          <wa-badge variant="neutral" appearance="outlined"
-            >not filterable by team or custom date range</wa-badge
           >
         </div>
 
@@ -1478,10 +1572,6 @@
           <wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
           <wa-badge variant="brand" appearance="filled"
             >Higher percentile is better</wa-badge
-          >
-          <wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
-          <wa-badge variant="neutral" appearance="outlined"
-            >not filterable by team or custom date range</wa-badge
           >
         </div>
 
@@ -1730,10 +1820,6 @@
           <wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
           <wa-badge variant="brand" appearance="filled"
             >Higher number is better</wa-badge
-          >
-          <wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
-          <wa-badge variant="neutral" appearance="outlined"
-            >not filterable by team or custom date range</wa-badge
           >
         </div>
 

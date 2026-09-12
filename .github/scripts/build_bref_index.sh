@@ -5,6 +5,21 @@ set -euo pipefail
 # tmp/war_daily_pitch.txt (both must be present). Those two files contain every
 # season (1871-present), so the full browser-facing index is rebuilt from
 # scratch on every run. Exits non-zero if the result is invalid.
+#
+# Usage: build_bref_index.sh [CURRENT_YEAR] [BAT_THRESHOLD] [ERA_IP_THRESHOLD]
+#   CURRENT_YEAR     - the in-progress season whose qualifiers are scaled down
+#                      by season progress (defaults to the current calendar year)
+#   BAT_THRESHOLD    - OPS+ rank PA qualifier for CURRENT_YEAR
+#                      (from compute_qualification_thresholds.sh; default 324)
+#   ERA_IP_THRESHOLD - ERA+ rank IP qualifier for CURRENT_YEAR
+#                      (default 60)
+#
+# Completed seasons use full-season qualifiers (324 PA / 60 IP; 120 PA / 22 IP
+# for the 60-game 2020 season), matching compute_qualification_thresholds.sh.
+
+YEAR="${1:-$(date +%Y)}"
+BAT_THRESHOLD="${2:-324}"
+ERA_IP_THRESHOLD="${3:-60}"
 
 duckdb -c "
 CREATE TABLE raw_bat AS
@@ -107,13 +122,21 @@ LEFT JOIN (
   SELECT year_ID, mlb_id,
          ROW_NUMBER() OVER (PARTITION BY year_ID ORDER BY ops DESC) AS ops_rank
   FROM bref_season_agg
-  WHERE ops IS NOT NULL AND pa >= 200
+  WHERE ops IS NOT NULL AND pa >= CASE
+    WHEN year_ID = 2020 THEN 120
+    WHEN year_ID = ${YEAR} THEN ${BAT_THRESHOLD}
+    ELSE 324
+  END
 ) o USING (year_ID, mlb_id)
 LEFT JOIN (
   SELECT year_ID, mlb_id,
          ROW_NUMBER() OVER (PARTITION BY year_ID ORDER BY era DESC) AS era_rank
   FROM bref_season_agg
-  WHERE era IS NOT NULL AND ip >= 50
+  WHERE era IS NOT NULL AND ip >= CASE
+    WHEN year_ID = 2020 THEN 22
+    WHEN year_ID = ${YEAR} THEN ${ERA_IP_THRESHOLD}
+    ELSE 60
+  END
 ) e USING (year_ID, mlb_id);
 
 -- Career OPS+/ERA+ (WAR-weighted averages over qualified seasons)
