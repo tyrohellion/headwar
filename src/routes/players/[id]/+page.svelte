@@ -16,6 +16,11 @@
     getPlayerSeasonInjuries,
     getCachedSeasonInjuries,
   } from "../../../api/getPlayerInjuries";
+  import {
+    getPlayerSeasonGames,
+    getCachedSeasonGames,
+  } from "../../../api/getPlayerGamesPlayed";
+  import { formatGamesPlayedLabel } from "../../../formatters/gamesFormatter";
   import { getTeamLogo } from "../../../api/getTeamLogo";
   import { standardBattingConfig } from "../../../formatters/standardBattingStatsConfig";
   import { battingStatConfig } from "../../../formatters/battingStatsConfig";
@@ -75,6 +80,8 @@
   let isPitchingPercentileStatsLoading = $state(false);
 
   let seasonInjuries = $state(null);
+
+  let seasonGames = $state(null);
 
   let hasPitcherPercentiles = $derived(
     pitchingStatcast && hasAnyValue(pitchingStatcast.pitcherPercentiles),
@@ -496,16 +503,16 @@
     untrack(() => {
       if (!active) {
         seasonInjuries = null;
+        seasonGames = null;
         return;
       }
 
-      const cached = getCachedSeasonInjuries(id, targetYear);
-      if (cached !== undefined) {
-        seasonInjuries = cached;
-        return;
-      }
+      const cachedInjuries = getCachedSeasonInjuries(id, targetYear);
+      seasonInjuries =
+        cachedInjuries !== undefined ? cachedInjuries : null;
+      const cachedGames = getCachedSeasonGames(id, targetYear);
+      seasonGames = cachedGames !== undefined ? cachedGames : null;
 
-      seasonInjuries = null;
       getPlayerSeasonInjuries(id, targetYear)
         .then((summary) => {
           if (cancelled) return;
@@ -515,6 +522,17 @@
           if (cancelled) return;
           console.error("[Injuries Effect Error]:", err);
           seasonInjuries = null;
+        });
+
+      getPlayerSeasonGames(id, targetYear)
+        .then((summary) => {
+          if (cancelled) return;
+          seasonGames = summary;
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          console.error("[Games Effect Error]:", err);
+          seasonGames = null;
         });
     });
 
@@ -684,6 +702,10 @@
     if (Number.isNaN(d.getTime())) return "";
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   }
+
+  const gamesLabel = $derived.by(() =>
+    seasonGames ? formatGamesPlayedLabel(seasonGames) : "",
+  );
 
   const isInjuryOngoing = $derived.by(() => {
     if (!seasonInjuries || seasonInjuries.count === 0) return false;
@@ -942,15 +964,24 @@
       <wa-tab-panel name="overview">
         <div class="advanced-tab-panel">
           {#if !isDateFilterActive}
-<div class="horizontal-wrapper">
+<div class="horizontal-wrapper overview-header-row">
               {#if !isCareerMode}
                 <h3>{userSelectedYear} Overview</h3>
               {:else}
                 <h3>Career Overview</h3>
               {/if}
-              {#if seasonInjuries && seasonInjuries.count > 0}
+              {#if gamesLabel}
                 <wa-divider orientation="vertical" id="verticalDividers"
                 ></wa-divider>
+                <wa-badge variant="neutral" appearance="outlined"
+                  >{gamesLabel}</wa-badge
+                >
+              {/if}
+              {#if seasonInjuries && seasonInjuries.count > 0}
+                {#if !gamesLabel}
+                  <wa-divider orientation="vertical" id="verticalDividers"
+                  ></wa-divider>
+                {/if}
                 <wa-tooltip for="injuryCountBadge"
                   >{injuryTooltipText}</wa-tooltip
                 >
@@ -2252,6 +2283,10 @@
     align-items: center;
     margin: 1rem 0 1rem 0;
     height: 40px;
+  }
+
+  .overview-header-row wa-badge {
+    margin-right: 1rem;
   }
 
   h3 {
