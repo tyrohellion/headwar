@@ -17,7 +17,7 @@ const LEAGUE_PRESTIGE = {
 const TARGET_SPORTS = '1,11,12,13,14';
 const CURRENT_SEASON = '2026';
 
-export async function searchEverything(queryString) {
+export async function searchEverything(queryString, signal) {
 	if (!queryString.trim()) return { players: [], teams: [] };
 
 	const cleanQuery = encodeURIComponent(queryString.trim().toLowerCase());
@@ -25,7 +25,10 @@ export async function searchEverything(queryString) {
 	const teamUrl = `https://statsapi.mlb.com/api/v1/teams?sportIds=${TARGET_SPORTS}&season=${CURRENT_SEASON}`;
 
 	try {
-		const [playerRes, teamRes] = await Promise.all([fetch(playerUrl), fetch(teamUrl)]);
+		const [playerRes, teamRes] = await Promise.all([
+			fetch(playerUrl, { signal }),
+			fetch(teamUrl, { signal })
+		]);
 
 		const playerData = await playerRes.json();
 		const teamData = await teamRes.json();
@@ -85,7 +88,84 @@ export async function searchEverything(queryString) {
 			})
 		};
 	} catch (err) {
+		if (err?.name === 'AbortError') throw err;
 		console.error('Unified search pipeline error:', err);
 		return { players: [], teams: [] };
 	}
+}
+
+// Debounces raw search input and guarantees results are delivered in order.
+//
+// Two bugs this prevents:
+//  1. Out-of-order responses: a slow request for an old query can resolve after
+//     a newer query's request and overwrite the dropdown with stale results.
+//  2. Leaked pending work: after navigating away or short-circuiting on a short
+//     query, a pending debounce could still fire and repopulate the results.
+//
+// Each new input cancels the in-flight request (AbortController) AND bumps a
+// sequence number, so any response that wasn't triggered by the latest input is
+// dropped. Feed raw input into the returned function every keystroke; call
+// `.reset()` to cancel any pending work (e.g. on navigation).
+//
+// @param {(results: { players: Array, teams: Array }) => void} onResults
+// @param {{ minLength?: number, delay?: number, onStateChange?: (searching: boolean) => void }} [options]
+// @returns {(input: string) => void} Feed raw input in on every keystroke.
+export function createDebouncedSearch(onResults, options = {}) {
+	const minLength = options.minLength ?? 2;
+	const delay = options.delay ?? 150;
+	const onStateChange = options.onStateChange ?? (() => {});
+
+	let timer = null;
+	let sequence = 0;
+	let activeController = null;
+
+	function run(cleanQuery) {
+		activeController?.abort();
+		const controller = new AbortController();
+		activeController = controller;
+		const mySeq = ++sequence;
+
+		onStateChange(true);
+		searchEverything(cleanQuery, controller.signal)
+			.then((results) => {
+				if (mySeq !== sequence) return;
+				onResults(results);
+			})
+			.catch((err) => {
+				if (err?.name === 'AbortError') return;
+				console.error('Universal lookup failed:', err);
+			})
+			.finally(() => {
+				if (mySeq === sequence) {
+					activeController = null;
+					onStateChange(false);
+				}
+			});
+	}
+
+	function handleInput(input) {
+		const cleanQuery = String(input ?? '').trim();
+		clearTimeout(timer);
+		if (cleanQuery.length < minLength) {
+			sequence += 1;
+			activeController?.abort();
+			activeController = null;
+			onStateChange(false);
+			onResults({ players: [], teams: [] });
+			return;
+		}
+		timer = setTimeout(() => run(cleanQuery), delay);
+	}
+
+	handleInput.reset = function reset() {
+		clearTimeout(timer);
+		timer = null;
+		sequence += 1;
+		activeController?.abort();
+		activeController = null;
+		onStateChange(false);
+		onResults({ players: [], teams: [] });
+	};
+
+	return handleInput;
 }

@@ -1,5 +1,5 @@
 <script>
-  import { searchEverything } from "../../api/universalSearch";
+  import { createDebouncedSearch } from "../../api/universalSearch";
   import { theme } from "$lib/theme.svelte.js";
   import { afterNavigate } from "$app/navigation";
 
@@ -18,40 +18,30 @@
   let isSearching = $state(false);
   let searchWrapperEl = $state(null);
   let isMenuOpen = $state(false);
-  let debounceTimer;
+
+  const searchInput = createDebouncedSearch(
+    (results) => {
+      matchedPlayers = results.players || [];
+      matchedTeams = results.teams || [];
+    },
+    {
+      onStateChange: (searching) => {
+        isSearching = searching;
+      }
+    }
+  );
 
   afterNavigate(() => {
     query = "";
     matchedPlayers = [];
     matchedTeams = [];
     isMenuOpen = false;
+    searchInput.reset();
   });
 
-  async function handleInput(e) {
+  function handleInput(e) {
     query = e.target.value;
-    const cleanQuery = query.trim();
-
-    clearTimeout(debounceTimer);
-
-    if (cleanQuery.length < 2) {
-      matchedPlayers = [];
-      matchedTeams = [];
-      isSearching = false;
-      return;
-    }
-
-    debounceTimer = setTimeout(async () => {
-      isSearching = true;
-      try {
-        const results = await searchEverything(cleanQuery);
-        matchedPlayers = results.players || [];
-        matchedTeams = results.teams || [];
-      } catch (err) {
-        console.error("Universal lookup failed:", err);
-      } finally {
-        isSearching = false;
-      }
-    }, 150);
+    searchInput(e.target.value);
   }
 </script>
 
