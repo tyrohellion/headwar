@@ -48,6 +48,23 @@ function isBareActivation(description = '') {
 	);
 }
 
+// The transactions feed does not always record the "activated from the injured
+// list" move that closes a stint (e.g. Volpe's 2026 shoulder surgery). When a
+// player is optioned to the minors, or recalled to the majors, they must already
+// be off the injured list, so those moves are a reliable signal that a still-open
+// stint has ended. Rehab assignments ("sent ... on a rehab assignment to ...")
+// happen while the player remains on the injured list, so they are NOT treated
+// as closing events.
+function isRosterMove(description = '') {
+	const lower = description.toLowerCase();
+	if (/all[- ]stars?/.test(lower)) return false;
+	return (
+		(lower.includes('optioned') || lower.includes('recalled')) &&
+		!lower.includes('injured list') &&
+		!lower.includes('disabled list')
+	);
+}
+
 function daysBetween(laterDate, earlierDate) {
 	if (!laterDate || !earlierDate) return 0;
 	const later = new Date(`${laterDate}T00:00:00`);
@@ -78,14 +95,19 @@ function normalizeReason(reason) {
  * Summarizes a player's injuries for one season.
  * @param {Array} transactions - Raw `transactions` array from the MLB Stats API.
  * @param {number|string} season - Season year, e.g. 2023 or '2023'.
+ * @param {string[]} [gameDates] - YYYY-MM-DD dates the player appeared in an MLB
+ *   game that season. A player who played after a stint's placement is
+ *   definitively off the injured list, so these close stints the transactions
+ *   feed never recorded an activation for.
  * @returns {{ count: number, days: number, injuries: { date: string, reason: string, days: number, ongoing: boolean }[] }}
  */
-export function summarizeSeasonInjuries(transactions = [], season) {
+export function summarizeSeasonInjuries(transactions = [], season, gameDates = []) {
 	const seasonPrefix = `${season}-`;
 
 	const byReason = new Map();
 	const activations = [];
 	const bareActivations = [];
+	const rosterMoves = [];
 
 	for (const t of transactions) {
 		const effective = t?.effectiveDate || t?.date || '';
@@ -108,6 +130,8 @@ export function summarizeSeasonInjuries(transactions = [], season) {
 			activations.push(effective.slice(0, 10));
 		} else if (isBareActivation(t.description)) {
 			bareActivations.push(effective.slice(0, 10));
+		} else if (isRosterMove(t.description)) {
+			rosterMoves.push(effective.slice(0, 10));
 		}
 	}
 
@@ -116,12 +140,14 @@ export function summarizeSeasonInjuries(transactions = [], season) {
 	// same stint (which share a reason) never "close" another stint's clock.
 	// List-qualified activations are preferred; a combination of activations and
 	// bare activations (e.g. "Atlanta Braves activated LHP Chris Sale.") closes
-	// one stint. A stint with no closing activation in the window is ongoing.
+	// one stint. Option/recall moves are the last resort when the feed omits the
+	// activation entirely. A stint with no closing move in the window is ongoing.
 	const entries = [...byReason.values()].sort((a, b) =>
 		a.date.localeCompare(b.date)
 	);
 	const explicitPool = [...new Set(activations)].sort();
 	const barePool = [...new Set(bareActivations)].sort();
+	const rosterPool = [...new Set(rosterMoves)].sort();
 
 	for (const entry of entries) {
 		const index = explicitPool.findIndex((date) => date >= entry.date);
@@ -132,6 +158,13 @@ export function summarizeSeasonInjuries(transactions = [], season) {
 			const bareIndex = barePool.findIndex((date) => date >= entry.date);
 			if (bareIndex !== -1) {
 				[end] = barePool.splice(bareIndex, 1);
+			} else {
+				const rosterIndex = rosterPool.findIndex(
+					(date) => date >= entry.date
+				);
+				if (rosterIndex !== -1) {
+					[end] = rosterPool.splice(rosterIndex, 1);
+				}
 			}
 		}
 
@@ -141,6 +174,22 @@ export function summarizeSeasonInjuries(transactions = [], season) {
 		} else {
 			entry.days = 0;
 			entry.ongoing = true;
+		}
+	}
+
+	// Safety net: the transactions feed sometimes never records the activation
+	// that closed a stint (e.g. Volpe's 2026 shoulder surgery). If the player
+	// played in an MLB game after the placement, they were on an active roster,
+	// so the stint cannot be ongoing. Close it at the first game played.
+	if (gameDates.length > 0) {
+		const sortedGames = [...new Set(gameDates)].sort();
+		for (const entry of entries) {
+			if (!entry.ongoing) continue;
+			const firstGame = sortedGames.find((date) => date >= entry.date);
+			if (firstGame) {
+				entry.days = daysBetween(firstGame, entry.date);
+				entry.ongoing = false;
+			}
 		}
 	}
 
