@@ -2163,7 +2163,7 @@
 
   .overview-boxes-wrapper {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 312px));
+    grid-template-columns: repeat(4, minmax(280px, 312px));
     gap: 1rem;
   }
 
@@ -2433,7 +2433,19 @@
 
   @media (max-width: 1300px) {
     .overview-boxes-wrapper {
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      grid-template-columns: repeat(3, minmax(280px, 312px));
+    }
+  }
+
+  @media (max-width: 1024px) {
+    .overview-boxes-wrapper {
+      grid-template-columns: repeat(2, minmax(280px, 312px));
+    }
+  }
+
+  @media (max-width: 640px) {
+    .overview-boxes-wrapper {
+      grid-template-columns: minmax(0, 1fr);
     }
   }
 

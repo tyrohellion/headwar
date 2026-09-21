@@ -51,7 +51,6 @@
 
   async function focusSearchField() {
     await tick();
-    // wa-input exposes focus() once defined; fall back to inner input
     try {
       searchFieldEl?.focus?.();
     } catch {
@@ -60,7 +59,6 @@
   }
 
   function handleKeydown(e) {
-    // Press "/" anywhere (outside an input) to jump to search
     if (
       e.key === "/" &&
       !isSearchOpen &&
@@ -129,7 +127,6 @@
     {:else if hasResults}
       {#if matchedTeams.length > 0}
         <div class="category-header">Teams</div>
-        <wa-divider></wa-divider>
         <div class="card-result-list">
           {#each matchedTeams as team}
             <TeamCard {team} />
@@ -139,7 +136,6 @@
 
       {#if matchedPlayers.length > 0}
         <div class="category-header">Players</div>
-        <wa-divider></wa-divider>
         <div class="card-result-list">
           {#each matchedPlayers as player}
             <PlayerCard
@@ -214,17 +210,15 @@
     bottom: 0;
     left: 0;
     right: 0;
-    height: 7rem;
+    height: 6rem;
     pointer-events: none;
     z-index: 99;
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
     mask-image: linear-gradient(to top, black 0%, transparent 100%);
     -webkit-mask-image: linear-gradient(to top, black 0%, transparent 100%);
     background: linear-gradient(
       to top,
-      rgb(0 0 0 / 0.6),
-      rgb(0 0 0 / 0.3) 55%,
+      rgb(0 0 0 / 0.9),
+      rgb(0 0 0 / 0.55) 55%,
       transparent
     );
   }
@@ -327,7 +321,7 @@
   }
 
   .search-drawer {
-    --size: 65dvh;
+    --size: 80dvh;
   }
 
   .search-drawer::part(dialog) {
@@ -395,11 +389,17 @@
   }
 
   .category-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background-color: var(--wa-color-surface-default);
     font-size: 0.8rem;
     font-weight: 600;
     letter-spacing: 0.5px;
     text-transform: uppercase;
-    padding: 1rem 0.5rem 0 0.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--wa-color-border-quiet);
+    box-shadow: var(--wa-shadow-m);
     cursor: default;
   }
 
@@ -407,6 +407,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 1rem;
+    padding: 1rem 0 1rem 0;
   }
 
   .empty-state {
@@ -427,6 +428,10 @@
       display: none;
     }
 
+    .search-bottom-row {
+      gap: 0.5rem;
+    }
+
     .search-drawer {
       --size: 100dvh;
     }
@@ -445,7 +450,7 @@
 
     .search-trigger {
       min-width: 0;
-      width: 52vw;
+      width: 100%;
       font-size: 0.9rem;
     }
 

@@ -1,11 +1,22 @@
 <script>
   let { team, extraBadges = [] } = $props();
+
+  let imgLoaded = $state(false);
 </script>
 
 <a href="/teams/{team?.id}" class="team-roster-card">
   <div class="team-info-header">
     {#if team?.logo}
-      <img src={team.logo} alt={team.name} class="team-logo" loading="lazy" />
+      {#if !imgLoaded}
+        <div class="img-placeholder" aria-hidden="true"></div>
+      {/if}
+      <img
+        src={team.logo}
+        alt={team.name}
+        class="team-logo"
+        class:img-hidden={!imgLoaded}
+        onload={() => (imgLoaded = true)}
+      />
     {/if}
     <div class="team-meta">
       <span class="team-name">{team?.name || "Unknown"}</span>
@@ -35,7 +46,7 @@
     display: flex;
     flex-direction: column;
     gap: 1rem;
-    width: 272px;
+    width: 296px;
     padding: 1rem;
     border-radius: var(--wa-border-radius-s);
     border: 1px solid
@@ -43,6 +54,7 @@
     transition: all 100ms ease;
     text-decoration: none;
     color: inherit;
+    overflow: hidden;
   }
 
   .team-roster-card:hover {
@@ -103,21 +115,52 @@
     flex-shrink: 0;
   }
 
+  .img-hidden {
+    display: none;
+  }
+
+  .img-placeholder {
+    width: 45.6px;
+    height: 67.64px;
+    border-radius: var(--wa-border-radius-m);
+    background-color: var(--wa-color-gray-70);
+    flex-shrink: 0;
+    animation: img-pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes img-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
+  }
+
   .team-meta {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+    min-width: 0;
   }
 
   .status-tags {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    max-width: 100%;
   }
 
   .team-name {
     font-weight: var(--wa-font-weight-semibold, 600);
     color: var(--wa-color-filled-on-normal);
     font-size: var(--wa-font-size-m);
+  }
+
+  @media (max-width: 480px) {
+    .team-roster-card {
+      width: 100%;
+    }
   }
 </style>

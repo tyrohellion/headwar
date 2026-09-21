@@ -2,6 +2,7 @@
   let { player, position = "", extraBadges = [] } = $props();
 
   const isInjured = $derived(player.status?.code && player.status.code !== "A");
+  let imgLoaded = $state(false);
 </script>
 
 <a
@@ -11,12 +12,17 @@
 >
   <div class="player-info-header">
     {#if player.person?.id}
+      {#if !imgLoaded}
+        <div class="img-placeholder" aria-hidden="true"></div>
+      {/if}
       <img
         src="https://img.mlbstatic.com/mlb-photos/image/upload/d_default_profile.png/w_60,q_auto:best/v1/people/{player
           .person.id}/headshot/67/current"
         alt={player.person.fullName}
         class="player-headshot"
         class:dimmed={isInjured}
+        class:img-hidden={!imgLoaded}
+        onload={() => (imgLoaded = true)}
         onerror={(e) => {
           e.target.src =
             "https://img.mlbstatic.com/mlb-photos/image/upload/w_60,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current";
@@ -26,7 +32,7 @@
     <div class="player-meta">
       <span class="player-name">{player.person?.fullName || "Unknown"}</span>
       <div class="status-tags">
-        <wa-badge appearance="filled" size="s" variant="neutral"
+        <wa-badge appearance="filled" size="s" variant="brand"
           >{player.position?.name || position}</wa-badge
         >
         {#each extraBadges as badge}
@@ -52,6 +58,7 @@
     transition: all 100ms ease;
     text-decoration: none;
     color: inherit;
+    overflow: hidden;
   }
 
   .player-roster-card:hover {
@@ -119,21 +126,52 @@
     opacity: 0.7;
   }
 
+  .img-hidden {
+    display: none;
+  }
+
+  .img-placeholder {
+    width: 45.6px;
+    height: 67.64px;
+    border-radius: var(--wa-border-radius-m);
+    background-color: var(--wa-color-gray-70);
+    flex-shrink: 0;
+    animation: img-pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes img-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
+  }
+
   .player-meta {
     display: flex;
     flex-direction: column;
     gap: 0.25rem;
+    min-width: 0;
   }
 
   .status-tags {
     display: flex;
     align-items: center;
     gap: 0.5rem;
+    max-width: 100%;
   }
 
   .player-name {
     font-weight: var(--wa-font-weight-semibold, 600);
     color: var(--wa-color-filled-on-normal);
     font-size: var(--wa-font-size-m);
+  }
+
+  @media (max-width: 480px) {
+    .player-roster-card {
+      width: 100%;
+    }
   }
 </style>

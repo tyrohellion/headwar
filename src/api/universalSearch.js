@@ -66,7 +66,7 @@ export async function searchEverything(queryString, signal) {
       });
 
     return {
-      players: sortedPlayers.slice(0, 10).map((player) => {
+      players: sortedPlayers.slice(0, 100).map((player) => {
         const sportIdStr = player.sport?.id?.toString();
 
         const explicitLeague = LEAGUE_LABELS[sportIdStr] || "MLB";
