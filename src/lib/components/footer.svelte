@@ -42,7 +42,7 @@
 	.footer {
 		display: flex;
 		flex-direction: column;
-		padding: 1rem 2rem 1rem 2rem;
+		padding: 1rem 2rem 7rem 2rem;
 		flex-wrap: wrap;
 		background-color: var(--wa-color-fill-normal, var(--wa-color-brand-fill-normal));
 		border-top: 1px solid var(--wa-color-surface-border);

@@ -40,17 +40,16 @@
   }
 
   .main {
-    margin-top: 6rem;
     width: 100%;
     box-sizing: border-box;
-    padding: 0 2rem 4rem 2rem;
+    padding: 2.5rem 2rem 8rem 2rem;
     flex: 1 0 auto;
-    min-height: calc(100vh - 6rem);
+    min-height: 100vh;
   }
 
   @media (max-width: 768px) {
     .main {
-      padding: 0 1rem 4rem 1rem;
+      padding: 1.5rem 1rem 8rem 1rem;
     }
   }
 </style>

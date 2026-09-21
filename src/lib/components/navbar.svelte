@@ -2,22 +2,23 @@
   import { createDebouncedSearch } from "../../api/universalSearch";
   import { theme } from "$lib/theme.svelte.js";
   import { afterNavigate } from "$app/navigation";
+  import { tick } from "svelte";
 
-  import WaDropdown from "@awesome.me/webawesome/dist/components/dropdown/dropdown.js";
   import WaButton from "@awesome.me/webawesome/dist/components/button/button.js";
-  import WaButtonGroup from "@awesome.me/webawesome/dist/components/button-group/button-group.js";
   import WaInput from "@awesome.me/webawesome/dist/components/input/input.js";
   import WaDivider from "@awesome.me/webawesome/dist/components/divider/divider.js";
-  import WaTooltip from "@awesome.me/webawesome/dist/components/tooltip/tooltip.js";
-  import WaSkeleton from "@awesome.me/webawesome/dist/components/skeleton/skeleton.js";
+  import WaBadge from "@awesome.me/webawesome/dist/components/badge/badge.js";
   import WaDrawer from "@awesome.me/webawesome/dist/components/drawer/drawer.js";
+  import WaSpinner from "@awesome.me/webawesome/dist/components/spinner/spinner.js";
+  import PlayerCard from "$lib/components/playerCard.svelte";
+  import TeamCard from "$lib/components/teamCard.svelte";
 
   let query = $state("");
   let matchedPlayers = $state([]);
   let matchedTeams = $state([]);
   let isSearching = $state(false);
-  let searchWrapperEl = $state(null);
-  let isMenuOpen = $state(false);
+  let isSearchOpen = $state(false);
+  let searchFieldEl = $state(null);
 
   const searchInput = createDebouncedSearch(
     (results) => {
@@ -27,15 +28,15 @@
     {
       onStateChange: (searching) => {
         isSearching = searching;
-      }
-    }
+      },
+    },
   );
 
   afterNavigate(() => {
     query = "";
     matchedPlayers = [];
     matchedTeams = [];
-    isMenuOpen = false;
+    isSearchOpen = false;
     searchInput.reset();
   });
 
@@ -43,160 +44,159 @@
     query = e.target.value;
     searchInput(e.target.value);
   }
+
+  function openSearch() {
+    isSearchOpen = true;
+  }
+
+  async function focusSearchField() {
+    await tick();
+    // wa-input exposes focus() once defined; fall back to inner input
+    try {
+      searchFieldEl?.focus?.();
+    } catch {
+      document.getElementById("global-search-input")?.focus();
+    }
+  }
+
+  function handleKeydown(e) {
+    // Press "/" anywhere (outside an input) to jump to search
+    if (
+      e.key === "/" &&
+      !isSearchOpen &&
+      !/INPUT|TEXTAREA/.test(document.activeElement?.tagName ?? "")
+    ) {
+      e.preventDefault();
+      openSearch();
+    }
+  }
+
+  const hasResults = $derived(
+    matchedPlayers.length > 0 || matchedTeams.length > 0,
+  );
+  const showEmpty = $derived(
+    !isSearching && query.trim().length >= 2 && !hasResults,
+  );
 </script>
 
-<svelte:window
-  onclick={(e) => {
-    if (searchWrapperEl && !searchWrapperEl.contains(e.target)) {
-      matchedPlayers = [];
-      matchedTeams = [];
-    }
-  }}
-/>
+<svelte:window onkeydown={handleKeydown} />
 
-<div class="nav">
-  <wa-button
-    class="hamburger-btn"
-    size="s"
-    appearance="filled"
-    onclick={() => (isMenuOpen = true)}
-  >
-    <wa-icon name="bars" label="Open Menu"></wa-icon>
-  </wa-button>
-
-  <div class="nav-buttons desktop-only">
-    <a href="/" aria-label="Home">
-      <wa-button size="s" variant="brand" appearance="filled">
-        <wa-icon name="house" label="Home"></wa-icon>
-      </wa-button>
-    </a>
-
-    <a href="/players" class="group-lead-anchor">
-      <wa-button size="s" appearance="filled">Players</wa-button>
-    </a>
-
-    <a href="/teams" class="group-lead-anchor">
-      <wa-button size="s" appearance="filled">Teams</wa-button>
-    </a>
-  </div>
-
-  <div class="float-right-wrapper">
-    <div class="search-wrapper" bind:this={searchWrapperEl}>
-      <wa-input
-        appearance="filled"
-        value={query}
-        oninput={handleInput}
-        placeholder="Search players or teams..."
-        size="s"
-        clearable
-      >
-        <wa-icon name="magnifying-glass" slot="start"></wa-icon>
-      </wa-input>
-
-      {#if isSearching}
-        <div class="search-dropdown-skeleton">
-          <wa-skeleton effect="pulse"></wa-skeleton>
-          <wa-skeleton effect="pulse"></wa-skeleton>
-          <wa-skeleton effect="pulse"></wa-skeleton>
-        </div>
-      {:else if matchedPlayers.length > 0 || matchedTeams.length > 0}
-        <div class="search-dropdown">
-          {#if matchedTeams.length > 0}
-            <div class="category-header">Teams</div>
-            <wa-divider></wa-divider>
-            {#each matchedTeams as team}
-              <a href="/teams/{team.id}" class="dropdown-item-link">
-                <button class="dropdown-item">
-                  <img
-                    src={team.logo}
-                    alt=""
-                    class="team-logo-thumb"
-                    loading="lazy"
-                  />
-                  <span class="item-name">
-                    {team.name}
-                    {#if team.abbreviation}<span class="sub-text"
-                        >({team.abbreviation})</span
-                      >{/if}
-                  </span>
-                </button>
-              </a>
-            {/each}
-          {/if}
-
-          {#if matchedPlayers.length > 0}
-            <div class="category-header">Players</div>
-            <wa-divider></wa-divider>
-            {#each matchedPlayers as player}
-              <a href="/players/{player.id}" class="dropdown-item-link">
-                <button class="dropdown-item">
-                  <img
-                    src={player.headshot}
-                    alt=""
-                    class="player-thumb"
-                    loading="lazy"
-                    onerror={(e) =>
-                      (e.target.src =
-                        "https://img.mlbstatic.com/mlb-photos/image/upload/w_50,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current")}
-                  />
-                  <span class="item-name">
-                    {player.name}
-                    <span class="sub-text"> - {player.position}</span>
-                  </span>
-                </button>
-              </a>
-            {/each}
-          {/if}
-        </div>
-      {/if}
-    </div>
-
-    <wa-tooltip for="color-scheme-button">toggle theme</wa-tooltip>
-    <wa-button id="color-scheme-button" size="s" onclick={() => theme.toggle()}>
-      <wa-icon name={theme.isDark ? "sun" : "moon"} label="Toggle Theme"
-      ></wa-icon>
+<div class="bottom-blur" aria-hidden="true"></div>
+<nav class="bottom-nav" aria-label="Primary">
+  <a href="/" aria-label="Home" class="nav-icon-link">
+    <wa-button
+      size="m"
+      variant="brand"
+      appearance="filled"
+      class="nav-round-btn"
+    >
+      <wa-icon name="house" label="Home"></wa-icon>
     </wa-button>
-  </div>
-</div>
+  </a>
+
+  <button class="search-trigger" onclick={openSearch} aria-label="Open search">
+    <wa-icon name="magnifying-glass" label="Search"></wa-icon>
+    <span class="search-trigger-text">
+      {query ? query : "Search players or teams..."}
+    </span>
+    <kbd class="search-trigger-kbd">/</kbd>
+  </button>
+
+  <wa-button
+    size="m"
+    appearance="filled"
+    onclick={() => theme.toggle()}
+    class="nav-round-btn"
+    aria-label="Toggle theme"
+  >
+    <wa-icon name={theme.isDark ? "sun" : "moon"} label="Toggle Theme"
+    ></wa-icon>
+  </wa-button>
+</nav>
 
 <wa-drawer
-  label="headwar"
-  open={isMenuOpen}
-  onwa-hide={() => (isMenuOpen = false)}
-  placement="start"
-  class="mobile-drawer"
+  open={isSearchOpen}
+  onwa-hide={() => (isSearchOpen = false)}
+  onwa-after-show={focusSearchField}
+  placement="bottom"
+  class="search-drawer"
+  light-dismiss
+  without-header
 >
-  <div class="mobile-nav-links">
-    <a href="/" aria-label="Home">
+  <div class="search-results">
+    {#if isSearching}
+      <wa-spinner></wa-spinner>
+    {:else if hasResults}
+      {#if matchedTeams.length > 0}
+        <div class="category-header">Teams</div>
+        <wa-divider></wa-divider>
+        <div class="card-result-list">
+          {#each matchedTeams as team}
+            <TeamCard {team} />
+          {/each}
+        </div>
+      {/if}
+
+      {#if matchedPlayers.length > 0}
+        <div class="category-header">Players</div>
+        <wa-divider></wa-divider>
+        <div class="card-result-list">
+          {#each matchedPlayers as player}
+            <PlayerCard
+              player={{
+                person: { id: player.id, fullName: player.name },
+                position: { name: player.position },
+              }}
+              extraBadges={player.currentTeam ? [player.currentTeam] : []}
+            />
+          {/each}
+        </div>
+      {/if}
+    {:else if showEmpty}
+      <div class="empty-state">
+        <p>No players or teams found for “{query.trim()}”.</p>
+      </div>
+    {:else}
+      <div class="empty-state hint">
+        <p>Type at least 2 characters to search across MLB + minors.</p>
+      </div>
+    {/if}
+  </div>
+
+  <div class="search-bottom-row">
+    <wa-input
+      pill
+      with-clear
+      id="global-search-input"
+      bind:this={searchFieldEl}
+      appearance="filled"
+      size="m"
+      value={query}
+      oninput={handleInput}
+      placeholder="Search players or teams..."
+      autocomplete="off"
+      enterkeyhint="search"
+      class="search-field"
+    >
+      <wa-icon name="magnifying-glass" slot="start"></wa-icon>
+    </wa-input>
+    <div class="search-close-group">
+      <kbd class="esc-kbd" title="Press esc to close">esc</kbd>
       <wa-button
-        size="s"
-        variant="brand"
-        style="width: 100%;"
-        appearance="filled"
+        size="m"
+        appearance="plain"
+        onclick={() => (isSearchOpen = false)}
+        aria-label="Close search"
       >
-        <wa-icon name="house" label="Home"></wa-icon>
-        Home
+        <wa-icon name="xmark" label="Close"></wa-icon>
       </wa-button>
-    </a>
-
-    <a href="/players" class="group-lead-anchor">
-      <wa-button size="s" appearance="filled" style="width: 100%;"
-        >Players</wa-button
-      >
-    </a>
-
-    <a href="/teams" class="group-lead-anchor">
-      <wa-button size="s" appearance="filled" style="width: 100%;"
-        >Teams</wa-button
-      >
-    </a>
+    </div>
   </div>
 </wa-drawer>
 
 <style>
-  .nav:has(wa-button:not(:defined)),
-  .nav:has(wa-input:not(:defined)),
-  .nav:has(wa-icon:not(:defined)) {
+  .bottom-nav:has(wa-button:not(:defined)),
+  .bottom-nav:has(wa-icon:not(:defined)) {
     visibility: hidden !important;
     opacity: 0 !important;
   }
@@ -207,253 +207,250 @@
 
   a {
     text-decoration: none;
-    color: var(--wa-color-on-blue);
   }
 
-  a:hover {
-    text-decoration: underline;
-  }
-
-  .nav {
-    display: flex;
+  .bottom-blur {
     position: fixed;
-    top: 0;
+    bottom: 0;
     left: 0;
     right: 0;
-    padding: 1rem 3rem;
-    justify-content: space-between;
-    backdrop-filter: blur(6px);
-    background-color: color-mix(
-      in srgb,
-      var(--wa-color-surface-default) 85%,
+    height: 7rem;
+    pointer-events: none;
+    z-index: 99;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    mask-image: linear-gradient(to top, black 0%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to top, black 0%, transparent 100%);
+    background: linear-gradient(
+      to top,
+      rgb(0 0 0 / 0.6),
+      rgb(0 0 0 / 0.3) 55%,
       transparent
     );
-    box-sizing: border-box;
+  }
+
+  .bottom-nav {
+    --nav-control-height: 2.75rem;
+    position: fixed;
+    bottom: max(1rem, env(safe-area-inset-bottom));
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: stretch;
+    gap: 0.75rem;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
     z-index: 100;
-    align-items: center;
-    gap: 1rem;
+    width: max-content;
+    max-width: calc(100vw - 2rem);
+    box-sizing: border-box;
     transition:
       visibility 0s,
       opacity 150ms ease-out;
   }
 
-  .hamburger-btn {
-    display: none !important;
-  }
-
-  .desktop-only {
-    display: flex !important;
-  }
-
-  .nav-buttons {
+  .nav-icon-link {
     display: flex;
-    gap: 0.5rem;
-  }
-
-  wa-button-group {
     flex-shrink: 0;
   }
 
-  .search-wrapper {
-    display: flex;
-    gap: 0.5rem;
-    position: relative;
-    max-width: none;
-    flex-grow: 1;
+  .bottom-nav :global(.nav-round-btn),
+  .bottom-nav :global(.nav-round-btn::part(base)) {
+    height: var(--nav-control-height);
+    min-height: var(--nav-control-height);
   }
 
-  wa-input {
-    width: 100%;
-  }
-
-  .search-dropdown {
-    position: absolute;
-    top: calc(100% + 0.5rem);
-    left: 0;
-    width: 100%;
-    padding: 0 1rem 1rem 1rem;
-    background: var(--wa-color-surface-raised);
+  .bottom-nav :global(.nav-round-btn::part(base)) {
+    border-radius: 999px;
+    box-shadow: var(--wa-shadow-l);
     border: 1px solid var(--wa-color-border-quiet);
-    border-radius: var(--wa-border-radius-m);
-    box-shadow: var(--wa-shadow-m);
-    max-height: 400px;
-    overflow-y: auto;
+  }
+
+  .search-trigger {
     display: flex;
-    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    flex: 1 1 auto;
+    min-width: min(38vw, 12rem);
+    width: min(44vw, 26rem);
+    max-width: 26rem;
+    height: var(--nav-control-height);
+    min-height: var(--nav-control-height);
     box-sizing: border-box;
+    padding: 0 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--wa-color-border-quiet);
+    box-shadow: var(--wa-shadow-l);
+    background-color: color-mix(
+      in srgb,
+      var(--wa-color-surface-default) 85%,
+      transparent
+    );
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    color: var(--wa-color-neutral-text-weak);
+    font-family: var(--wa-font-family-body);
+    font-size: 0.95rem;
+    cursor: text;
+    transition: all 120ms ease;
+    white-space: nowrap;
+    overflow: hidden;
   }
 
-  .search-dropdown-skeleton {
-    position: absolute;
-    top: calc(100% + 0.5rem);
-    left: 0;
-    width: 100%;
-    padding: 0 1rem 1rem 1rem;
-    background: var(--wa-color-surface-raised);
+  .search-trigger:hover {
+    background: var(--wa-color-neutral-fill-normal);
+    color: var(--wa-color-text-normal);
+    transform: scale(1.01);
+  }
+
+  .search-trigger:active {
+    transform: scale(0.99);
+  }
+
+  .search-trigger-text {
+    flex: 1;
+    text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .search-trigger-kbd {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.75rem;
     border: 1px solid var(--wa-color-border-quiet);
-    border-radius: var(--wa-border-radius-m);
-    box-shadow: var(--wa-shadow-m);
-    max-height: 400px;
-    overflow-y: auto;
-    padding-top: 1rem;
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    flex-shrink: 0;
+    opacity: 0.7;
+  }
+
+  .search-drawer {
+    --size: 65dvh;
+  }
+
+  .search-drawer::part(dialog) {
+    border-radius: var(--wa-border-radius-l) var(--wa-border-radius-l) 0 0;
+    border: 1px solid var(--wa-color-border-quiet);
+    border-bottom: none;
+    box-shadow: var(--wa-shadow-xl);
+    background-color: var(--wa-color-surface-default);
+  }
+
+  .esc-kbd {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.75rem;
+    border: 1px solid var(--wa-color-border-quiet);
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
+    opacity: 0.7;
+    cursor: default;
+    height: min-content;
+    align-self: center;
+    flex-shrink: 0;
+  }
+
+  .search-bottom-row {
     display: flex;
+    align-items: center;
     gap: 2rem;
+    flex-shrink: 0;
+    padding-top: 0.75rem;
+  }
+
+  .search-close-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .search-field {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .search-field::part(input) {
+    font-size: inherit;
+  }
+
+  .search-drawer::part(body) {
+    display: flex;
     flex-direction: column;
+    height: 100%;
+    width: 100%;
+    margin: 0 auto;
     box-sizing: border-box;
+    padding-bottom: 1rem;
+  }
+
+  .search-results {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
   }
 
   .category-header {
-    font-size: 0.7rem;
-    font-weight: 800;
+    font-size: 0.8rem;
+    font-weight: 600;
     letter-spacing: 0.5px;
     text-transform: uppercase;
-    color: var(--wa-color-brand-on-quiet);
-    font-family: var(--wa-font-family-body);
-    padding: 1rem 1rem 0 1rem;
-    background: var(--wa-color-surface-raised);
+    padding: 1rem 0.5rem 0 0.5rem;
     cursor: default;
   }
 
-  .float-right-wrapper {
+  .card-result-list {
     display: flex;
-    gap: 0.5rem;
-    flex-grow: 1;
-    max-width: 26rem;
-    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 1rem;
   }
 
-  .dropdown-item {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    width: 100%;
-    height: min-content;
-    padding: 0.5rem 1rem;
-    border: none;
+  .empty-state {
+    padding: 2rem 1rem;
+    text-align: center;
+    border: 1px dashed var(--wa-color-border-quiet);
     border-radius: var(--wa-border-radius-m);
-    background: transparent;
-    text-align: left;
-    font-family: var(--wa-font-family-body);
-    font-size: 1rem;
-    cursor: pointer;
-    color: var(--wa-color-primary-on-quiet);
-    transition: all 100ms ease;
-    overflow: hidden;
-  }
-
-  .dropdown-item:hover {
-    background-color: var(--wa-color-neutral-fill-normal);
-    transform: scale(1.03);
-    transition: all 100ms ease;
-  }
-
-  .player-thumb {
-    width: 32px;
-    height: 32px;
-    object-fit: cover;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .team-logo-thumb {
-    max-width: 32px;
-    width: 32px;
-    height: auto;
-    max-height: 32px;
-    background-color: var(--wa-color-gray-70);
-    padding: 6px;
-    box-shadow: var(--wa-shadow-l);
-    object-fit: contain;
-    flex-shrink: 0;
-  }
-
-  .item-name {
-    flex-grow: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    mask-image: linear-gradient(
-      to right,
-      black calc(100% - 24px),
-      transparent 100%
-    );
-    -webkit-mask-image: linear-gradient(
-      to right,
-      black calc(100% - 24px),
-      transparent 100%
-    );
-  }
-
-  .sub-text {
-    font-size: 0.8rem;
-    color: var(--wa-color-neutral-text-weak);
-    margin-left: 0.25rem;
-  }
-
-  .nav-buttons :global(a) {
-    text-decoration: none;
-  }
-
-  .hamburger-btn {
-    display: none;
-  }
-
-  .mobile-nav-links {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    padding: 0.5rem;
-  }
-
-  .mobile-nav-links a {
-    color: var(--wa-color-on-blue);
-    text-decoration: none;
-    font-weight: 700;
-    font-size: var(--wa-font-size-m);
-    padding: 0.5rem;
-  }
-
-  .drawer-section-title {
-    font-size: 0.75rem;
-    font-weight: bold;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--wa-color-neutral-text-weak);
+    color: var(--wa-color-neutral-on-quiet);
     margin-top: 0.5rem;
-    border-bottom: 1px;
   }
 
-  .mobile-drawer {
-    --size: min(300px, 80vw);
+  .empty-state p {
+    margin: 0;
   }
 
-  @media (max-width: 816px) {
-    .nav {
-      padding: 1rem 1rem;
-      gap: 0.5rem;
+  @media (max-width: 768px) {
+    .esc-kbd {
+      display: none;
     }
 
-    .desktop-only {
-      display: none !important;
+    .search-drawer {
+      --size: 100dvh;
     }
 
-    .hamburger-btn {
-      display: inline-block !important;
-      flex-shrink: 0;
-    }
-
-    #color-scheme-button {
-      flex-shrink: 0;
+    .search-drawer::part(dialog) {
+      border-radius: 0;
+      border: none;
     }
   }
 
-  @media (max-width: 450px) {
-    .float-right-wrapper {
-      flex-grow: 1;
+  @media (max-width: 480px) {
+    .bottom-nav {
+      gap: 0.6rem;
+      bottom: max(0.75rem, env(safe-area-inset-bottom));
     }
 
-    .search-wrapper {
-      max-width: none;
-      flex-grow: 1;
+    .search-trigger {
+      min-width: 0;
+      width: 52vw;
+      font-size: 0.9rem;
+    }
+
+    .search-trigger-kbd {
+      display: none;
     }
   }
 </style>
