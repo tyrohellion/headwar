@@ -181,7 +181,6 @@
   @media (max-width: 1200px) {
     .statcast-pill {
       flex-wrap: wrap;
-      min-width: 200px;
     }
   }
 </style>

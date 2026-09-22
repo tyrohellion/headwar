@@ -1,4 +1,6 @@
 <script>
+  import { overflowFade } from "$lib/actions/overflowFade.js";
+
   let { team, extraBadges = [] } = $props();
 
   let imgLoaded = $state(false);
@@ -19,7 +21,7 @@
       />
     {/if}
     <div class="team-meta">
-      <span class="team-name">{team?.name || "Unknown"}</span>
+      <span class="team-name" use:overflowFade>{team?.name || "Unknown"}</span>
       <div class="status-tags">
         {#if team?.abbreviation}
           <wa-badge appearance="filled" size="s" variant="neutral"
@@ -156,6 +158,18 @@
     font-weight: var(--wa-font-weight-semibold, 600);
     color: var(--wa-color-filled-on-normal);
     font-size: var(--wa-font-size-m);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .team-name.overflowing {
+    mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+    -webkit-mask-image: linear-gradient(
+      to right,
+      black calc(100% - 28px),
+      transparent
+    );
   }
 
   @media (max-width: 480px) {

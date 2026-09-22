@@ -1,4 +1,6 @@
 <script>
+  import { overflowFade } from "$lib/actions/overflowFade.js";
+
   let { player, position = "", extraBadges = [] } = $props();
 
   const isInjured = $derived(player.status?.code && player.status.code !== "A");
@@ -30,7 +32,9 @@
       />
     {/if}
     <div class="player-meta">
-      <span class="player-name">{player.person?.fullName || "Unknown"}</span>
+      <span class="player-name" use:overflowFade
+        >{player.person?.fullName || "Unknown"}</span
+      >
       <div class="status-tags">
         <wa-badge appearance="filled" size="s" variant="brand"
           >{player.position?.name || position}</wa-badge
@@ -167,6 +171,18 @@
     font-weight: var(--wa-font-weight-semibold, 600);
     color: var(--wa-color-filled-on-normal);
     font-size: var(--wa-font-size-m);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  .player-name.overflowing {
+    mask-image: linear-gradient(to right, black calc(100% - 28px), transparent);
+    -webkit-mask-image: linear-gradient(
+      to right,
+      black calc(100% - 28px),
+      transparent
+    );
   }
 
   @media (max-width: 480px) {

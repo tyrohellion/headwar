@@ -2431,28 +2431,20 @@
     }
   }
 
-  @media (max-width: 1300px) {
+  @media (max-width: 1393px) {
     .overview-boxes-wrapper {
       grid-template-columns: repeat(3, minmax(280px, 312px));
     }
   }
 
-  @media (max-width: 1024px) {
-    .overview-boxes-wrapper {
-      grid-template-columns: repeat(2, minmax(280px, 312px));
-    }
-  }
-
-  @media (max-width: 640px) {
-    .overview-boxes-wrapper {
-      grid-template-columns: minmax(0, 1fr);
-    }
-  }
-
-  @media (min-width: 1024px) {
+  @media (max-width: 1100px) {
     .stats-grid-container {
       grid-template-columns: 1fr auto 1fr auto 1fr;
       gap: 1.5rem;
+    }
+
+    .overview-boxes-wrapper {
+      grid-template-columns: repeat(2, minmax(280px, 312px));
     }
 
     .grid-desktop-divider {

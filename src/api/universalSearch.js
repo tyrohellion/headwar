@@ -66,7 +66,7 @@ export async function searchEverything(queryString, signal) {
       });
 
     return {
-      players: sortedPlayers.slice(0, 100).map((player) => {
+      players: sortedPlayers.map((player) => {
         const sportIdStr = player.sport?.id?.toString();
 
         const explicitLeague = LEAGUE_LABELS[sportIdStr] || "MLB";
@@ -76,16 +76,18 @@ export async function searchEverything(queryString, signal) {
           name: player.fullName,
           position: player.primaryPosition?.name || "",
           currentTeam: player.currentTeam?.name || "Historical / Free Agent",
+          hasMLBDebut: Boolean(player.mlbDebutDate),
           headshot: `https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_50,d_people:generic:headshot:67:current.png,q_auto:best/v1/people/${player.id}/headshot/67/current`,
         };
       }),
-      teams: filteredTeams.slice(0, 5).map((team) => {
+      teams: filteredTeams.map((team) => {
         const sportIdStr = team.sport?.id?.toString();
         return {
           id: team.id,
           name: team.name,
           abbreviation: team.abbreviation || "",
           leagueName: team.league?.name || "",
+          sportId: team.sport?.id ?? null,
           logo: `https://www.mlbstatic.com/team-logos/${team.id}.svg`,
         };
       }),
@@ -97,7 +99,12 @@ export async function searchEverything(queryString, signal) {
   }
 }
 
-// Debounces raw search input and guarantees results are delivered in order.
+// How many players to reveal at a time. Consumers use this to label the
+// results ("20+" vs the exact count when fewer than a full page matched).
+export const PAGE_SIZE = 20;
+
+// Debounces raw search input, guarantees results are delivered in order, and
+// pages through the matched players PAGE_SIZE at a time for infinite scroll.
 //
 // Two bugs this prevents:
 //  1. Out-of-order responses: a slow request for an old query can resolve after
@@ -108,11 +115,13 @@ export async function searchEverything(queryString, signal) {
 // Each new input cancels the in-flight request (AbortController) AND bumps a
 // sequence number, so any response that wasn't triggered by the latest input is
 // dropped. Feed raw input into the returned function every keystroke; call
-// `.reset()` to cancel any pending work (e.g. on navigation).
+// `.loadMore()` as the user nears the bottom of the results to reveal the next
+// page of players (idempotent, safe to call per scroll event); call `.reset()`
+// to cancel any pending work (e.g. on navigation).
 //
-// @param {(results: { players: Array, teams: Array }) => void} onResults
+// @param {(results: { players: Array, teams: Array, hasMore: boolean, totalPlayers: number, totalTeams: number }) => void} onResults
 // @param {{ minLength?: number, delay?: number, onStateChange?: (searching: boolean) => void }} [options]
-// @returns {(input: string) => void} Feed raw input in on every keystroke.
+// @returns {(input: string) => void} Feed raw input in on every keystroke. Also exposes `.loadMore()` and `.reset()`.
 export function createDebouncedSearch(onResults, options = {}) {
   const minLength = options.minLength ?? 2;
   const delay = options.delay ?? 150;
@@ -121,6 +130,19 @@ export function createDebouncedSearch(onResults, options = {}) {
   let timer = null;
   let sequence = 0;
   let activeController = null;
+  let allPlayers = [];
+  let allTeams = [];
+  let visibleCount = 0;
+
+  function emit() {
+    onResults({
+      players: allPlayers.slice(0, visibleCount),
+      teams: allTeams,
+      hasMore: visibleCount < allPlayers.length,
+      totalPlayers: allPlayers.length,
+      totalTeams: allTeams.length,
+    });
+  }
 
   function run(cleanQuery) {
     activeController?.abort();
@@ -132,7 +154,10 @@ export function createDebouncedSearch(onResults, options = {}) {
     searchEverything(cleanQuery, controller.signal)
       .then((results) => {
         if (mySeq !== sequence) return;
-        onResults(results);
+        allPlayers = results.players || [];
+        allTeams = results.teams || [];
+        visibleCount = PAGE_SIZE;
+        emit();
       })
       .catch((err) => {
         if (err?.name === "AbortError") return;
@@ -153,12 +178,21 @@ export function createDebouncedSearch(onResults, options = {}) {
       sequence += 1;
       activeController?.abort();
       activeController = null;
+      allPlayers = [];
+      allTeams = [];
+      visibleCount = 0;
       onStateChange(false);
-      onResults({ players: [], teams: [] });
+      emit();
       return;
     }
     timer = setTimeout(() => run(cleanQuery), delay);
   }
+
+  handleInput.loadMore = function loadMore() {
+    if (visibleCount >= allPlayers.length) return;
+    visibleCount += PAGE_SIZE;
+    emit();
+  };
 
   handleInput.reset = function reset() {
     clearTimeout(timer);
@@ -166,8 +200,11 @@ export function createDebouncedSearch(onResults, options = {}) {
     sequence += 1;
     activeController?.abort();
     activeController = null;
+    allPlayers = [];
+    allTeams = [];
+    visibleCount = 0;
     onStateChange(false);
-    onResults({ players: [], teams: [] });
+    emit();
   };
 
   return handleInput;
