@@ -458,7 +458,7 @@
     background-color: var(--wa-color-surface-default);
     border: 1px solid var(--wa-color-border-quiet);
     border-radius: var(--wa-border-radius-l);
-    padding: 0 2rem 2rem;
+    padding-bottom: 2rem;
     box-shadow:
       0 0.75rem 2rem -0.5rem var(--wa-color-shadow),
       var(--wa-shadow-l);
@@ -469,7 +469,7 @@
     display: flex;
     justify-content: flex-end;
     flex-shrink: 0;
-    padding: 0.75rem 0 0.25rem;
+    padding: 0.75rem 1rem 0 0;
   }
 
   .esc-kbd {
@@ -495,6 +495,7 @@
   .search-results {
     display: flex;
     flex-direction: column;
+    padding: 0 2rem 0 2rem;
     flex: 1;
     min-height: 0;
     overflow-y: auto;
@@ -508,7 +509,7 @@
     display: flex;
     align-items: center;
     gap: 0.6rem;
-    padding: 0.6rem 0 0.45rem;
+    padding: 0.6rem 0 0.75rem;
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -646,7 +647,10 @@
       height: auto;
       max-height: none;
       border-radius: var(--wa-border-radius-l);
-      padding: 0 1rem 2rem;
+    }
+
+    .search-results {
+      padding: 0 1rem 0 1rem;
     }
 
     .search-trigger {
