@@ -2439,8 +2439,20 @@
 
   @media (max-width: 1100px) {
     .stats-grid-container {
-      grid-template-columns: 1fr auto 1fr auto 1fr;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
       gap: 1.5rem;
+    }
+
+    .stats-column {
+      width: 100%;
+    }
+
+    .stat-bar-content {
+      gap: 2rem;
+      justify-content: space-between;
+      width: 100%;
     }
 
     .overview-boxes-wrapper {
