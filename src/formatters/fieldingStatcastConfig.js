@@ -17,6 +17,7 @@ export const fieldingStatcastConfig = [
     category: "defense",
     decimals: 1,
     runValue: true,
+    simple: true,
     description:
       "Runs saved based on Outs Above Average (OAA), measuring range and difficulty of plays made.",
     getValue: (data) => data?.fieldingRunValues?.range_runs,
@@ -28,6 +29,7 @@ export const fieldingStatcastConfig = [
     category: "defense",
     decimals: 1,
     runValue: true,
+    simple: true,
     description:
       "Runs saved by preventing advancement or throwing out runners on base hits and flyouts.",
     getValue: (data) => data?.fieldingRunValues?.arm_runs,
@@ -39,6 +41,7 @@ export const fieldingStatcastConfig = [
     category: "defense",
     decimals: 1,
     runValue: true,
+    simple: true,
     description:
       "Combined defensive run value saved across all non-catcher fielding plays.",
     getValue: (data) => data?.fieldingRunValues?.inf_of_runs,
