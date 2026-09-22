@@ -2493,4 +2493,35 @@
       flex-direction: column;
     }
   }
+
+    @media (max-width: 650px) {
+    .player-info-box {
+      align-items: center;
+    }
+
+    .overview-boxes-wrapper {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .player-name-and-team-wrapper {
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .dropdown-and-switch-wrapper {
+      flex-direction: column;
+      align-items: start;
+    }
+
+    .honor-badges-wrapper {
+      justify-content: flex-end;
+    }
+
+    .basics-group {
+      flex-direction: column;
+    }
+  }
 </style>

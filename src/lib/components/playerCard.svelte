@@ -55,6 +55,7 @@
     flex-direction: column;
     gap: 1rem;
     width: 360px;
+    height: 104px;
     padding: 1rem;
     border-radius: var(--wa-border-radius-s);
     border: 1px solid
@@ -116,8 +117,8 @@
   }
 
   .player-headshot {
-    width: 48px;
-    height: auto;
+    width: 45.6px;
+    height: 67.64px;
     border-radius: var(--wa-border-radius-m);
     background-color: var(--wa-color-gray-80);
     object-fit: cover;

@@ -632,6 +632,9 @@
     .bottom-nav {
       gap: 0.6rem;
       bottom: max(2rem, env(safe-area-inset-bottom));
+      width: 100%;
+      left: 1rem;
+      transform: none;
     }
 
     .search-modal {
