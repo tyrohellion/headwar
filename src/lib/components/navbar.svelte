@@ -659,7 +659,7 @@
     }
 
     .search-trigger::part(base) {
-      font-size: 0.9rem;
+      font-size: 1rem;
     }
 
     .search-trigger-kbd {
