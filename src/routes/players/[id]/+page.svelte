@@ -1216,7 +1216,7 @@
           {/if}
 
           <!-- BASIC STATS BLOCK -->
-          
+
             <div class="basics-section">
             {#if activeSeasonStats && activeSeasonStats.atBats > 3}
                 <div class="basics-heading-row">
@@ -1346,7 +1346,7 @@
                 </div>
               {/if}
             </div>
-         
+
         </div>
       </wa-tab-panel>
 
@@ -2246,8 +2246,8 @@
     gap: 4px;
   }
   .stats-grid-container {
-    display: grid;
-    grid-template-columns: 1fr;
+    display: flex;
+    flex-direction: row;
     gap: 2rem;
     align-items: start;
     margin-top: 1rem;
@@ -2255,6 +2255,7 @@
   }
   .stats-column {
     display: flex;
+    flex: 1;
     flex-direction: column;
     gap: 1.25rem;
   }
@@ -2449,18 +2450,12 @@
       width: 100%;
     }
 
-    .stat-bar-content {
-      gap: 2rem;
-      justify-content: space-between;
-      width: 100%;
-    }
-
     .overview-boxes-wrapper {
       grid-template-columns: repeat(2, minmax(280px, 312px));
     }
 
     .grid-desktop-divider {
-      display: block;
+      display: none;
     }
   }
 
