@@ -85,7 +85,6 @@ export function processPlayerAwards(rawAwards = []) {
 		const name = award.name || 'Unknown Honor';
 		const season = award.season;
 
-		// Extract team data if it exists on the individual award record
 		const teamInfo = award.team ? { id: award.team.id, name: award.team.name } : null;
 
 		const config = AWARD_PRESTIGE[id] || getFallbackConfig(id, name);
@@ -97,13 +96,12 @@ export function processPlayerAwards(rawAwards = []) {
 				rank: config.rank,
 				count: 0,
 				seasons: [],
-				team: teamInfo // Store team metadata here
+				team: teamInfo
 			};
 		}
 
 		aggregated[id].count += 1;
 
-		// Retired numbers use a precise full date rather than just a season year string sometimes
 		if (season && !aggregated[id].seasons.includes(season)) {
 			aggregated[id].seasons.push(season);
 		} else if (award.date && !season) {

@@ -1,7 +1,7 @@
 <script>
   import { createDebouncedSearch, PAGE_SIZE } from "../../api/universalSearch";
   import { theme } from "$lib/theme.svelte.js";
-  import { afterNavigate } from "$app/navigation";
+  import { afterNavigate, goto } from "$app/navigation";
   import { tick } from "svelte";
   import { fly, fade } from "svelte/transition";
 
@@ -117,6 +117,39 @@
   const toggleNonDebut = () => {
     nonDebutExpanded = !nonDebutExpanded;
   };
+
+  // The single result that Enter will open. Matches the first card rendered:
+  // first MLB team if any matched, otherwise the first MLB player.
+  const topResult = $derived.by(() => {
+    if (mlbTeams[0]) {
+      return {
+        type: "team",
+        id: mlbTeams[0].id,
+        href: `/teams/${mlbTeams[0].id}`,
+      };
+    }
+    if (mlbPlayers[0]) {
+      return {
+        type: "player",
+        id: mlbPlayers[0].id,
+        href: `/players/${mlbPlayers[0].id}`,
+      };
+    }
+    return null;
+  });
+  const topTeamId = $derived(topResult?.type === "team" ? topResult.id : null);
+  const topPlayerId = $derived(
+    topResult?.type === "player" ? topResult.id : null,
+  );
+
+  function handleSearchKeydown(e) {
+    if (e.key === "Enter" && isSearchOpen && topResult?.href) {
+      e.preventDefault();
+      const href = topResult.href;
+      closeSearch();
+      goto(href);
+    }
+  }
 </script>
 
 <svelte:window onkeydown={handleKeydown} />
@@ -141,9 +174,10 @@
     placeholder="Search players or teams..."
     value={query}
     oninput={handleInput}
+    onkeydown={handleSearchKeydown}
     onfocusin={openSearch}
     autocomplete="off"
-    enterkeyhint="search"
+    enterkeyhint="go"
     aria-label="Search players or teams"
   >
     <wa-icon name="magnifying-glass" label="Search" slot="start"></wa-icon>
@@ -195,7 +229,9 @@
       onscroll={handleResultsScroll}
     >
       {#if isSearching}
-        <wa-spinner></wa-spinner>
+        <div class="spinner-centering">
+          <wa-spinner style="font-size: 3rem;"></wa-spinner>
+        </div>
       {:else if hasResults}
         {#if matchedTeams.length > 0}
           <div class="category-header">
@@ -204,7 +240,7 @@
           </div>
           <div class="card-result-list">
             {#each mlbTeams as team}
-              <TeamCard {team} />
+              <TeamCard {team} highlighted={team.id === topTeamId} />
             {/each}
 
             {#if minorTeams.length > 0 && !minorsExpanded}
@@ -310,6 +346,7 @@
       position: { name: player.position },
     }}
     extraBadges={player.currentTeam ? [player.currentTeam] : []}
+    highlighted={player.id === topPlayerId}
   />
 {/snippet}
 
@@ -439,6 +476,14 @@
     inset: 0;
     background: var(--wa-color-overlay-modal);
     z-index: 101;
+  }
+
+  .spinner-centering {
+    display: flex;
+    width: 100%;
+    height: 100%;
+    justify-content: center;
+    align-items: center;
   }
 
   .search-modal {

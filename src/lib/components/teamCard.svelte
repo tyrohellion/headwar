@@ -1,12 +1,15 @@
 <script>
   import { overflowFade } from "$lib/actions/overflowFade.js";
 
-  let { team, extraBadges = [] } = $props();
+  let { team, extraBadges = [], highlighted = false } = $props();
 
   let imgLoaded = $state(false);
 </script>
 
-<a href="/teams/{team?.id}" class="team-roster-card">
+<a href="/teams/{team?.id}" class="team-roster-card" class:highlighted>
+  {#if highlighted}
+    <span class="enter-badge" aria-hidden="true">↵ Enter</span>
+  {/if}
   <div class="team-info-header">
     {#if team?.logo}
       {#if !imgLoaded}
@@ -57,6 +60,40 @@
     text-decoration: none;
     color: inherit;
     overflow: hidden;
+    position: relative;
+  }
+
+  .team-roster-card.highlighted {
+    border-color: var(--wa-color-brand-border-loud);
+    background-color: color-mix(
+      in srgb,
+      var(--wa-color-brand-fill-normal) 14%,
+      transparent
+    );
+    box-shadow: 0 0 0 1px var(--wa-color-brand-border-loud);
+  }
+
+  .enter-badge {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 1;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.6rem;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wa-color-brand-on-loud);
+    background-color: var(--wa-color-brand-fill-loud);
+    border-radius: 999px;
+    padding: 0.3rem 0.5rem;
+    box-shadow: var(--wa-shadow-s);
+    pointer-events: none;
+    user-select: none;
   }
 
   .team-roster-card:hover {

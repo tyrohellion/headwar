@@ -1,7 +1,12 @@
 <script>
   import { overflowFade } from "$lib/actions/overflowFade.js";
 
-  let { player, position = "", extraBadges = [] } = $props();
+  let {
+    player,
+    position = "",
+    extraBadges = [],
+    highlighted = false,
+  } = $props();
 
   const isInjured = $derived(player.status?.code && player.status.code !== "A");
   let imgLoaded = $state(false);
@@ -11,7 +16,11 @@
   href="/players/{player.person?.id}"
   class="player-roster-card"
   class:il-card={isInjured}
+  class:highlighted
 >
+  {#if highlighted}
+    <span class="enter-badge" aria-hidden="true">↵ Enter</span>
+  {/if}
   <div class="player-info-header">
     {#if player.person?.id}
       {#if !imgLoaded}
@@ -64,6 +73,38 @@
     text-decoration: none;
     color: inherit;
     overflow: hidden;
+    position: relative;
+  }
+
+  .player-roster-card.highlighted {
+    border-color: var(--wa-color-brand-border-loud);
+    background-color: color-mix(
+      in srgb,
+      var(--wa-color-brand-fill-normal) 14%,
+      transparent
+    );
+    box-shadow: 0 0 0 1px var(--wa-color-brand-border-loud);
+  }
+
+  .enter-badge {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    font-size: 0.6rem;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--wa-color-brand-on-loud);
+    background-color: var(--wa-color-brand-fill-loud);
+    border-radius: 999px;
+    padding: 0.3rem 0.5rem;
+    box-shadow: var(--wa-shadow-s);
+    pointer-events: none;
+    user-select: none;
   }
 
   .player-roster-card:hover {
