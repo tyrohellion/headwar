@@ -1137,7 +1137,7 @@
               {/if}
             </div>
           {/if}
-          {#if !isCareerMode && !isDateFilterActive && (isBattingPercentileStatsLoading || battingStatcast?.runValues?.runs_all !== undefined || battingStatcast?.baserunningRunValues?.runs_all !== undefined || battingStatcast?.pitcherRunValues?.runs_all !== undefined || battingStatcast?.fieldingRunValues?.total_runs !== undefined || battingStatcast?.percentiles?.sprint_speed != null || battingStatcast?.armStrength?.overall != null)}
+          {#if !isCareerMode && !isDateFilterActive && (isBattingPercentileStatsLoading || battingStatcast?.runValues?.runs_all !== undefined || battingStatcast?.baserunningRunValues?.runs_all !== undefined || battingStatcast?.pitcherRunValues?.runs_all !== undefined || battingStatcast?.fieldingRunValues?.total_runs !== undefined || battingStatcast?.percentiles?.sprint_speed != null || battingStatcast?.percentiles?.arm_strength != null)}
             <wa-divider></wa-divider>
             <div class="horizontal-wrapper">
               <h3>{userSelectedYear} Tools</h3>
@@ -1217,19 +1217,19 @@
                 />
               {/if}
 
-              {#if !isBattingPercentileStatsLoading && battingStatcast?.armStrength?.overall != null}
+              {#if !isBattingPercentileStatsLoading && battingStatcast?.percentiles?.arm_strength != null}
                 {@const armConf = fieldingStatcastConfig.find(
                   (c) => c.key === "arm_overall",
                 )}
-                {@const armStat = battingStatcast.armStrength?.overall}
+                {@const armPercentile =
+                  battingStatcast.percentiles?.arm_strength}
                 <StatcastStatBar
                   label={armConf.label}
-                  decimals={armConf.decimals ?? 1}
-                  stat={armStat}
-                  percentile={armStat}
-                  runValue={armConf.runValue ?? false}
-                  tooltipText={armConf.description}
+                  stat={armPercentile}
+                  percentile={armPercentile}
+                  decimals={0}
                   simple={true}
+                  tooltipText={armConf.description}
                 />
               {/if}
             </div>

@@ -99,11 +99,11 @@ export const fieldingStatcastConfig = [
     percentileKey: "arm_overall",
     label: "Arm Strength",
     category: "strength",
-    decimals: 1,
+    decimals: 0,
     runValue: false,
     simple: true,
     description:
-      "Average arm strength of a player’s top-effort throws, in mph, based on Statcast tracking (available from 2020).",
-    getValue: (data) => data?.armStrength?.overall,
+      "Percentile rank of a player's average top-effort throw arm strength based on Statcast tracking. 50 is the league average.",
+    getValue: (data) => data?.percentiles?.arm_strength,
   },
 ];
