@@ -1,81 +1,52 @@
-async function fetchTopLeaders(leaderCategories, statGroup) {
-	const currentYear = new Date().getFullYear();
-	const url = `https://statsapi.mlb.com/api/v1/stats/leaders?sportId=1&season=${currentYear}&leaderCategories=${leaderCategories}&statGroup=${statGroup}&playerPool=qualified&limit=10`;
+function headshotUrl(id, width = 200) {
+	return `https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_${width},d_people:generic:headshot:67:current.png,q_auto:best/v1/people/${id}/headshot/67/current`;
+}
 
-	const response = await fetch(url);
-	if (!response.ok) throw new Error(`Failed to pull ${leaderCategories} metrics`);
+function genericHeadshot() {
+	return 'https://img.mlbstatic.com/mlb-photos/image/upload/w_200,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current';
+}
 
-	const data = await response.json();
-	const leaders = data.leagueLeaders?.[0]?.leaders || [];
-
-	console.log(`[API Debug] Raw ${leaderCategories} leaders array length:`, leaders.length);
-
+function toLeaderRows(leaders) {
 	return leaders.map((player) => ({
 		rank: player.rank,
 		value: player.value,
 		name: player.person.fullName,
 		id: player.person.id,
 		team: player.team.name,
-		teamId: player.team.id
+		teamId: player.team.id,
+		headshot: headshotUrl(player.person.id),
+		genericHeadshot: genericHeadshot()
 	}));
 }
 
-async function fetchTopTeamsOverall() {
+async function fetchTopLeaders(leaderCategories, statGroup, leagueId, offset) {
 	const currentYear = new Date().getFullYear();
-	const url = `https://statsapi.mlb.com/api/v1/standings?leagueId=103,104&season=${currentYear}&standingsTypes=regularSeason`;
+	let url = `https://statsapi.mlb.com/api/v1/stats/leaders?sportId=1&season=${currentYear}&leaderCategories=${leaderCategories}&statGroup=${statGroup}&playerPool=qualified&limit=11`;
+	if (leagueId) url += `&leagueId=${leagueId}`;
+	if (offset > 0) url += `&offset=${offset}`;
 
 	const response = await fetch(url);
-	if (!response.ok) throw new Error('Failed to pull standings records');
+	if (!response.ok) throw new Error(`Failed to pull ${leaderCategories} metrics`);
 
 	const data = await response.json();
+	const leaderList = data.leagueLeaders?.[0]?.leaders || [];
 
-	console.log('[API Debug] Standings raw data root keys:', Object.keys(data));
-	console.log('[API Debug] Standings division records count:', data.records?.length);
-
-	const allTeams = [];
-
-	if (data.records) {
-		data.records.forEach((division, divIndex) => {
-			console.log(
-				`[API Debug] Processing division index ${divIndex}:`,
-				division.division?.name || 'Unknown Division',
-				`| Team records found:`,
-				!!division.teamRecords
-			);
-
-			if (division.teamRecords) {
-				division.teamRecords.forEach((record) => {
-					allTeams.push({
-						name: record.team.name,
-						teamId: record.team.id,
-						wins: record.wins,
-						losses: record.losses,
-						pct: parseFloat(record.winningPercentage || 0)
-					});
-				});
-			}
-		});
-	}
-
-	console.log('[API Debug] Total compiled teams before sorting:', allTeams.length);
-
-	const sortedTeams = allTeams.sort((a, b) => b.pct - a.pct);
-
-	console.log('[API Debug] Final top 10 teams data:', sortedTeams.slice(0, 10));
-
-	return sortedTeams;
-}
-
-export async function getHomePageSpotlight() {
-	const [ops, era, topTeams] = await Promise.all([
-		fetchTopLeaders('ops', 'hitting'),
-		fetchTopLeaders('earnedRunAverage', 'pitching'),
-		fetchTopTeamsOverall()
-	]);
+	const hasMore = leaderList.length > 10;
 
 	return {
-		ops: ops.slice(0, 10),
-		era: era.slice(0, 10),
-		topTeams: topTeams.slice(0, 10)
+		list: toLeaderRows(leaderList.slice(0, 10)),
+		hasMore
 	};
+}
+
+// One paginated leaderboard per category/stat group. `league` is "both",
+// "al", or "nl"; `offset` skips ahead (0 = ranks 1-10, 10 = 11-20, ...).
+export async function getLeagueLeaders(
+	leaderCategories,
+	statGroup,
+	league = 'both',
+	offset = 0
+) {
+	const leagueId = league === 'al' ? 103 : league === 'nl' ? 104 : null;
+	return fetchTopLeaders(leaderCategories, statGroup, leagueId, offset);
 }

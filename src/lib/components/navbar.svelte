@@ -23,8 +23,19 @@
   let nonDebutExpanded = $state(false);
   let isSearching = $state(false);
   let isSearchOpen = $state(false);
+  // Sub-480px screens (small phones) offer no real Enter key, so the
+  // "Enter opens the first result" shortcut is disabled there.
+  let narrowScreen = $state(false);
   let searchTriggerEl = $state(null);
   let resultsContainerEl = $state(null);
+
+  $effect(() => {
+    const mql = window.matchMedia("(max-width: 479px)");
+    const update = () => (narrowScreen = mql.matches);
+    update();
+    mql.addEventListener("change", update);
+    return () => mql.removeEventListener("change", update);
+  });
 
   const searchInput = createDebouncedSearch(
     (results) => {
@@ -143,7 +154,7 @@
   );
 
   function handleSearchKeydown(e) {
-    if (e.key === "Enter" && isSearchOpen && topResult?.href) {
+    if (e.key === "Enter" && isSearchOpen && !narrowScreen && topResult?.href) {
       e.preventDefault();
       const href = topResult.href;
       closeSearch();

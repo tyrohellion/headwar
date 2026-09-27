@@ -508,8 +508,7 @@
       }
 
       const cachedInjuries = getCachedSeasonInjuries(id, targetYear);
-      seasonInjuries =
-        cachedInjuries !== undefined ? cachedInjuries : null;
+      seasonInjuries = cachedInjuries !== undefined ? cachedInjuries : null;
       const cachedGames = getCachedSeasonGames(id, targetYear);
       seasonGames = cachedGames !== undefined ? cachedGames : null;
 
@@ -754,7 +753,7 @@
 </script>
 
 <svelte:head>
-  <title>{playerProfile?.fullName ?? 'headwar'}</title>
+  <title>{playerProfile?.fullName ?? "headwar"}</title>
 </svelte:head>
 
 {#if loading}
@@ -964,7 +963,7 @@
       <wa-tab-panel name="overview">
         <div class="advanced-tab-panel">
           {#if !isDateFilterActive}
-<div class="horizontal-wrapper overview-header-row">
+            <div class="horizontal-wrapper overview-header-row">
               {#if !isCareerMode}
                 <h3>{userSelectedYear} Overview</h3>
               {:else}
@@ -1138,10 +1137,10 @@
               {/if}
             </div>
           {/if}
-          {#if !isCareerMode && !isDateFilterActive && (isBattingPercentileStatsLoading || battingStatcast?.runValues?.runs_all !== undefined || battingStatcast?.baserunningRunValues?.runs_all !== undefined || battingStatcast?.pitcherRunValues?.runs_all !== undefined || battingStatcast?.fieldingRunValues?.total_runs !== undefined)}
+          {#if !isCareerMode && !isDateFilterActive && (isBattingPercentileStatsLoading || battingStatcast?.runValues?.runs_all !== undefined || battingStatcast?.baserunningRunValues?.runs_all !== undefined || battingStatcast?.pitcherRunValues?.runs_all !== undefined || battingStatcast?.fieldingRunValues?.total_runs !== undefined || battingStatcast?.percentiles?.sprint_speed != null || battingStatcast?.armStrength?.overall != null)}
             <wa-divider></wa-divider>
             <div class="horizontal-wrapper">
-              <h3>{userSelectedYear} Run Values</h3>
+              <h3>{userSelectedYear} Tools</h3>
             </div>
 
             <div class="statcast-grid">
@@ -1150,6 +1149,8 @@
                 <StatcastStatBarSkeleton label="Pitching Run Value" />
                 <StatcastStatBarSkeleton label="Fielding Run Value" />
                 <StatcastStatBarSkeleton label="Baserunning Run Value" />
+                <StatcastStatBarSkeleton label="Sprint Speed" />
+                <StatcastStatBarSkeleton label="Arm Strength" />
               {:else}
                 {#if battingStatcast.runValues && activeSeasonStats?.plateAppearances > 19}
                   <StatcastStatBar
@@ -1196,6 +1197,41 @@
                   />
                 {/if}
               {/if}
+
+              {#if !isBattingPercentileStatsLoading && battingStatcast?.percentiles?.sprint_speed != null}
+                {@const sprintConf = battingStatConfig.find(
+                  (c) => c.key === "sprint_speed",
+                )}
+                {@const sbPercentile =
+                  battingStatcast.percentiles?.sprint_speed}
+                {@const sbStat = sprintConf.getValue(battingStatcast)}
+                <StatcastStatBar
+                  label={sprintConf.label}
+                  stat={sbStat ?? sbPercentile}
+                  percentile={sbPercentile}
+                  decimals={0}
+                  invertColor={false}
+                  tooltipText={sprintConf.description}
+                  simple={true}
+                  runValue={sprintConf.runValue ?? false}
+                />
+              {/if}
+
+              {#if !isBattingPercentileStatsLoading && battingStatcast?.armStrength?.overall != null}
+                {@const armConf = fieldingStatcastConfig.find(
+                  (c) => c.key === "arm_overall",
+                )}
+                {@const armStat = battingStatcast.armStrength?.overall}
+                <StatcastStatBar
+                  label={armConf.label}
+                  decimals={armConf.decimals ?? 1}
+                  stat={armStat}
+                  percentile={armStat}
+                  runValue={armConf.runValue ?? false}
+                  tooltipText={armConf.description}
+                  simple={true}
+                />
+              {/if}
             </div>
           {/if}
 
@@ -1217,136 +1253,132 @@
 
           <!-- BASIC STATS BLOCK -->
 
-            <div class="basics-section">
+          <div class="basics-section">
             {#if activeSeasonStats && activeSeasonStats.atBats > 3}
-                <div class="basics-heading-row">
-                  <h4 class="basics-heading">Batting</h4>
-                  <div class="basics-sample">
-                    {#each battingSampleBadges as badge}
-                      <wa-badge appearance="outlined" variant="neutral"
-                        >{badge.value} {badge.label}</wa-badge
-                      >
-                    {/each}
-                  </div>
+              <div class="basics-heading-row">
+                <h4 class="basics-heading">Batting</h4>
+                <div class="basics-sample">
+                  {#each battingSampleBadges as badge}
+                    <wa-badge appearance="outlined" variant="neutral"
+                      >{badge.value} {badge.label}</wa-badge
+                    >
+                  {/each}
                 </div>
-                <div class="basics-group">
-                  <StatBoxStandardQuad
-                    label1={battingConfigMap.avg.label}
-                    abbr1={battingConfigMap.avg.abbr}
-                    stat1={formatBattingStat("avg", activeSeasonStats.avg)}
-                    tooltip1={battingConfigMap.avg.description}
-                    label2={battingConfigMap.obp.label}
-                    abbr2={battingConfigMap.obp.abbr}
-                    stat2={formatBattingStat("obp", activeSeasonStats.obp)}
-                    tooltip2={battingConfigMap.obp.description}
-                    label3={battingConfigMap.slg.label}
-                    abbr3={battingConfigMap.slg.abbr}
-                    stat3={formatBattingStat("slg", activeSeasonStats.slg)}
-                    tooltip3={battingConfigMap.slg.description}
-                    label4={battingConfigMap.ops.label}
-                    abbr4={battingConfigMap.ops.abbr}
-                    stat4={formatBattingStat("ops", activeSeasonStats.ops)}
-                    tooltip4={battingConfigMap.ops.description}
-                  />
+              </div>
+              <div class="basics-group">
+                <StatBoxStandardQuad
+                  label1={battingConfigMap.avg.label}
+                  abbr1={battingConfigMap.avg.abbr}
+                  stat1={formatBattingStat("avg", activeSeasonStats.avg)}
+                  tooltip1={battingConfigMap.avg.description}
+                  label2={battingConfigMap.obp.label}
+                  abbr2={battingConfigMap.obp.abbr}
+                  stat2={formatBattingStat("obp", activeSeasonStats.obp)}
+                  tooltip2={battingConfigMap.obp.description}
+                  label3={battingConfigMap.slg.label}
+                  abbr3={battingConfigMap.slg.abbr}
+                  stat3={formatBattingStat("slg", activeSeasonStats.slg)}
+                  tooltip3={battingConfigMap.slg.description}
+                  label4={battingConfigMap.ops.label}
+                  abbr4={battingConfigMap.ops.abbr}
+                  stat4={formatBattingStat("ops", activeSeasonStats.ops)}
+                  tooltip4={battingConfigMap.ops.description}
+                />
 
-                  <StatBoxStandardQuad
-                    label1={battingConfigMap.doubles.label}
-                    abbr1={battingConfigMap.doubles.abbr}
-                    stat1={formatBattingStat(
-                      "doubles",
-                      activeSeasonStats.doubles,
-                    )}
-                    tooltip1={battingConfigMap.doubles.description}
-                    label2={battingConfigMap.triples.label}
-                    abbr2={battingConfigMap.triples.abbr}
-                    stat2={formatBattingStat(
-                      "triples",
-                      activeSeasonStats.triples,
-                    )}
-                    tooltip2={battingConfigMap.triples.description}
-                    label3={battingConfigMap.homeRuns.label}
-                    abbr3={battingConfigMap.homeRuns.abbr}
-                    stat3={formatBattingStat(
-                      "homeRuns",
-                      activeSeasonStats.homeRuns,
-                    )}
-                    tooltip3={battingConfigMap.homeRuns.description}
-                    label4={battingConfigMap.rbi.label}
-                    abbr4={battingConfigMap.rbi.abbr}
-                    stat4={formatBattingStat("rbi", activeSeasonStats.rbi)}
-                    tooltip4={battingConfigMap.rbi.description}
-                  />
+                <StatBoxStandardQuad
+                  label1={battingConfigMap.doubles.label}
+                  abbr1={battingConfigMap.doubles.abbr}
+                  stat1={formatBattingStat(
+                    "doubles",
+                    activeSeasonStats.doubles,
+                  )}
+                  tooltip1={battingConfigMap.doubles.description}
+                  label2={battingConfigMap.triples.label}
+                  abbr2={battingConfigMap.triples.abbr}
+                  stat2={formatBattingStat(
+                    "triples",
+                    activeSeasonStats.triples,
+                  )}
+                  tooltip2={battingConfigMap.triples.description}
+                  label3={battingConfigMap.homeRuns.label}
+                  abbr3={battingConfigMap.homeRuns.abbr}
+                  stat3={formatBattingStat(
+                    "homeRuns",
+                    activeSeasonStats.homeRuns,
+                  )}
+                  tooltip3={battingConfigMap.homeRuns.description}
+                  label4={battingConfigMap.rbi.label}
+                  abbr4={battingConfigMap.rbi.abbr}
+                  stat4={formatBattingStat("rbi", activeSeasonStats.rbi)}
+                  tooltip4={battingConfigMap.rbi.description}
+                />
+              </div>
+            {/if}
+
+            {#if activePitchingStats?.inningsPitched > 1}
+              <div class="basics-heading-row">
+                <h4 class="basics-heading">Pitching</h4>
+                <div class="basics-sample">
+                  {#each pitchingSampleBadges as badge}
+                    <wa-badge appearance="outlined" variant="neutral"
+                      >{badge.value} {badge.label}</wa-badge
+                    >
+                  {/each}
                 </div>
-              {/if}
+              </div>
+              <div class="basics-group">
+                <StatBoxStandardQuad
+                  label1={pitchingConfigMap.era.label}
+                  abbr1={pitchingConfigMap.era.abbr}
+                  stat1={formatPitchingStat("era", activePitchingStats?.era)}
+                  tooltip1={pitchingConfigMap.era.description}
+                  label2="FIP"
+                  abbr2="FIP"
+                  stat2={formatPitchingStat("fip", pitcherAdvanced?.fip)}
+                  tooltip2="ERA measures actual runs allowed per nine innings, while FIP estimates the runs a pitcher 'should' have allowed based only on events they control (strikeouts, walks, hit-by-pitches, home runs). A large gap between them hints at good or bad luck. Lower is better for both."
+                  label3={pitchingConfigMap.ops.label}
+                  abbr3={pitchingConfigMap.ops.abbr}
+                  stat3={formatPitchingStat("ops", activePitchingStats?.ops)}
+                  tooltip3={pitchingConfigMap.ops.description}
+                  label4={pitchingConfigMap.whip.label}
+                  abbr4={pitchingConfigMap.whip.abbr}
+                  stat4={formatPitchingStat("whip", activePitchingStats?.whip)}
+                  tooltip4={pitchingConfigMap.whip.description}
+                />
 
-              {#if activePitchingStats?.inningsPitched > 1}
-                <div class="basics-heading-row">
-                  <h4 class="basics-heading">Pitching</h4>
-                  <div class="basics-sample">
-                    {#each pitchingSampleBadges as badge}
-                      <wa-badge appearance="outlined" variant="neutral"
-                        >{badge.value} {badge.label}</wa-badge
-                      >
-                    {/each}
-                  </div>
-                </div>
-                <div class="basics-group">
-                  <StatBoxStandardQuad
-                    label1={pitchingConfigMap.era.label}
-                    abbr1={pitchingConfigMap.era.abbr}
-                    stat1={formatPitchingStat("era", activePitchingStats?.era)}
-                    tooltip1={pitchingConfigMap.era.description}
-                    label2="FIP"
-                    abbr2="FIP"
-                    stat2={formatPitchingStat("fip", pitcherAdvanced?.fip)}
-                    tooltip2="ERA measures actual runs allowed per nine innings, while FIP estimates the runs a pitcher 'should' have allowed based only on events they control (strikeouts, walks, hit-by-pitches, home runs). A large gap between them hints at good or bad luck. Lower is better for both."
-                    label3={pitchingConfigMap.ops.label}
-                    abbr3={pitchingConfigMap.ops.abbr}
-                    stat3={formatPitchingStat("ops", activePitchingStats?.ops)}
-                    tooltip3={pitchingConfigMap.ops.description}
-                    label4={pitchingConfigMap.whip.label}
-                    abbr4={pitchingConfigMap.whip.abbr}
-                    stat4={formatPitchingStat(
-                      "whip",
-                      activePitchingStats?.whip,
-                    )}
-                    tooltip4={pitchingConfigMap.whip.description}
-                  />
-
-                  <StatBoxStandardQuad
-                    label1={pitchingConfigMap.strikeoutsPer9Inn.label}
-                    abbr1={pitchingConfigMap.strikeoutsPer9Inn.abbr}
-                    stat1={formatPitchingStat(
-                      "strikeoutsPer9Inn",
-                      activePitchingStats?.strikeoutsPer9Inn,
-                    )}
-                    tooltip1={pitchingConfigMap.strikeoutsPer9Inn.description}
-                    label2={pitchingConfigMap.walksPer9Inn.label}
-                    abbr2={pitchingConfigMap.walksPer9Inn.abbr}
-                    stat2={formatPitchingStat(
-                      "walksPer9Inn",
-                      activePitchingStats?.walksPer9Inn,
-                    )}
-                    tooltip2={pitchingConfigMap.walksPer9Inn.description}
-                    label3={pitchingConfigMap.strikeOuts.label}
-                    abbr3={pitchingConfigMap.strikeOuts.abbr}
-                    stat3={formatPitchingStat(
-                      "strikeOuts",
-                      activePitchingStats?.strikeOuts,
-                    )}
-                    tooltip3={pitchingConfigMap.strikeOuts.description}
-                    label4={pitchingConfigMap.earnedRuns.label}
-                    abbr4={pitchingConfigMap.earnedRuns.abbr}
-                    stat4={formatPitchingStat(
-                      "earnedRuns",
-                      activePitchingStats?.earnedRuns,
-                    )}
-                    tooltip4={pitchingConfigMap.earnedRuns.description}
-                  />
-                </div>
-              {/if}
-            </div>
-
+                <StatBoxStandardQuad
+                  label1={pitchingConfigMap.strikeoutsPer9Inn.label}
+                  abbr1={pitchingConfigMap.strikeoutsPer9Inn.abbr}
+                  stat1={formatPitchingStat(
+                    "strikeoutsPer9Inn",
+                    activePitchingStats?.strikeoutsPer9Inn,
+                  )}
+                  tooltip1={pitchingConfigMap.strikeoutsPer9Inn.description}
+                  label2={pitchingConfigMap.walksPer9Inn.label}
+                  abbr2={pitchingConfigMap.walksPer9Inn.abbr}
+                  stat2={formatPitchingStat(
+                    "walksPer9Inn",
+                    activePitchingStats?.walksPer9Inn,
+                  )}
+                  tooltip2={pitchingConfigMap.walksPer9Inn.description}
+                  label3={pitchingConfigMap.strikeOuts.label}
+                  abbr3={pitchingConfigMap.strikeOuts.abbr}
+                  stat3={formatPitchingStat(
+                    "strikeOuts",
+                    activePitchingStats?.strikeOuts,
+                  )}
+                  tooltip3={pitchingConfigMap.strikeOuts.description}
+                  label4={pitchingConfigMap.earnedRuns.label}
+                  abbr4={pitchingConfigMap.earnedRuns.abbr}
+                  stat4={formatPitchingStat(
+                    "earnedRuns",
+                    activePitchingStats?.earnedRuns,
+                  )}
+                  tooltip4={pitchingConfigMap.earnedRuns.description}
+                />
+              </div>
+            {/if}
+          </div>
         </div>
       </wa-tab-panel>
 
@@ -2501,7 +2533,7 @@
     }
   }
 
-    @media (max-width: 650px) {
+  @media (max-width: 650px) {
     .player-info-box {
       align-items: center;
     }

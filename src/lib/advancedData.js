@@ -34,7 +34,7 @@ export function isCurrentSeason(year) {
 //   seasons = [year, war, warRank, ops, opsRank, era, eraRank]
 // ---------------------------------------------------------------
 
-function getBrefIndex() {
+export function getBrefIndex() {
 	if (!brefIndexPromise) {
 		brefIndexPromise = fetchJson('bref_index.json').then((players) => {
 			const map = new Map();
@@ -101,6 +101,22 @@ export async function getPlayerBrefMetrics(mlbId, selectedYear = CURRENT_SEASON)
 	};
 }
 
+export async function getBrefSeasonWarLeaders(year = CURRENT_SEASON, limit = 5) {
+	const season = String(year);
+	const index = await getBrefIndex();
+	const leaders = [];
+	for (const player of index.values()) {
+		for (const [y, war, warRank] of player.seasons) {
+			if (String(y) === season) {
+				leaders.push({ id: player.id, war: war ?? 0, warRank: warRank ?? 'N/A' });
+				break;
+			}
+		}
+	}
+	leaders.sort((a, b) => b.war - a.war);
+	return leaders.slice(0, limit);
+}
+
 // ---------------------------------------------------------------
 // Statcast profile (savant_<year>.json, current + historical)
 // ---------------------------------------------------------------
@@ -155,7 +171,7 @@ function buildStatcastProfile(row, year) {
 			chase_percent: pct(row.pct_chase),
 			sprint_speed: pct(row.pct_sprint_speed),
 			sprint_speed_val: pct(row.pct_sprint_speed),
-			arm_strength: pct(row.p_pct_arm_strength),
+			arm_strength: pct(row.b_pct_arm_strength ?? row.p_pct_arm_strength),
 			bat_run_val: pct(row.pct_bat_run_val),
 			base_run_val: pct(row.pct_base_run_val),
 			total_runs: pct(row.pct_f_total_runs),

@@ -10,7 +10,7 @@ PITCH_THRESHOLD="${3:-0}"
 FIELD_THRESHOLD="${4:-0}"
 
 duckdb -c "
-CREATE TABLE savant_bat_pct AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(exit_velocity AS INTEGER) AS pct_exit_velocity, CAST(hard_hit_percent AS INTEGER) AS pct_hard_hit, CAST(COALESCE(TRY_CAST(brl_percent AS INTEGER), TRY_CAST(brl AS INTEGER)) AS INTEGER) AS pct_barrel, CAST(xwoba AS INTEGER) AS pct_xwoba, CAST(xba AS INTEGER) AS pct_xba, CAST(xslg AS INTEGER) AS pct_xslg, CAST(whiff_percent AS INTEGER) AS pct_whiff, CAST(k_percent AS INTEGER) AS pct_k_rate, CAST(bb_percent AS INTEGER) AS pct_bb_rate, CAST(chase_percent AS INTEGER) AS pct_chase, CAST(sprint_speed AS INTEGER) AS pct_sprint_speed FROM read_csv('tmp/bat_pct.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
+CREATE TABLE savant_bat_pct AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(exit_velocity AS INTEGER) AS pct_exit_velocity, CAST(hard_hit_percent AS INTEGER) AS pct_hard_hit, CAST(COALESCE(TRY_CAST(brl_percent AS INTEGER), TRY_CAST(brl AS INTEGER)) AS INTEGER) AS pct_barrel, CAST(xwoba AS INTEGER) AS pct_xwoba, CAST(xba AS INTEGER) AS pct_xba, CAST(xslg AS INTEGER) AS pct_xslg, CAST(whiff_percent AS INTEGER) AS pct_whiff, CAST(k_percent AS INTEGER) AS pct_k_rate, CAST(bb_percent AS INTEGER) AS pct_bb_rate, CAST(chase_percent AS INTEGER) AS pct_chase, CAST(arm_strength AS INTEGER) AS b_pct_arm_strength, CAST(sprint_speed AS INTEGER) AS pct_sprint_speed FROM read_csv('tmp/bat_pct.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
 CREATE TABLE savant_bat_xstats AS SELECT CAST(player_id AS VARCHAR) AS mlb_id, CAST(ba AS DOUBLE) AS ba, CAST(est_ba AS DOUBLE) AS xba, CAST(slg AS DOUBLE) AS slg, CAST(est_slg AS DOUBLE) AS xslg, CAST(woba AS DOUBLE) AS woba, CAST(est_woba AS DOUBLE) AS xwoba FROM read_csv('tmp/bat_xstats.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != '';
 
@@ -138,7 +138,7 @@ CREATE TABLE savant_${YEAR} AS
 SELECT
   ${YEAR} AS year_ID,
   k.mlb_id,
-  bp.pct_exit_velocity, bp.pct_hard_hit, bp.pct_barrel, bp.pct_xwoba, bp.pct_xba, bp.pct_xslg, bp.pct_whiff, bp.pct_k_rate, bp.pct_bb_rate, bp.pct_chase, bp.pct_sprint_speed,
+  bp.pct_exit_velocity, bp.pct_hard_hit, bp.pct_barrel, bp.pct_xwoba, bp.pct_xba, bp.pct_xslg, bp.pct_whiff, bp.pct_k_rate, bp.pct_bb_rate, bp.pct_chase, bp.b_pct_arm_strength, bp.pct_sprint_speed,
   bx.xba, bx.xslg, bx.woba, bx.xwoba,
   bev.avg_exit_velocity, bev.max_exit_velocity, bev.ev50, bev.barrel_rate, bev.hard_hit_rate,
   bc.whiff_rate, bc.chase_rate, bc.swing_rate, bc.sweet_spot_rate,

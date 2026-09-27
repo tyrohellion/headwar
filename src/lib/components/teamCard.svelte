@@ -96,6 +96,12 @@
     user-select: none;
   }
 
+  @media (max-width: 479px) {
+    .enter-badge {
+      display: none;
+    }
+  }
+
   .team-roster-card:hover {
     transform: scale(1.03);
     background-color: var(--wa-color-fill-normal);

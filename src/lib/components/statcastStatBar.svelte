@@ -44,6 +44,19 @@
   const activeColor = $derived.by(() => {
     if (runValue) {
       if (numericStat === null) return "var(--wa-color-neutral-50)";
+
+      // When a percentile rank is available, color the same way sprint speed
+      // and arm strength do (league-average anchored). Otherwise fall back to
+      // the value-sign heuristic (>= +1 green, <= -0.5 orange, <= -1 red).
+      if (rawPercentile !== null) {
+        const p = effectivePercentile;
+        if (p >= 90) return "var(--wa-color-success-60)";
+        if (p >= 60) return "var(--wa-color-success-80)";
+        if (p > 40) return "var(--wa-color-neutral-50)";
+        if (p >= 10) return "var(--wa-color-danger-80)";
+        return "var(--wa-color-danger-40)";
+      }
+
       if (numericStat >= 1) return "var(--wa-color-success-60)";
       if (numericStat <= -0.5) return "var(--wa-color-danger-80)";
       if (numericStat <= -1) return "var(--wa-color-danger-40)";
