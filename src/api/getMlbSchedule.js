@@ -23,8 +23,6 @@ export async function getMlbSchedule(dateString) {
 
 		const data = await response.json();
 
-		console.log(`[Schedule Debug] Games fetched for date ${targetDate}:`, data.dates?.[0]?.games);
-
 		return data.dates?.[0]?.games || [];
 	} catch (error) {
 		console.error('Error fetching MLB schedule:', error);

@@ -1,9 +1,9 @@
-function headshotUrl(id, width = 200) {
-	return `https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_${width},d_people:generic:headshot:67:current.png,q_auto:best/v1/people/${id}/headshot/67/current`;
+function headshotUrl(id, width = 96) {
+	return `https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_${width},d_people:generic:headshot:67:current.png,q_auto/v1/people/${id}/headshot/67/current`;
 }
 
 function genericHeadshot() {
-	return 'https://img.mlbstatic.com/mlb-photos/image/upload/w_200,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current';
+	return 'https://img.mlbstatic.com/mlb-photos/image/upload/w_96,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current';
 }
 
 function toLeaderRows(leaders) {

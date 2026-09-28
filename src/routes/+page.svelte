@@ -16,6 +16,7 @@
   import WaIcon from "@awesome.me/webawesome/dist/components/icon/icon.js";
   import WaDivider from "@awesome.me/webawesome/dist/components/divider/divider.js";
   import WaBadge from "@awesome.me/webawesome/dist/components/badge/badge.js";
+  import WaSkeleton from "@awesome.me/webawesome/dist/components/skeleton/skeleton.js";
 
   function getTodayString() {
     const d = new Date();
@@ -31,10 +32,12 @@
   let opsPage = $state(1);
   let eraPage = $state(1);
   let teamNodes = $state([]);
+  let isTeamDataLoading = $state(true);
   let leagueFilter = $state("both");
   let leaderLeagueFilter = $state("both");
   let logosMap = $state({});
   let isLoading = $state(true);
+  let isLeaderLoading = $state({ bwar: true, ops: true, era: true });
   let isScheduleLoading = $state(false);
   let errorMessage = $state("");
   let now = $state(new Date());
@@ -42,8 +45,15 @@
   let isExpanded = $state(false);
   let isDivisionExpanded = $state(false);
 
+  let hoverEnabled = $state(false);
+  let hoveredTeamId = $state(null);
+  let initialLoaded = false;
+  let previousLoadedDate = $state("");
+
+  const skeletonRows = Array.from({ length: 5 });
+
   const genericHeadshot =
-    "https://img.mlbstatic.com/mlb-photos/image/upload/w_200,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current";
+    "https://img.mlbstatic.com/mlb-photos/image/upload/w_96,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current";
 
   const filterOptions = [
     { value: "both", label: "Both" },
@@ -61,36 +71,66 @@
 
   async function loadBwar(league, page) {
     const id = ++leadersRequests.bwar;
-    const { list, hasMore } = await getFeaturedPlayers(10, league, page);
-    if (id !== leadersRequests.bwar) return;
-    playerLeaders.bwar = list;
-    hasMoreLeaders.bwar = hasMore;
+    isLeaderLoading.bwar = true;
+    try {
+      const { list, hasMore } = await getFeaturedPlayers(10, league, page);
+      if (id !== leadersRequests.bwar) return;
+      playerLeaders.bwar = list;
+      hasMoreLeaders.bwar = hasMore;
+    } catch (err) {
+      console.error(err);
+      if (id !== leadersRequests.bwar) return;
+      playerLeaders.bwar = [];
+      hasMoreLeaders.bwar = false;
+    } finally {
+      if (id === leadersRequests.bwar) isLeaderLoading.bwar = false;
+    }
   }
 
   async function loadOps(league, page) {
     const id = ++leadersRequests.ops;
-    const { list, hasMore } = await getLeagueLeaders(
-      "ops",
-      "hitting",
-      league,
-      (page - 1) * 10,
-    );
-    if (id !== leadersRequests.ops) return;
-    playerLeaders.ops = list;
-    hasMoreLeaders.ops = hasMore;
+    isLeaderLoading.ops = true;
+    try {
+      const { list, hasMore } = await getLeagueLeaders(
+        "ops",
+        "hitting",
+        league,
+        (page - 1) * 10,
+      );
+      if (id !== leadersRequests.ops) return;
+      playerLeaders.ops = list;
+      hasMoreLeaders.ops = hasMore;
+    } catch (err) {
+      console.error(err);
+      if (id !== leadersRequests.ops) return;
+      playerLeaders.ops = [];
+      hasMoreLeaders.ops = false;
+    } finally {
+      if (id === leadersRequests.ops) isLeaderLoading.ops = false;
+    }
   }
 
   async function loadEra(league, page) {
     const id = ++leadersRequests.era;
-    const { list, hasMore } = await getLeagueLeaders(
-      "earnedRunAverage",
-      "pitching",
-      league,
-      (page - 1) * 10,
-    );
-    if (id !== leadersRequests.era) return;
-    playerLeaders.era = list;
-    hasMoreLeaders.era = hasMore;
+    isLeaderLoading.era = true;
+    try {
+      const { list, hasMore } = await getLeagueLeaders(
+        "earnedRunAverage",
+        "pitching",
+        league,
+        (page - 1) * 10,
+      );
+      if (id !== leadersRequests.era) return;
+      playerLeaders.era = list;
+      hasMoreLeaders.era = hasMore;
+    } catch (err) {
+      console.error(err);
+      if (id !== leadersRequests.era) return;
+      playerLeaders.era = [];
+      hasMoreLeaders.era = false;
+    } finally {
+      if (id === leadersRequests.era) isLeaderLoading.era = false;
+    }
   }
 
   $effect(() => {
@@ -114,10 +154,25 @@
   });
 
   $effect(() => {
-    if (selectedDate && !isLoading) {
+    if (
+      selectedDate &&
+      !isLoading &&
+      initialLoaded &&
+      selectedDate !== previousLoadedDate
+    ) {
+      previousLoadedDate = selectedDate;
       loadScheduleForDate(selectedDate);
     }
   });
+
+  function collectScheduleTeamIds(schedule) {
+    const ids = new Set();
+    schedule.forEach((game) => {
+      if (game.teams?.away?.team?.id) ids.add(game.teams.away.team.id);
+      if (game.teams?.home?.team?.id) ids.add(game.teams.home.team.id);
+    });
+    return ids;
+  }
 
   async function loadScheduleForDate(dateStr) {
     isScheduleLoading = true;
@@ -126,30 +181,12 @@
       homepageSchedule = scheduleData;
 
       if (homepageSchedule.length > 0) {
-        const uniqueTeamIds = new Set();
-        homepageSchedule.forEach((game) => {
-          if (game.teams?.away?.team?.id && !logosMap[game.teams.away.team.id])
-            uniqueTeamIds.add(game.teams.away.team.id);
-          if (game.teams?.home?.team?.id && !logosMap[game.teams.home.team.id])
-            uniqueTeamIds.add(game.teams.home.team.id);
+        const additions = {};
+        collectScheduleTeamIds(homepageSchedule).forEach((id) => {
+          if (!logosMap[id] && !additions[id]) additions[id] = getTeamLogo(id);
         });
-
-        if (uniqueTeamIds.size > 0) {
-          const logoPromises = Array.from(uniqueTeamIds).map(async (id) => {
-            try {
-              const logoUrl = await getTeamLogo(id);
-              return { id, logoUrl };
-            } catch (err) {
-              return {
-                id,
-                logoUrl: `https://midas.mlbstatic.com/v1/team/${id}/assets/1/120.svg`,
-              };
-            }
-          });
-          const resolvedLogos = await Promise.all(logoPromises);
-          resolvedLogos.forEach((item) => {
-            if (item) logosMap[item.id] = item.logoUrl;
-          });
+        if (Object.keys(additions).length > 0) {
+          logosMap = { ...logosMap, ...additions };
         }
       }
     } catch (err) {
@@ -162,53 +199,37 @@
   onMount(async () => {
     try {
       isLoading = true;
+      hoverEnabled = window.matchMedia(
+        "(hover: hover) and (pointer: fine) and (min-width: 481px)",
+      ).matches;
 
-      const [scheduleData, standingsData, teamData] = await Promise.all([
+      const [scheduleData, standingsData] = await Promise.all([
         getMlbSchedule(selectedDate),
         getMlbStandings(),
-        getTeamBubbleLeaders(new Date().getFullYear()),
       ]);
 
       homepageSchedule = scheduleData;
       divisionRecords = standingsData;
+      logosMap = Object.fromEntries(
+        Array.from(collectScheduleTeamIds(homepageSchedule)).map((id) => [
+          id,
+          getTeamLogo(id),
+        ]),
+      );
+      previousLoadedDate = selectedDate;
+      initialLoaded = true;
+
+      isLoading = false;
+
+      const teamData = await getTeamBubbleLeaders(new Date().getFullYear());
       teamNodes = teamData;
-
-      if (homepageSchedule.length > 0) {
-        const uniqueTeamIds = new Set();
-
-        homepageSchedule.forEach((game) => {
-          if (game.teams?.away?.team?.id)
-            uniqueTeamIds.add(game.teams.away.team.id);
-          if (game.teams?.home?.team?.id)
-            uniqueTeamIds.add(game.teams.home.team.id);
-        });
-
-        const logoPromises = Array.from(uniqueTeamIds).map(async (id) => {
-          try {
-            const logoUrl = await getTeamLogo(id);
-            return { id, logoUrl };
-          } catch (err) {
-            return {
-              id,
-              logoUrl: `https://midas.mlbstatic.com/v1/team/${id}/assets/1/120.svg`,
-            };
-          }
-        });
-
-        const resolvedLogos = await Promise.all(logoPromises);
-        const newLogos = {};
-        resolvedLogos.forEach((item) => {
-          if (item) newLogos[item.id] = item.logoUrl;
-        });
-
-        logosMap = newLogos;
-      }
     } catch (error) {
       errorMessage =
         "Failed to load today's MLB metrics. Please check back shortly.";
       console.error(error);
     } finally {
       isLoading = false;
+      isTeamDataLoading = false;
     }
   });
 </script>
@@ -218,6 +239,19 @@
 </svelte:head>
 
 <main class="home-layout">
+  {#snippet leaderSkeleton()}
+    {#each skeletonRows as _}
+      <div class="leader-row leader-row-skeleton" aria-hidden="true">
+        <div class="rank-name-group">
+          <span class="row-rank-num"></span>
+          <wa-skeleton class="row-skeleton-avatar"></wa-skeleton>
+          <wa-skeleton class="row-skeleton-name"></wa-skeleton>
+        </div>
+        <wa-skeleton class="row-skeleton-value"></wa-skeleton>
+      </div>
+    {/each}
+  {/snippet}
+
   {#if isLoading}
     <div class="status-message">
       <wa-spinner style="font-size: 3rem;"></wa-spinner>
@@ -270,24 +304,37 @@
               <div class="column-header-title">Season bWAR</div>
               <wa-divider></wa-divider>
               <div class="leaderboard-rows-stack">
-                {#each playerLeaders.bwar as player}
-                  <a class="leader-row" href="/players/{player.id}">
-                    <div class="rank-name-group">
-                      <span class="row-rank-num">{player.rank}</span>
-                      <img
-                        src={player.headshot}
-                        alt=""
-                        class="row-player-thumb"
-                        loading="lazy"
-                        onerror={(e) => (e.target.src = genericHeadshot)}
-                      />
-                      <span class="player-profile-name">{player.name}</span>
-                    </div>
-                    <span class="metric-score-value">
-                      {player.war.toFixed(1)}
-                    </span>
-                  </a>
-                {/each}
+                {#if isLeaderLoading.bwar}
+                  {@render leaderSkeleton()}
+                {:else}
+                  {#each playerLeaders.bwar as player, i}
+                    <a class="leader-row" href="/players/{player.id}">
+                      <div class="rank-name-group">
+                        <span class="row-rank-num">{player.rank}</span>
+                        <img
+                          src={player.headshot}
+                          alt=""
+                          width="26"
+                          height="26"
+                          class="row-player-thumb"
+                          loading={i < 3 ? "eager" : "lazy"}
+                          fetchpriority={i < 3 ? "high" : "auto"}
+                          onerror={(e) => {
+                            if (!e.target.dataset.fallback) {
+                              e.target.dataset.fallback = "1";
+                              e.target.src =
+                                player.genericHeadshot || genericHeadshot;
+                            }
+                          }}
+                        />
+                        <span class="player-profile-name">{player.name}</span>
+                      </div>
+                      <span class="metric-score-value">
+                        {player.war.toFixed(1)}
+                      </span>
+                    </a>
+                  {/each}
+                {/if}
               </div>
               <div class="leaderboard-pager">
                 <wa-button
@@ -320,22 +367,35 @@
               <div class="column-header-title">OPS Leaders</div>
               <wa-divider></wa-divider>
               <div class="leaderboard-rows-stack">
-                {#each playerLeaders.ops as player}
-                  <a class="leader-row" href="/players/{player.id}">
-                    <div class="rank-name-group">
-                      <span class="row-rank-num">{player.rank}</span>
-                      <img
-                        src={player.headshot}
-                        alt=""
-                        class="row-player-thumb"
-                        loading="lazy"
-                        onerror={(e) => (e.target.src = player.genericHeadshot)}
-                      />
-                      <span class="player-profile-name">{player.name}</span>
-                    </div>
-                    <span class="metric-score-value">{player.value}</span>
-                  </a>
-                {/each}
+                {#if isLeaderLoading.ops}
+                  {@render leaderSkeleton()}
+                {:else}
+                  {#each playerLeaders.ops as player, i}
+                    <a class="leader-row" href="/players/{player.id}">
+                      <div class="rank-name-group">
+                        <span class="row-rank-num">{player.rank}</span>
+                        <img
+                          src={player.headshot}
+                          alt=""
+                          width="26"
+                          height="26"
+                          class="row-player-thumb"
+                          loading={i < 3 ? "eager" : "lazy"}
+                          fetchpriority={i < 3 ? "high" : "auto"}
+                          onerror={(e) => {
+                            if (!e.target.dataset.fallback) {
+                              e.target.dataset.fallback = "1";
+                              e.target.src =
+                                player.genericHeadshot || genericHeadshot;
+                            }
+                          }}
+                        />
+                        <span class="player-profile-name">{player.name}</span>
+                      </div>
+                      <span class="metric-score-value">{player.value}</span>
+                    </a>
+                  {/each}
+                {/if}
               </div>
               <div class="leaderboard-pager">
                 <wa-button
@@ -368,22 +428,35 @@
               <div class="column-header-title">ERA Leaders</div>
               <wa-divider></wa-divider>
               <div class="leaderboard-rows-stack">
-                {#each playerLeaders.era as player}
-                  <a class="leader-row" href="/players/{player.id}">
-                    <div class="rank-name-group">
-                      <span class="row-rank-num">{player.rank}</span>
-                      <img
-                        src={player.headshot}
-                        alt=""
-                        class="row-player-thumb"
-                        loading="lazy"
-                        onerror={(e) => (e.target.src = player.genericHeadshot)}
-                      />
-                      <span class="player-profile-name">{player.name}</span>
-                    </div>
-                    <span class="metric-score-value">{player.value}</span>
-                  </a>
-                {/each}
+                {#if isLeaderLoading.era}
+                  {@render leaderSkeleton()}
+                {:else}
+                  {#each playerLeaders.era as player, i}
+                    <a class="leader-row" href="/players/{player.id}">
+                      <div class="rank-name-group">
+                        <span class="row-rank-num">{player.rank}</span>
+                        <img
+                          src={player.headshot}
+                          alt=""
+                          width="26"
+                          height="26"
+                          class="row-player-thumb"
+                          loading={i < 3 ? "eager" : "lazy"}
+                          fetchpriority={i < 3 ? "high" : "auto"}
+                          onerror={(e) => {
+                            if (!e.target.dataset.fallback) {
+                              e.target.dataset.fallback = "1";
+                              e.target.src =
+                                player.genericHeadshot || genericHeadshot;
+                            }
+                          }}
+                        />
+                        <span class="player-profile-name">{player.name}</span>
+                      </div>
+                      <span class="metric-score-value">{player.value}</span>
+                    </a>
+                  {/each}
+                {/if}
               </div>
               <div class="leaderboard-pager">
                 <wa-button
@@ -446,22 +519,48 @@
       </div>
 
       <div class="section-body">
-        {#if visibleTeamNodes.length === 0}
+        {#if isTeamDataLoading}
+          <div class="empty-inline-state">
+            <wa-spinner style="font-size: 1.5rem;"></wa-spinner>
+            <p>Loading team bWAR...</p>
+          </div>
+        {:else if visibleTeamNodes.length === 0}
           <div class="empty-inline-state">
             <p>Team bWAR data is temporarily unavailable.</p>
           </div>
         {:else}
           <div class="team-grid">
             {#each visibleTeamNodes as team (team.teamId)}
-              <div class="team-tile">
-                {#if team.players.length}
+              <div
+                class="team-tile"
+                onmouseenter={() => (hoveredTeamId = team.teamId)}
+                onmouseleave={() => {
+                  if (hoveredTeamId === team.teamId) hoveredTeamId = null;
+                }}
+                onfocusin={() => (hoveredTeamId = team.teamId)}
+                onfocusout={(e) => {
+                  if (
+                    !e.currentTarget.contains(e.relatedTarget) &&
+                    hoveredTeamId === team.teamId
+                  ) {
+                    hoveredTeamId = null;
+                  }
+                }}
+              >
+                {#if team.players.length && hoverEnabled && hoveredTeamId === team.teamId}
                   <div class="team-hover" aria-hidden="true">
                     <div class="hover-head">
                       <img
                         src={team.logo}
                         alt=""
                         class="hover-logo"
-                        loading="lazy"
+                        onerror={(e) => {
+                          if (!e.target.dataset.fallback) {
+                            e.target.dataset.fallback = "1";
+                            e.target.src =
+                              "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+                          }
+                        }}
                       />
                       <span class="hover-abbr">{team.abbreviation}</span>
                       <span class="hover-label">
@@ -482,8 +581,14 @@
                             <img
                               src={player.headshot}
                               alt=""
-                              loading="lazy"
-                              onerror={(e) => (e.target.src = genericHeadshot)}
+                              width="46"
+                              height="68"
+                              onerror={(e) => {
+                                if (!e.target.dataset.fallback) {
+                                  e.target.dataset.fallback = "1";
+                                  e.target.src = genericHeadshot;
+                                }
+                              }}
                             />
                             <span class="hover-war">
                               <wa-badge variant="brand" pill>
@@ -506,8 +611,16 @@
                   <img
                     src={team.logo}
                     alt="Team Logo"
+                    width="32"
+                    height="32"
                     class="team-logo"
-                    loading="lazy"
+                    onerror={(e) => {
+                      if (!e.target.dataset.fallback) {
+                        e.target.dataset.fallback = "1";
+                        e.target.src =
+                          "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+                      }
+                    }}
                   />
                   <p>{team.name}</p>
                 </a>
@@ -1111,6 +1224,33 @@
     border-radius: 999px;
     object-fit: cover;
     background: var(--wa-color-neutral-fill-strong);
+  }
+
+  .leader-row-skeleton {
+    pointer-events: none;
+  }
+
+  .leader-row-skeleton wa-skeleton {
+    display: block;
+    overflow: hidden;
+    border-radius: var(--wa-border-radius-s);
+  }
+
+  .row-skeleton-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: var(--wa-border-radius-full);
+    flex-shrink: 0;
+  }
+
+  .row-skeleton-name {
+    width: 7rem;
+    height: 1rem;
+  }
+
+  .row-skeleton-value {
+    width: 2.75rem;
+    height: 1rem;
   }
 
   .player-profile-name {

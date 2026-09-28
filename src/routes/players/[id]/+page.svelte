@@ -126,6 +126,7 @@
   let hasDefaultedViewMode = $state(false);
   let advancedDisplayMode = $state("season");
   let isDesktop = $state(true);
+  let activeSection = $state("overview");
 
   let startDate = $state("");
   let endDate = $state("");
@@ -135,11 +136,19 @@
     const mql = window.matchMedia("(min-width: 923px)");
     isDesktop = mql.matches;
 
-    const listener = (e) => (isDesktop = e.matches);
+    const listener = (e) => {
+      isDesktop = e.matches;
+      activeSection = "overview";
+    };
     mql.addEventListener("change", listener);
 
     return () => mql.removeEventListener("change", listener);
   });
+
+  function handleTabActivate(event) {
+    const name = event.detail?.name;
+    if (name) activeSection = name;
+  }
 
   $effect(() => {
     const id = $page.params.id;
@@ -931,36 +940,45 @@
 
   <wa-divider style="margin-top: 0px;"></wa-divider>
 
-  {#key isDesktop}
-    <wa-tab-group placement={isDesktop ? "start" : "top"}>
-      {#snippet statcastSkeletonGrid(config, categories, pulsing)}
-        {#each categories as category, i (category)}
-          {#if i > 0}
-            <wa-divider></wa-divider>
-          {/if}
-          <div class="statcast-grid">
-            {#each config.filter((c) => c.category === category) as conf (conf.key)}
-              <StatcastStatBarSkeleton
-                label={conf.label}
-                tooltipText={conf.description}
-                {pulsing}
-              />
-            {/each}
-          </div>
+  {#snippet statcastSkeletonGrid(config, categories, pulsing)}
+    {#each categories as category, i (category)}
+      {#if i > 0}
+        <wa-divider></wa-divider>
+      {/if}
+      <div class="statcast-grid">
+        {#each config.filter((c) => c.category === category) as conf (conf.key)}
+          <StatcastStatBarSkeleton
+            label={conf.label}
+            tooltipText={conf.description}
+            {pulsing}
+          />
         {/each}
-      {/snippet}
+      </div>
+    {/each}
+  {/snippet}
 
-      <wa-tab panel="overview">Overview</wa-tab>
-      {#if activeSeasonStats && activeSeasonStats.atBats > 0}
-        <wa-tab panel="batting">Batting</wa-tab>
-      {/if}
-      {#if activePitchingStats?.gamesPlayed > 0}
-        <wa-tab panel="pitching">Pitching</wa-tab>
-      {/if}
-      <wa-tab panel="fielding">Fielding</wa-tab>
-      <wa-tab panel="awards">Awards</wa-tab>
+  <div class="tab-nav-layout">
+    <div class="tab-nav-sticky">
+      {#key isDesktop}
+        <wa-tab-group
+          placement={isDesktop ? "start" : "top"}
+          onwa-tab-show={handleTabActivate}
+        >
+          <wa-tab panel="overview">Overview</wa-tab>
+          {#if activeSeasonStats && activeSeasonStats.atBats > 0}
+            <wa-tab panel="batting">Batting</wa-tab>
+          {/if}
+          {#if activePitchingStats?.gamesPlayed > 0}
+            <wa-tab panel="pitching">Pitching</wa-tab>
+          {/if}
+          <wa-tab panel="fielding">Fielding</wa-tab>
+          <wa-tab panel="awards">Awards</wa-tab>
+        </wa-tab-group>
+      {/key}
+    </div>
 
-      <wa-tab-panel name="overview">
+    <div class="tab-panel-sections">
+      <wa-tab-panel name="overview" active={activeSection === "overview"}>
         <div class="advanced-tab-panel">
           {#if !isDateFilterActive}
             <div class="horizontal-wrapper overview-header-row">
@@ -1382,7 +1400,7 @@
         </div>
       </wa-tab-panel>
 
-      <wa-tab-panel name="batting">
+      <wa-tab-panel name="batting" active={activeSection === "batting"}>
         <wa-tooltip for="battingExplanation">
           93 would mean a player is in the top 7 percent of MLB players in that
           category. 50 is always going to be the league average.
@@ -1624,7 +1642,7 @@
         {/if}
       </wa-tab-panel>
 
-      <wa-tab-panel name="pitching">
+      <wa-tab-panel name="pitching" active={activeSection === "pitching"}>
         <wa-tooltip for="pitchingExplanation">
           93 would mean a player is in the top 7 percent of MLB players in that
           category. 50 is always going to be the league average.
@@ -1872,7 +1890,7 @@
         {/if}
       </wa-tab-panel>
 
-      <wa-tab-panel name="fielding">
+      <wa-tab-panel name="fielding" active={activeSection === "fielding"}>
         <wa-tooltip for="fieldingExplanation">
           93 would mean a player is in the top 7 percent of MLB players in that
           category. 50 is always going to be the league average.
@@ -2093,7 +2111,7 @@
         {/if}
       </wa-tab-panel>
 
-      <wa-tab-panel name="awards">
+      <wa-tab-panel name="awards" active={activeSection === "awards"}>
         <div class="horizontal-wrapper">
           <h3>Player Awards</h3>
         </div>
@@ -2121,8 +2139,8 @@
           <p>This player has not received any tracked MLB honors or awards.</p>
         {/if}
       </wa-tab-panel>
-    </wa-tab-group>
-  {/key}
+    </div>
+  </div>
 {/if}
 
 <style>
@@ -2408,6 +2426,42 @@
 
   .section-divider {
     margin: 3rem 0 3rem 0;
+  }
+
+  .tab-nav-layout {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: start;
+    gap: var(--wa-space-xl, 1.5rem);
+  }
+
+  .tab-nav-sticky {
+    position: sticky;
+    top: 1rem;
+    z-index: 30;
+  }
+
+  .tab-panel-sections wa-tab-panel {
+    padding: var(--wa-space-xl, 1.5rem) 0;
+  }
+
+  .tab-panel-sections wa-tab-panel[active] {
+    display: block !important;
+  }
+
+  .tab-panel-sections wa-tab-panel:not([active]) {
+    display: none !important;
+  }
+
+  @media (max-width: 922px) {
+    .tab-nav-layout {
+      display: block;
+    }
+
+    .tab-nav-sticky {
+      top: 0;
+      background-color: var(--wa-color-surface-default);
+    }
   }
 
   .accolades-list {

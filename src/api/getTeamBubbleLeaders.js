@@ -1,7 +1,7 @@
 import { getBrefIndex } from "$lib/advancedData.js";
 
 function headshot(id) {
-  return `https://img.mlbstatic.com/mlb-photos/image/upload/d_default_profile.png/w_60,q_auto:best/v1/people/${id}/headshot/67/current`;
+  return `https://img.mlbstatic.com/mlb-photos/image/upload/d_default_profile.png/w_120,q_auto/v1/people/${id}/headshot/67/current`;
 }
 
 // Element and league ids are stable across seasons in the public MLB API.
