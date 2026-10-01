@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from "svelte";
+  import { onDestroy, onMount } from "svelte";
   import { getMlbSchedule } from "../api/getMlbSchedule";
   import { getTeamLogo } from "../api/getTeamLogo";
   import { getMlbStandings } from "../api/getMlbDivisionStandings";
@@ -47,6 +47,39 @@
 
   let hoverEnabled = $state(false);
   let hoveredTeamId = $state(null);
+
+  // Hovering a team tile sweeps the cursor across the whole grid, so the popup
+  // waits a beat before opening to avoid flashing it on the way past. Keyboard
+  // focus opens it right away since that intent is deliberate.
+  const HOVER_OPEN_DELAY_MS = 500;
+  let hoverOpenTimer = null;
+
+  function clearTeamHoverTimer() {
+    if (hoverOpenTimer === null) return;
+    clearTimeout(hoverOpenTimer);
+    hoverOpenTimer = null;
+  }
+
+  function openTeamHover(teamId) {
+    clearTeamHoverTimer();
+    hoverOpenTimer = setTimeout(() => {
+      hoverOpenTimer = null;
+      hoveredTeamId = teamId;
+    }, HOVER_OPEN_DELAY_MS);
+  }
+
+  function showTeamHover(teamId) {
+    clearTeamHoverTimer();
+    hoveredTeamId = teamId;
+  }
+
+  function closeTeamHover(teamId) {
+    clearTeamHoverTimer();
+    if (hoveredTeamId === teamId) hoveredTeamId = null;
+  }
+
+  onDestroy(() => clearTeamHoverTimer());
+
   let initialLoaded = false;
   let previousLoadedDate = $state("");
 
@@ -533,17 +566,12 @@
             {#each visibleTeamNodes as team (team.teamId)}
               <div
                 class="team-tile"
-                onmouseenter={() => (hoveredTeamId = team.teamId)}
-                onmouseleave={() => {
-                  if (hoveredTeamId === team.teamId) hoveredTeamId = null;
-                }}
-                onfocusin={() => (hoveredTeamId = team.teamId)}
+                onmouseenter={() => openTeamHover(team.teamId)}
+                onmouseleave={() => closeTeamHover(team.teamId)}
+                onfocusin={() => showTeamHover(team.teamId)}
                 onfocusout={(e) => {
-                  if (
-                    !e.currentTarget.contains(e.relatedTarget) &&
-                    hoveredTeamId === team.teamId
-                  ) {
-                    hoveredTeamId = null;
+                  if (!e.currentTarget.contains(e.relatedTarget)) {
+                    closeTeamHover(team.teamId);
                   }
                 }}
               >

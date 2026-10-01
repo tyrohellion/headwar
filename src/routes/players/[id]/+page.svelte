@@ -20,6 +20,8 @@
     getPlayerSeasonGames,
     getCachedSeasonGames,
   } from "../../../api/getPlayerGamesPlayed";
+  import { getPlayerGameLogChunk } from "../../../api/getPlayerGameLog";
+  import { shapeGameLog } from "../../../formatters/gameLogFormatter";
   import { formatGamesPlayedLabel } from "../../../formatters/gamesFormatter";
   import { getTeamLogo } from "../../../api/getTeamLogo";
   import { standardBattingConfig } from "../../../formatters/standardBattingStatsConfig";
@@ -64,6 +66,8 @@
   import StatBoxSkeleton from "$lib/components/statBoxSkeleton.svelte";
   import StatBoxStandardDual from "$lib/components/statBoxStandardDual.svelte";
   import StatBoxStandardQuad from "$lib/components/statBoxStandardQuad.svelte";
+  import RecentPerformance from "$lib/components/recentPerformance.svelte";
+  import ArrowButton from "$lib/components/arrowButton.svelte";
 
   const seasonProgress = $derived.by(() => getSeasonProgressPercentage());
 
@@ -82,6 +86,12 @@
   let seasonInjuries = $state(null);
 
   let seasonGames = $state(null);
+
+  let gameLogGames = $state(null);
+  let isGameLogLoading = $state(false);
+  let gamePage = $state(1);
+
+  const GAMES_PER_PAGE = 6;
 
   let hasPitcherPercentiles = $derived(
     pitchingStatcast && hasAnyValue(pitchingStatcast.pitcherPercentiles),
@@ -168,8 +178,6 @@
             : await getPlayerInfo(id);
 
         playerData = info;
-
-        console.log("DEBUG 1 -> Full API payload response:", info);
 
         const profile = info?.people?.[0];
         if (profile?.mlbDebutDate) {
@@ -548,6 +556,92 @@
       cancelled = true;
     };
   });
+
+  $effect(() => {
+    const id = $page.params.id;
+    const targetYear = userSelectedYear;
+
+    if (
+      !id ||
+      !targetYear ||
+      isCareerMode ||
+      availableSeasons.length === 0 ||
+      !availableSeasons.includes(targetYear)
+    ) {
+      gameLogGames = null;
+      isGameLogLoading = false;
+      gamePage = 1;
+      return;
+    }
+
+    let cancelled = false;
+
+    untrack(() => {
+      gamePage = 1;
+      isGameLogLoading = true;
+
+      getPlayerGameLogChunk(id, targetYear)
+        .then((result) => {
+          if (cancelled) return;
+          gameLogGames = shapeGameLog(result.entries);
+        })
+        .catch((err) => {
+          if (cancelled) return;
+          console.error("[Game Log Effect Error]:", err);
+          gameLogGames = [];
+        })
+        .finally(() => {
+          if (!cancelled) isGameLogLoading = false;
+        });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  });
+
+  function goNextGamePage() {
+    if (gamePage < gameLogMaxPage) gamePage += 1;
+  }
+
+  function goPrevGamePage() {
+    if (gamePage > 1) gamePage -= 1;
+  }
+
+  const filteredGameLog = $derived.by(() => {
+    const games = gameLogGames || [];
+    if (!isDateFilterActive || !startDate || !endDate) return games;
+    return games.filter((g) => g.date >= startDate && g.date <= endDate);
+  });
+
+  const gameLogMaxPage = $derived(
+    Math.max(1, Math.ceil(filteredGameLog.length / GAMES_PER_PAGE)),
+  );
+
+  const effectiveGamePage = $derived(Math.min(gamePage, gameLogMaxPage));
+
+  const pagedGameLog = $derived.by(() => {
+    const start = (effectiveGamePage - 1) * GAMES_PER_PAGE;
+    return filteredGameLog.slice(start, start + GAMES_PER_PAGE);
+  });
+
+  const gameLogPagerLabel = $derived.by(() => {
+    const total = filteredGameLog.length;
+    if (total === 0) return "";
+    const start = (effectiveGamePage - 1) * GAMES_PER_PAGE + 1;
+    const end = Math.min(start + GAMES_PER_PAGE - 1, total);
+    return `${start}\u2013${end} of ${total}`;
+  });
+
+  const gameLogNextDisabled = $derived(
+    isGameLogLoading || gamePage >= gameLogMaxPage,
+  );
+
+  const noGameLogText = $derived(
+    isDateFilterActive
+      ? "No games in the selected date range."
+      : `No game log available for ${userSelectedYear}.`,
+  );
 
   let availableFieldingPositions = $derived(
     getAvailableFieldingPositions(
@@ -1398,6 +1492,47 @@
             {/if}
           </div>
         </div>
+
+        {#if !isCareerMode}
+          <div class="recent-performances-section">
+            <div class="recent-performances-header">
+              <h3>Recent Performances</h3>
+              <div class="recent-performances-pager">
+                <ArrowButton
+                  direction="prev"
+                  disabled={gamePage <= 1}
+                  onclick={goPrevGamePage}
+                />
+                <span class="pager-label">{gameLogPagerLabel}</span>
+                <ArrowButton
+                  direction="next"
+                  disabled={gameLogNextDisabled}
+                  onclick={goNextGamePage}
+                />
+              </div>
+            </div>
+
+            {#if isGameLogLoading && !gameLogGames}
+              <div class="recent-performances-grid">
+                {#each Array(GAMES_PER_PAGE) as _}
+                  <div class="recent-performance-skeleton">
+                    <wa-skeleton effect="sheen"></wa-skeleton>
+                    <wa-skeleton effect="sheen"></wa-skeleton>
+                    <wa-skeleton effect="sheen"></wa-skeleton>
+                  </div>
+                {/each}
+              </div>
+            {:else if gameLogGames && pagedGameLog.length > 0}
+              <div class="recent-performances-grid">
+                {#each pagedGameLog as game}
+                  <RecentPerformance {game} />
+                {/each}
+              </div>
+            {:else}
+              <span class="empty-state">{noGameLogText}</span>
+            {/if}
+          </div>
+        {/if}
       </wa-tab-panel>
 
       <wa-tab-panel name="batting" active={activeSection === "batting"}>
@@ -1535,7 +1670,9 @@
 
         <div class="horizontal-wrapper">
           {#if !isCareerMode && !isDateFilterActive}
-            <h3 id="battingExplanationStandard">{userSelectedYear} Batting</h3>
+            <h3 id="battingExplanationStandard">
+              {userSelectedYear} Batting
+            </h3>
           {:else if isDateFilterActive}
             <h3 id="battingExplanationStandard">
               Last {selectedRangeLabel} Batting
@@ -2497,6 +2634,12 @@
     gap: 1rem;
   }
 
+  .recent-performances-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(352px, 1fr));
+    gap: 0.75rem;
+  }
+
   @media (max-width: 1600px) {
     .details-filters-wrapper {
       flex-direction: column;
@@ -2521,6 +2664,10 @@
   @media (max-width: 1393px) {
     .overview-boxes-wrapper {
       grid-template-columns: repeat(3, minmax(280px, 312px));
+    }
+
+    .recent-performances-grid {
+      grid-template-columns: repeat(2, minmax(352px, 1fr));
     }
   }
 
@@ -2585,11 +2732,21 @@
     .basics-group {
       flex-direction: column;
     }
+
+    .recent-performances-grid {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+    }
   }
 
   @media (max-width: 650px) {
     .player-info-box {
       align-items: center;
+    }
+
+    .pager-label {
+      display: none;
     }
 
     .overview-boxes-wrapper {
@@ -2616,5 +2773,61 @@
     .basics-group {
       flex-direction: column;
     }
+  }
+
+  .recent-performances-section {
+    margin-top: 1.75rem;
+  }
+
+  .recent-performances-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .recent-performance-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 1rem;
+    border: 1px solid var(--wa-color-border-quiet, rgba(0, 0, 0, 0.12));
+    border-radius: var(--wa-border-radius-s);
+  }
+
+  .recent-performance-skeleton wa-skeleton {
+    display: block;
+    width: 100%;
+  }
+
+  .recent-performance-skeleton wa-skeleton:nth-child(2) {
+    width: 60%;
+  }
+
+  .recent-performance-skeleton wa-skeleton:nth-child(3) {
+    width: 80%;
+  }
+
+  .recent-performances-pager {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+  }
+
+  .pager-label {
+    font-size: var(--wa-font-size-s);
+    color: var(--wa-color-text-quiet, var(--wa-color-neutral-on-quiet));
+    font-variant-numeric: tabular-nums;
+    min-width: 6.5rem;
+    text-align: center;
+  }
+
+  .empty-state {
+    padding: 0.5rem;
+    text-align: center;
+    border: 1px dashed var(--wa-color-border-quiet);
+    border-radius: var(--wa-border-radius-m);
+    color: var(--wa-color-neutral-on-quiet);
   }
 </style>
