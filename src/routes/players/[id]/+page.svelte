@@ -2783,8 +2783,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
+    gap: 1rem;
+    margin-bottom: 1rem;
   }
 
   .recent-performance-skeleton {

@@ -66,8 +66,8 @@
 	}
 
 	.roster-molecule {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+		display: flex;
+		flex-wrap: wrap;
 		width: 100%;
 		gap: 1rem;
 		border-radius: var(--wa-border-radius-s);
@@ -75,7 +75,7 @@
 
 	@media (max-width: 768px) {
 		.roster-molecule {
-			grid-template-columns: 1fr;
+			flex-direction: column;
 			padding: 0.75rem;
 		}
 	}
