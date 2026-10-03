@@ -116,7 +116,7 @@ export const battingStatConfig = [
     invertColor: false,
     description:
       "How often the player swings and misses at a pitch inside the zone compared to the rest of the league.",
-    getValue: (data) => data?.custom?.pct_whiff,
+    getValue: (data) => data?.custom?.whiff_percent,
   },
 
   // ==========================================

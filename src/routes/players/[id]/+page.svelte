@@ -101,6 +101,7 @@
     fieldingStatcast &&
       (hasAnyValue(fieldingStatcast.fieldingRunValues) ||
         hasAnyValue(fieldingStatcast.armStrength) ||
+        fieldingStatcast.fiveStarCatches != null ||
         (fieldingStatcast.percentiles?.arm_strength ?? null) != null),
   );
 
@@ -159,6 +160,30 @@
     const name = event.detail?.name;
     if (name) activeSection = name;
   }
+
+  let detailsFiltersEl = $state(null);
+  let showFloatingHeadshot = $state(false);
+
+  $effect(() => {
+    const target = detailsFiltersEl;
+    if (!target || !isDesktop) {
+      showFloatingHeadshot = false;
+      return;
+    }
+
+    // Deep into the page the sticky tab rail is all that's left of the header,
+    // so float a mini headshot over it once the details/filters block has
+    // scrolled fully past the top of the viewport.
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        showFloatingHeadshot =
+          !entry.isIntersecting && entry.boundingClientRect.bottom <= 0;
+      },
+      { threshold: 0 },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  });
 
   $effect(() => {
     const id = $page.params.id;
@@ -911,7 +936,7 @@
       </div>
     </div>
   </div>
-  <div class="details-filters-wrapper">
+  <div class="details-filters-wrapper" bind:this={detailsFiltersEl}>
     <div class="small-details-wrapper">
       <p>
         {playerProfile.deathDate ? "Died at " : ""}{playerProfile.currentAge} years
@@ -1053,6 +1078,22 @@
 
   <div class="tab-nav-layout">
     <div class="tab-nav-sticky">
+      <div
+        class="floating-headshot-slot"
+        class:visible={isDesktop && showFloatingHeadshot}
+      >
+        <div class="floating-headshot">
+          <img
+            src="https://img.mlbstatic.com/mlb-photos/image/upload/d_default_profile.png/w_60,q_auto:best/v1/people/{$page
+              .params.id}/headshot/67/current"
+            alt=""
+            onerror={(e) => {
+              e.target.src =
+                "https://img.mlbstatic.com/mlb-photos/image/upload/w_60,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current";
+            }}
+          />
+        </div>
+      </div>
       {#key isDesktop}
         <wa-tab-group
           placement={isDesktop ? "start" : "top"}
@@ -2117,6 +2158,7 @@
                   <StatcastStatBar
                     label={conf.label}
                     stat={statVal}
+                    percentile={percentileVal}
                     decimals={conf.decimals ?? 0}
                     runValue={conf.runValue ?? false}
                     tooltipText={conf.description}
@@ -2576,6 +2618,40 @@
     position: sticky;
     top: 1rem;
     z-index: 30;
+  }
+
+  .floating-headshot-slot {
+    display: flex;
+    justify-content: center;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition:
+      max-height 220ms cubic-bezier(0.3, 0, 0, 1),
+      opacity 160ms ease;
+  }
+
+  .floating-headshot-slot.visible {
+    max-height: 5rem;
+    opacity: 1;
+  }
+
+  .floating-headshot img {
+    width: 45.6px;
+    height: 67.64px;
+    border-radius: var(--wa-border-radius-m);
+    background-color: var(--wa-color-gray-80);
+    object-fit: cover;
+    object-position: top;
+    box-shadow: var(--wa-shadow-m);
+    border: 1px solid var(--wa-color-border-quiet);
+    pointer-events: none;
+    transform: translateY(-100%);
+    transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+
+  .floating-headshot-slot.visible .floating-headshot img {
+    transform: translateY(0);
   }
 
   .tab-panel-sections wa-tab-panel {

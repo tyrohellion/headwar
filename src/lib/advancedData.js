@@ -131,7 +131,7 @@ function buildStatcastProfile(row, year) {
 
 	const batRunVal = num(row.savant_bat_run_val);
 	const pitchRunVal = num(row.savant_pitch_run_val);
-	const fieldRunVal = num(row.f_total_runs ?? row.savant_field_run_val);
+	const fieldRunVal = num(row.f_total_runs);
 	const baseRunVal = num(row.savant_base_run_val);
 
 	return {
@@ -143,16 +143,14 @@ function buildStatcastProfile(row, year) {
 			fieldRunVal != null
 				? {
 						total_runs: fieldRunVal,
-						inf_of_runs: num(row.f_inf_of_runs),
-						range_runs: num(row.f_range_runs),
 						arm_runs: num(row.f_arm_runs),
-						dp_runs: num(row.f_dp_runs),
 						catching_runs: num(row.f_catching_runs),
 						framing_runs: num(row.f_framing_runs),
 						throwing_runs: num(row.f_throwing_runs),
 						blocking_runs: num(row.f_blocking_runs)
 					}
 				: undefined,
+		fiveStarCatches: num(row.f_five_star_catches),
 		baserunningRunValues: baseRunVal != null ? { runner_runs_tot: baseRunVal } : undefined,
 		armStrength: {
 			overall: num(row.f_arm_overall),
@@ -170,29 +168,24 @@ function buildStatcastProfile(row, year) {
 			bb_percent: pct(row.pct_bb_rate),
 			chase_percent: pct(row.pct_chase),
 			sprint_speed: pct(row.pct_sprint_speed),
-			sprint_speed_val: pct(row.pct_sprint_speed),
 			arm_strength: pct(row.b_pct_arm_strength ?? row.p_pct_arm_strength),
 			bat_run_val: pct(row.pct_bat_run_val),
 			base_run_val: pct(row.pct_base_run_val),
 			total_runs: pct(row.pct_f_total_runs),
-			inf_of_runs: pct(row.pct_f_inf_of_runs),
-			range_runs: pct(row.pct_f_range_runs),
 			arm_runs: pct(row.pct_f_arm_runs),
-			dp_runs: pct(row.pct_f_dp_runs),
 			catching_runs: pct(row.pct_f_catching_runs),
 			framing_runs: pct(row.pct_f_framing_runs),
 			throwing_runs: pct(row.pct_f_throwing_runs),
-			blocking_runs: pct(row.pct_f_blocking_runs)
+			blocking_runs: pct(row.pct_f_blocking_runs),
+			five_star_catches: pct(row.pct_f_five_star_catches)
 		},
 		expectedStats: {
 			est_ba: num(row.xba),
 			est_slg: num(row.xslg),
-			est_woba: num(row.xwoba),
-			woba: num(row.woba)
+			est_woba: num(row.xwoba)
 		},
 		exitVeloBarrels: {
 			avg_hit_speed: num(row.avg_exit_velocity),
-			max_hit_speed: num(row.max_exit_velocity),
 			ev95percent: num(row.hard_hit_rate),
 			brl_percent: num(row.barrel_rate),
 			ev50: num(row.ev50)
@@ -200,7 +193,6 @@ function buildStatcastProfile(row, year) {
 		custom: {
 			whiff_percent: num(row.whiff_rate),
 			chase_percent: num(row.chase_rate),
-			swing_percent: num(row.swing_rate),
 			sweet_spot_percent: num(row.sweet_spot_rate)
 		},
 		pitcherPercentiles: {
@@ -230,7 +222,6 @@ function buildStatcastProfile(row, year) {
 		},
 		pitcherExitVeloBarrels: {
 			avg_hit_speed: num(row.p_avg_exit_velocity),
-			max_hit_speed: num(row.p_max_exit_velocity),
 			ev95percent: num(row.p_hard_hit_rate),
 			brl_percent: num(row.p_barrel_rate),
 			ev50: num(row.p_ev50),
