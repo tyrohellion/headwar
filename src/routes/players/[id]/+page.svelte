@@ -1312,7 +1312,7 @@
                     percentile={battingStatcast.percentiles?.bat_run_val}
                     decimals={1}
                     runValue={true}
-                    tooltipText="Total run value contributed across all batting outcomes according to statcast data. A value of 0 is league average."
+                    tooltipText="Total run value contributed across all batting outcomes according to statcast data."
                   />
                 {/if}
 
@@ -1324,7 +1324,7 @@
                       ?.pitch_run_val}
                     decimals={1}
                     runValue={true}
-                    tooltipText="Total run value contributed across all pitching outcomes according to statcast data. A value of 0 is league average."
+                    tooltipText="Total run value contributed across all pitching outcomes according to statcast data."
                   />
                 {/if}
 
@@ -1335,7 +1335,7 @@
                     percentile={battingStatcast.percentiles?.total_runs}
                     decimals={1}
                     runValue={true}
-                    tooltipText="Total run value contributed across all fielding outcomes according to statcast data. A value of 0 is league average."
+                    tooltipText="Total run value contributed across all fielding outcomes according to statcast data."
                   />
                 {/if}
 
@@ -1346,7 +1346,7 @@
                     percentile={battingStatcast.percentiles?.base_run_val}
                     decimals={1}
                     runValue={true}
-                    tooltipText="Total run value contributed across all baserunning outcomes according to statcast data. A value of 0 is league average."
+                    tooltipText="Total run value contributed across all baserunning outcomes according to statcast data."
                   />
                 {/if}
               {/if}

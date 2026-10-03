@@ -24,17 +24,17 @@ export const fieldingStatcastConfig = [
   //     "Runs saved based on Outs Above Average (OAA), measuring range and difficulty of plays made.",
   //   getValue: (data) => data?.fieldingRunValues?.range_runs,
   // },
-  {
-    key: "arm_runs",
-    percentileKey: "arm_runs",
-    label: "Arm Value",
-    category: "defense",
-    decimals: 1,
-    runValue: true,
-    description:
-      "Runs saved by preventing advancement or throwing out runners on base hits and flyouts.",
-    getValue: (data) => data?.fieldingRunValues?.arm_runs,
-  },
+  // {
+  //   key: "arm_runs",
+  //   percentileKey: "arm_runs",
+  //   label: "Arm Value",
+  //   category: "defense",
+  //   decimals: 1,
+  //   runValue: true,
+  //   description:
+  //     "Runs saved by preventing advancement or throwing out runners on base hits and flyouts.",
+  //   getValue: (data) => data?.fieldingRunValues?.arm_runs,
+  // },
   // {
   //   key: "inf_of_runs",
   //   percentileKey: "inf_of_runs",
