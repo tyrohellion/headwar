@@ -12,9 +12,21 @@
 #                 but pitching is expressed in innings because
 #                 war_daily_pitch.txt has no batters-faced column
 #                 (~200 BF / ~3.3 BF per inning ≈ 60 IP over a full season)
-#   - Fielding:   ~100 innings over a 162-game season, expressed in outs
-#                 (100 IP = 300 outs; matches Savant's fielding RV threshold)
-#   - Baserunning: same as batting (qualified by the batters' PA threshold)
+#   - Fielding:   2.4 outs per team game, so ~390 outs (~130 IP) over a
+#                 162-game season, up from Savant's ~100 IP (300 outs).
+#                 NOTE: this barely moves the percentiles (measured 2025:
+#                 530 -> 507 qualified, every percentile shifts <= 2 points).
+#                 A percentile is an order statistic, so trimming players from
+#                 the middle of the pool cannot change anyone's rank much, and
+#                 the best/worst players stay pinned at 100/0. Do not expect
+#                 this threshold to reconcile our percentiles with Savant's.
+#   - Baserunning: NO client-side threshold. Savant's endpoint already refuses to
+#                 publish players below its own floor (30 extra bases moved, so
+#                 ~1,200 players a season are absent from the CSV entirely), and
+#                 adding our own qualifier on top only removed real baserunners:
+#                 batting PA correlates just 0.51 with bases moved and excluded
+#                 low-PA specialists such as Esteury Ruiz (255 PA). We rank
+#                 everyone Savant gives us with a non-null run value.
 #
 # For current season: uses season progress to estimate games played.
 # For historical seasons: uses 162 (60 for 2020).
@@ -85,8 +97,10 @@ compute_thresholds() {
   # ERA+ (bref_index): same ~200-BF pitching qualifier in innings
   # (~60 IP over a full season; 60/162 ≈ 0.370 per game)
   ERA_IP_THRESHOLD=$((GAMES * 10 / 27))
-  # Fielding: ~100 innings over a full season = 300 outs (300/162 ≈ 1.852 outs per game)
-  FIELD_THRESHOLD=$((GAMES * 50 / 27))
+  # Fielding: 2.4 outs per game (~390 outs / ~130 IP over a full season,
+  # up from Savant's ~100 IP) — trims part-time players from the percentiles
+  FIELD_THRESHOLD=$((GAMES * 12 / 5))
+
 
   export BAT_THRESHOLD PITCH_THRESHOLD ERA_IP_THRESHOLD FIELD_THRESHOLD
   echo "Year: $YEAR, Est Games: $GAMES, BAT: $BAT_THRESHOLD, PITCH: $PITCH_THRESHOLD, ERA_IP: $ERA_IP_THRESHOLD, FIELD: $FIELD_THRESHOLD"

@@ -122,19 +122,16 @@ WHERE f_five_star_catches IS NOT NULL;
 
 CREATE TABLE savant_base_rv AS
 WITH raw AS (
-  SELECT CAST(b.player_id AS VARCHAR) AS mlb_id,
-         CAST(b.runner_runs_tot AS DOUBLE) AS savant_base_run_val,
-         CAST(bt.pa AS INTEGER) AS pa
-  FROM read_csv('tmp/base_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) b
-  LEFT JOIN read_csv('tmp/bat_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True) bt
-    ON CAST(b.player_id AS VARCHAR) = CAST(bt.player_id AS VARCHAR)
-  WHERE b.player_id IS NOT NULL AND CAST(b.player_id AS VARCHAR) != ''
+  SELECT CAST(player_id AS VARCHAR) AS mlb_id,
+         CAST(runner_runs_tot AS DOUBLE) AS savant_base_run_val
+  FROM read_csv('tmp/base_rv.csv', header=True, ignore_errors=True, nullstr=['NULL', ''], union_by_name=True)
+  WHERE player_id IS NOT NULL AND CAST(player_id AS VARCHAR) != ''
 ),
 qualified AS (
   SELECT mlb_id,
     ROUND(PERCENT_RANK() OVER (ORDER BY savant_base_run_val) * 100)::INTEGER AS pct_base_run_val
   FROM raw
-  WHERE pa >= ${BAT_THRESHOLD}
+  WHERE savant_base_run_val IS NOT NULL
 )
 SELECT r.mlb_id, r.savant_base_run_val, q.pct_base_run_val
 FROM raw r
