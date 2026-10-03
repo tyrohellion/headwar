@@ -1,6 +1,6 @@
 <script>
   import { advancedStats, loadAdvancedMetrics } from "$lib/warStore.svelte.js";
-  import { getPlayerStatcastProfile } from "$lib/advancedData.js";
+  import { getPlayerStatcastProfile, getPlayerSavantCareer } from "$lib/advancedData.js";
   import {
     computePitcherHwar,
     computeHitterHwar,
@@ -115,7 +115,7 @@
 
   let statcastNoDataText = $derived(
     isCareerMode
-      ? "Statcast data is not available in career mode."
+      ? "Career Statcast averages are only available for players who debuted in 2015 or later."
       : isDateFilterActive
         ? "Statcast data is not available for custom date ranges."
         : `No statcast data available for ${userSelectedYear}.`,
@@ -478,13 +478,52 @@
 
     let cancelled = false;
 
-    if (
-      !id ||
-      isDateFilterActive ||
-      isCareerMode ||
-      availableSeasons.length === 0 ||
-      !availableSeasons.includes(targetYear)
-    ) {
+    if (!id || isDateFilterActive || availableSeasons.length === 0) {
+      battingStatcast = null;
+      pitchingStatcast = null;
+      fieldingStatcast = null;
+      isBattingPercentileStatsLoading = false;
+      isPitchingPercentileStatsLoading = false;
+      isFieldingPercentileStatsLoading = false;
+      return;
+    }
+
+    // Career mode shows pre-aggregated 162 game averages instead of a season, and
+    // this stays the only writer of the three statcast profiles so the two modes
+    // cannot clobber each other. Players who debuted before 2015 are absent from
+    // savant_careers.json, which leaves these null and hides the section.
+    if (isCareerMode) {
+      isBattingPercentileStatsLoading = true;
+      isPitchingPercentileStatsLoading = true;
+      isFieldingPercentileStatsLoading = true;
+
+      getPlayerSavantCareer(id)
+        .then((profile) => {
+          if (cancelled) return;
+          battingStatcast = profile;
+          fieldingStatcast = profile;
+          pitchingStatcast = profile;
+        })
+        .catch((err) => {
+          console.error("[Statcast Career Error]:", err);
+          if (cancelled) return;
+          battingStatcast = null;
+          pitchingStatcast = null;
+          fieldingStatcast = null;
+        })
+        .finally(() => {
+          if (cancelled) return;
+          isBattingPercentileStatsLoading = false;
+          isPitchingPercentileStatsLoading = false;
+          isFieldingPercentileStatsLoading = false;
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (!availableSeasons.includes(targetYear)) {
       battingStatcast = null;
       pitchingStatcast = null;
       fieldingStatcast = null;
@@ -1048,6 +1087,7 @@
 
         <wa-switch
           size="s"
+          style="height: 38px; display: flex; align-items: center; justify-content: center;"
           checked={isCareerMode}
           onchange={(e) => (isCareerMode = e.target.checked)}
         >
@@ -1290,10 +1330,10 @@
               {/if}
             </div>
           {/if}
-          {#if !isCareerMode && !isDateFilterActive && (isBattingPercentileStatsLoading || battingStatcast?.runValues?.runs_all !== undefined || battingStatcast?.baserunningRunValues?.runs_all !== undefined || battingStatcast?.pitcherRunValues?.runs_all !== undefined || battingStatcast?.fieldingRunValues?.total_runs !== undefined || battingStatcast?.percentiles?.sprint_speed != null || battingStatcast?.percentiles?.arm_strength != null)}
+          {#if !isDateFilterActive && (isBattingPercentileStatsLoading || battingStatcast?.runValues?.runs_all !== undefined || battingStatcast?.baserunningRunValues?.runs_all !== undefined || battingStatcast?.pitcherRunValues?.runs_all !== undefined || battingStatcast?.fieldingRunValues?.total_runs !== undefined || battingStatcast?.percentiles?.sprint_speed != null || battingStatcast?.percentiles?.arm_strength != null)}
             <wa-divider></wa-divider>
             <div class="horizontal-wrapper">
-              <h3>{userSelectedYear} Tools</h3>
+              <h3>{isCareerMode ? '162 Game Avg' : `${userSelectedYear} Tools`}</h3>
             </div>
 
             <div class="statcast-grid">
@@ -1582,7 +1622,15 @@
           category. 50 is always going to be the league average.
         </wa-tooltip>
         <div class="horizontal-wrapper">
-          <h3 id="battingExplanation" class="help-trigger">Advanced Batting</h3>
+                  {#if !isCareerMode}
+          <h3 id="pitchingExplanation" class="help-trigger">
+            Advanced Batting
+          </h3>
+          {:else }
+          <h3 id="pitchingExplanation" class="help-trigger">
+            162 Game Average
+          </h3>
+          {/if}
           <wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
           <wa-badge variant="brand" appearance="filled"
             >Higher number is better</wa-badge
@@ -1826,9 +1874,15 @@
           category. 50 is always going to be the league average.
         </wa-tooltip>
         <div class="horizontal-wrapper">
+        {#if !isCareerMode}
           <h3 id="pitchingExplanation" class="help-trigger">
             Advanced Pitching
           </h3>
+          {:else }
+          <h3 id="pitchingExplanation" class="help-trigger">
+            162 Game Average
+          </h3>
+          {/if}
           <wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
           <wa-badge variant="brand" appearance="filled"
             >Higher percentile is better</wa-badge
@@ -2074,9 +2128,15 @@
           category. 50 is always going to be the league average.
         </wa-tooltip>
         <div class="horizontal-wrapper">
-          <h3 id="fieldingExplanation" class="help-trigger">
+                  {#if !isCareerMode}
+          <h3 id="pitchingExplanation" class="help-trigger">
             Advanced Fielding
           </h3>
+          {:else }
+          <h3 id="pitchingExplanation" class="help-trigger">
+            162 Game Average
+          </h3>
+          {/if}
           <wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
           <wa-badge variant="brand" appearance="filled"
             >Higher number is better</wa-badge

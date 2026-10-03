@@ -94,6 +94,27 @@ jobs:
           done
           rm -rf tmp
 
+      - name: Rebuild Savant Career Averages
+        run: |
+          set -euo pipefail
+          mkdir -p tmp
+          source .github/scripts/fetch_csv.sh
+
+          # Career averages weight each season by B-Ref games played, so they need
+          # the war_daily files again after the archive step cleared tmp.
+          # fetch_csv_strict exits instead of returning non-zero, so each fetch
+          # runs in a subshell to make it testable. B-Ref being unavailable must
+          # not discard the archive run that just succeeded; the daily workflow
+          # refreshes this file too.
+          if ( fetch_csv_strict "https://www.baseball-reference.com/data/war_daily_bat.txt" "tmp/war_daily_bat.txt" "mlb_ID,player_ID,name_common,year_ID,team_ID,stint_ID,lg_ID,age,PA,G,OPS_plus,WAR,runs_bat,runs_br,runs_defense" ) && \
+             ( fetch_csv_strict "https://www.baseball-reference.com/data/war_daily_pitch.txt" "tmp/war_daily_pitch.txt" "mlb_ID,player_ID,name_common,year_ID,team_ID,stint_ID,lg_ID,age,G,GS,IPouts,WAR,era_plus" ); then
+            python3 .github/scripts/build_savant_careers.py
+          else
+            echo "::warning::Could not refresh B-Ref games; leaving savant_careers.json to the daily workflow."
+          fi
+
+          rm -rf tmp
+
       - name: Commit Archive JSON Files
         run: |
           set -euo pipefail

@@ -17,6 +17,12 @@ This website is a non-commercial, open-source educational project built for fun.
 - Official public MLB api for non statcast data
 - Baseball Savant public CSV files for some statcast data
 
+### Statcast career averages
+
+Player pages hide Statcast in career mode because a single season is meaningless there. Instead, players who debuted in 2015 or later get a 162 game average built by `.github/scripts/build_savant_careers.py` into `static/data/savant_careers.json`, which is fetched only when career mode is selected.
+
+Every metric carries its own games denominator, and a season only counts toward a metric that actually qualified there, so the 60-game 2020 season cannot distort a rate and a missing season cannot drag on another one's games. Rates are games-weighted but never scaled up, since playing more games does not make a batter faster; only totals are projected to 162 games. Pitching totals are the exception: they project to 30 pitching games, because a pitcher's `G` runs about 21 per season and scaling it to 162 would inflate them roughly eightfold.
+
 ### Running Locally
 
 - npm install

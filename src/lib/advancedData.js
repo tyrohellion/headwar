@@ -258,3 +258,44 @@ export async function getPlayerStatcastProfile(mlbId, year = CURRENT_SEASON) {
 		return null;
 	}
 }
+
+// ---------------------------------------------------------------
+// Career Statcast averages (savant_careers.json)
+// Only players who debuted in the Statcast era (2015+) are present.
+// Rows are already aggregated by build_savant_careers.py: totals are projected
+// to a 162-game season, rates are games-weighted averages, and percentiles are
+// the mean of the seasons where they qualified. Loaded on demand because career
+// mode is the only view that needs it.
+// ---------------------------------------------------------------
+
+let savantCareersPromise = null;
+
+function getSavantCareers() {
+	if (!savantCareersPromise) {
+		savantCareersPromise = fetchJson('savant_careers.json')
+			.then((rows) => {
+				const map = new Map();
+				for (const row of rows) map.set(String(row.mlb_id), row);
+				return map;
+			})
+			.catch((err) => {
+				savantCareersPromise = null;
+				throw err;
+			});
+	}
+	return savantCareersPromise;
+}
+
+export async function getPlayerSavantCareer(mlbId) {
+	try {
+		const careers = await getSavantCareers();
+		const row = careers.get(String(mlbId));
+		if (!row) return null;
+		const profile = buildStatcastProfile(row, null);
+		profile.careerSeasons = row.seasons ?? null;
+		profile.careerGames = row.games ?? null;
+		return profile;
+	} catch (err) {
+		return null;
+	}
+}
