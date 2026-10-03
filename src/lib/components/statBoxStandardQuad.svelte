@@ -200,7 +200,7 @@
     min-width: 639px;
     max-width: 922px;
     cursor: help;
-    padding: 1rem 1.5rem 1.25rem 1.5rem;
+    padding: 0.75rem;
     transition: all 100ms ease;
     border-radius: var(--wa-border-radius-s);
     border: 1px solid
@@ -220,6 +220,8 @@
     display: flex;
     flex-direction: column;
     align-items: start;
+    padding: 0.5rem 0.75rem 0.5rem 0.75rem;
+    border-radius: var(--wa-border-radius-m);
     gap: 0.75rem;
     flex: 1;
     text-align: left;
@@ -249,8 +251,7 @@
     height: 26px;
   }
 
-  .stat-molucule:hover {
-    transform: scale(1.03);
+  .quad-side:hover {
     transition: all 100ms ease;
     background-color: var(--wa-color-fill-normal);
 
@@ -284,6 +285,13 @@
 
     .stat-molucule {
       min-width: 320px;
+      padding: 0.5rem;
+    }
+
+    .quad-side {
+      padding: 0.3rem 0.25rem 0.3rem 0.25rem;
+      border-radius: var(--wa-border-radius-s);
+      align-items: center;
     }
 
     .name-badge-wrapper {
