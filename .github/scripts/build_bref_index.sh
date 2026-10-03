@@ -157,7 +157,9 @@ SELECT mlb_id,
 FROM bref_season
 GROUP BY mlb_id;
 
--- Export the full browser-facing index (JSON array of player objects)
+-- Export the full browser-facing index (JSON array of player objects).
+-- Written to a scratch path first so a failed build can never overwrite a
+-- known-good static/data/bref_index.json.
 COPY (
   SELECT c.mlb_id AS id,
          c.career_war AS cw,
@@ -169,17 +171,29 @@ COPY (
   LEFT JOIN bref_career_plus p USING (mlb_id)
   LEFT JOIN bref_player_seasons s USING (mlb_id)
   ORDER BY c.career_war_rank
-) TO 'static/data/bref_index.json' (FORMAT JSON, ARRAY true);
+) TO 'static/data/bref_index.json.tmp' (FORMAT JSON, ARRAY true);
 "
 
 python3 - <<'EOF'
-import json, sys
+import json, os, shutil, sys
 
-with open('static/data/bref_index.json') as f:
+new_path = 'static/data/bref_index.json.tmp'
+final_path = 'static/data/bref_index.json'
+
+with open(new_path) as f:
     players = json.load(f)
-if len(players) < 10000:
-    print("ERROR: bref_index.json has too few players:", len(players))
+
+# Always clean up the scratch file, even when we bail out below.
+def fail(message):
+    os.remove(new_path)
+    print("ERROR:", message)
+    print(f"Kept the existing {final_path} untouched.")
     sys.exit(1)
+
+if len(players) < 10000:
+    fail(f"{new_path} has too few players: {len(players)}")
+
 years = {s[0] for p in players for s in p['seasons']}
+shutil.move(new_path, final_path)
 print(f"bref_index.json players: {len(players)}, seasons covering {min(years)}-{max(years)}")
 EOF
