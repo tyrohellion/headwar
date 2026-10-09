@@ -2714,10 +2714,6 @@
     transform: translateY(0);
   }
 
-  .tab-panel-sections wa-tab-panel {
-    padding: var(--wa-space-xl, 1.5rem) 0;
-  }
-
   .tab-panel-sections wa-tab-panel[active] {
     display: block !important;
   }

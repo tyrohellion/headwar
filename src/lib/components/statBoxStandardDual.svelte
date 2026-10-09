@@ -84,7 +84,7 @@
     if (isAvg) {
       if (numericValue >= 0.3) return "var(--wa-color-success-60)";
       if (numericValue >= 0.27) return "var(--wa-color-success-80)";
-      if (numericValue >= 0.24) return "var(--wa-color-neutral-50)";
+      if (numericValue >= 0.235) return "var(--wa-color-neutral-50)";
       return "var(--wa-color-danger-70)";
     }
 
@@ -97,7 +97,7 @@
 
     if (isOps) {
       if (numericValue >= 0.9) return "var(--wa-color-success-60)";
-      if (numericValue >= 0.8) return "var(--wa-color-success-80)";
+      if (numericValue >= 0.78) return "var(--wa-color-success-80)";
       if (numericValue >= 0.72) return "var(--wa-color-neutral-50)";
       return "var(--wa-color-danger-70)";
     }
