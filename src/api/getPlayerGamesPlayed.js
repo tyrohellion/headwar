@@ -9,18 +9,24 @@ const LEVELS = [
 
 const cache = new Map();
 
+// statsapi gameType codes: R regular season, F Wild Card, D Division Series,
+// L League Championship Series, W World Series, and P for the whole postseason.
+// Regular season is the default so callers that just want a season keep working.
+const DEFAULT_GAME_TYPE = 'R';
+
 /**
  * Synchronous lookup of a previously fetched season games summary.
  * @param {string} id - MLB player id.
  * @param {number|string} season - Season year.
+ * @param {string} [gameType='R'] - R (Regular Season), F (Wild Card), D (Division Series), L (League Championship Series), W (World Series), or P (Postseason).
  * @returns {{ total: number, byLevel: { level: string, label: string, games: number }[] } | undefined}
  */
-export function getCachedSeasonGames(id, season) {
-	return cache.get(`${id}-${season}`);
+export function getCachedSeasonGames(id, season, gameType = DEFAULT_GAME_TYPE) {
+	return cache.get(`${id}-${season}-${gameType}`);
 }
 
-async function fetchLevelGames(id, season, sportId) {
-	const url = `https://statsapi.mlb.com/api/v1/people/${id}/stats?stats=season&group=hitting,pitching&season=${season}&sportId=${sportId}&gameType=R`;
+async function fetchLevelGames(id, season, sportId, gameType) {
+	const url = `https://statsapi.mlb.com/api/v1/people/${id}/stats?stats=season&group=hitting,pitching&season=${season}&sportId=${sportId}&gameType=${gameType}`;
 
 	const response = await fetch(url);
 	if (!response.ok) {
@@ -49,10 +55,11 @@ async function fetchLevelGames(id, season, sportId) {
  * (MLB and minor leagues). One request per level, run in parallel.
  * @param {string} id - MLB player id.
  * @param {number|string} season - Season year.
+ * @param {string} [gameType='R'] - R (Regular Season), F (Wild Card), D (Division Series), L (League Championship Series), W (World Series), or P (Postseason).
  * @returns {Promise<{ total: number, byLevel: { level: string, label: string, games: number }[] }>}
  */
-export async function getPlayerSeasonGames(id, season) {
-	const key = `${id}-${season}`;
+export async function getPlayerSeasonGames(id, season, gameType = DEFAULT_GAME_TYPE) {
+	const key = `${id}-${season}-${gameType}`;
 	const cached = cache.get(key);
 	if (cached) return cached;
 
@@ -61,7 +68,7 @@ export async function getPlayerSeasonGames(id, season) {
 		LEVELS.map(async ({ sportId, level, label }) => ({
 			level,
 			label,
-			games: await fetchLevelGames(id, season, sportId)
+			games: await fetchLevelGames(id, season, sportId, gameType)
 		}))
 	);
 

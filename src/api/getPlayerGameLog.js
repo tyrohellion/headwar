@@ -7,29 +7,36 @@ const cache = new Map();
 // seasons are static and cached for the session.
 const CURRENT_SEASON_TTL_MS = 10 * 60 * 1000;
 
+// statsapi gameType codes: R regular season, F Wild Card, D Division Series,
+// L League Championship Series, W World Series, and P for the whole postseason.
+// Regular season is the default so callers that just want a season keep working.
+const DEFAULT_GAME_TYPE = 'R';
+
 /**
  * Synchronous lookup of a previously fetched season game log.
  * @param {string} id - MLB player id.
  * @param {number|string} season - Season year.
+ * @param {string} [gameType='R'] - R (Regular Season), F (Wild Card), D (Division Series), L (League Championship Series), W (World Series), or P (Postseason).
  * @returns {{ entries: Array } | undefined} Cached game log.
  */
-export function getCachedPlayerGameLogChunk(id, season) {
-	return getRecentCacheEntry(id, season);
+export function getCachedPlayerGameLogChunk(id, season, gameType = DEFAULT_GAME_TYPE) {
+	return getRecentCacheEntry(id, season, gameType);
 }
 
 /**
- * Fetches a player's full regular season gameLog, shaped into Recent
- * Performances entries.
+ * Fetches a player's gameLog for one game type, shaped into Recent Performances
+ * entries.
  * @param {string} id - MLB player id.
  * @param {number|string} season - Season year.
+ * @param {string} [gameType='R'] - R (Regular Season), F (Wild Card), D (Division Series), L (League Championship Series), W (World Series), or P (Postseason).
  * @returns {Promise<{ entries: Array }>} Raw game entries, one per game.
  */
-export async function getPlayerGameLogChunk(id, season) {
-	const cached = getRecentCacheEntry(id, season);
+export async function getPlayerGameLogChunk(id, season, gameType = DEFAULT_GAME_TYPE) {
+	const cached = getRecentCacheEntry(id, season, gameType);
 	if (cached !== undefined) return cached;
 
 	const main = await fetch(
-		`https://statsapi.mlb.com/api/v1/people/${id}/stats?stats=gameLog&group=hitting,pitching&season=${season}&sportId=1&gameType=R`,
+		`https://statsapi.mlb.com/api/v1/people/${id}/stats?stats=gameLog&group=hitting,pitching&season=${season}&sportId=1&gameType=${gameType}`,
 	);
 
 	if (!main.ok) {
@@ -38,16 +45,16 @@ export async function getPlayerGameLogChunk(id, season) {
 
 	const data = await main.json();
 	const result = { entries: extractRawEntries(data) };
-	cache.set(chunkKey(id, season), { ...result, fetchedAt: Date.now() });
+	cache.set(chunkKey(id, season, gameType), { ...result, fetchedAt: Date.now() });
 	return result;
 }
 
-function chunkKey(id, season) {
-	return `${id}-${season}`;
+function chunkKey(id, season, gameType) {
+	return `${id}-${season}-${gameType}`;
 }
 
-function getRecentCacheEntry(id, season) {
-	const key = chunkKey(id, season);
+function getRecentCacheEntry(id, season, gameType) {
+	const key = chunkKey(id, season, gameType);
 	const entry = cache.get(key);
 	if (!entry) return undefined;
 

@@ -1,4 +1,4 @@
-export async function getPlayerInfo(id, { season, startDate, endDate } = {}) {
+export async function getPlayerInfo(id, { season, startDate, endDate, gameType } = {}) {
 	const isDateRange = !!(startDate && endDate);
 
 	const statType = isDateRange ? 'byDateRange' : 'yearByYear,career';
@@ -10,6 +10,10 @@ export async function getPlayerInfo(id, { season, startDate, endDate } = {}) {
 
 	if (isDateRange && season) {
 		statParams.push(`season=${season}`);
+	}
+
+	if (!isDateRange && gameType && gameType !== 'R') {
+		statParams.push(`gameType=${gameType}`);
 	}
 
 	const hydrations = ['currentTeam', 'awards', `stats(${statParams.join(',')})`].join(',');

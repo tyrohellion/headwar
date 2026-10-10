@@ -71,6 +71,18 @@
 
   const seasonProgress = $derived.by(() => getSeasonProgressPercentage());
 
+  // Game-type scopes for the season filter, sharing the date-range select's
+  // option values. NONE keeps the full regular season, P covers every postseason
+  // round, and F/D/L/W narrow to a single round.
+  const GAME_TYPE_FILTERS = {
+    NONE: "R",
+    P: "P",
+    F: "F",
+    D: "D",
+    L: "L",
+    W: "W",
+  };
+
   let playerData = $state(null);
   let loading = $state(true);
   let errorMsg = $state("");
@@ -132,6 +144,7 @@
   let isCareerMode = $state(false);
   let userSelectedTeam = $state("ALL");
   let selectedRangeLabel = $state("NONE");
+  let selectedGameType = $state("R");
 
   let userSelectedFieldingPosition = $state("ALL");
   let hasDefaultedViewMode = $state(false);
@@ -142,6 +155,26 @@
   let startDate = $state("");
   let endDate = $state("");
   let isDateFilterActive = $state(false);
+
+  let hideStatcast = $derived(
+    isDateFilterActive || selectedGameType !== "R",
+  );
+
+  const GAME_TYPE_LABELS = {
+    P: "Postseason",
+    F: "Wild Card",
+    D: "Division Series",
+    L: "Championship Series",
+    W: "World Series",
+  };
+  let gameTypeLabel = $derived(GAME_TYPE_LABELS[selectedGameType] ?? "");
+  let recentPerformancesLabel = $derived(
+    isDateFilterActive
+      ? `Last ${selectedRangeLabel}`
+      : `${userSelectedYear} ${
+          selectedGameType === "R" ? "Regular Season" : gameTypeLabel
+        }`,
+  );
 
   onMount(() => {
     const mql = window.matchMedia("(min-width: 923px)");
@@ -192,6 +225,7 @@
     const filterActive = isDateFilterActive;
     const start = startDate;
     const end = endDate;
+    const gameType = selectedGameType;
 
     async function loadProfile() {
       loading = true;
@@ -200,7 +234,7 @@
         const info =
           filterActive && start && end
             ? await getPlayerInfo(id, { startDate: start, endDate: end })
-            : await getPlayerInfo(id);
+            : await getPlayerInfo(id, { gameType });
 
         playerData = info;
 
@@ -246,6 +280,10 @@
 
     untrack(() => {
       userSelectedTeam = "ALL";
+      if (isCareerMode) {
+        selectedRangeLabel = "NONE";
+        selectedGameType = "R";
+      }
     });
   });
 
@@ -254,6 +292,7 @@
     endDate = "";
     isDateFilterActive = false;
     selectedRangeLabel = "NONE";
+    selectedGameType = "R";
     if (availableOverviewSeasons.length > 0) {
       userSelectedYear = availableOverviewSeasons[0];
     }
@@ -478,7 +517,7 @@
 
     let cancelled = false;
 
-    if (!id || isDateFilterActive || availableSeasons.length === 0) {
+    if (!id || hideStatcast || availableSeasons.length === 0) {
       battingStatcast = null;
       pitchingStatcast = null;
       fieldingStatcast = null;
@@ -578,6 +617,7 @@
   $effect(() => {
     const id = $page.params.id;
     const targetYear = userSelectedYear;
+    const gameType = selectedGameType;
     const active = !!(id && targetYear && !isCareerMode && !isDateFilterActive);
     let cancelled = false;
 
@@ -590,7 +630,7 @@
 
       const cachedInjuries = getCachedSeasonInjuries(id, targetYear);
       seasonInjuries = cachedInjuries !== undefined ? cachedInjuries : null;
-      const cachedGames = getCachedSeasonGames(id, targetYear);
+      const cachedGames = getCachedSeasonGames(id, targetYear, gameType);
       seasonGames = cachedGames !== undefined ? cachedGames : null;
 
       getPlayerSeasonInjuries(id, targetYear)
@@ -604,7 +644,7 @@
           seasonInjuries = null;
         });
 
-      getPlayerSeasonGames(id, targetYear)
+      getPlayerSeasonGames(id, targetYear, gameType)
         .then((summary) => {
           if (cancelled) return;
           seasonGames = summary;
@@ -624,6 +664,7 @@
   $effect(() => {
     const id = $page.params.id;
     const targetYear = userSelectedYear;
+    const gameType = selectedGameType;
 
     if (
       !id ||
@@ -644,7 +685,7 @@
       gamePage = 1;
       isGameLogLoading = true;
 
-      getPlayerGameLogChunk(id, targetYear)
+      getPlayerGameLogChunk(id, targetYear, gameType)
         .then((result) => {
           if (cancelled) return;
           gameLogGames = shapeGameLog(result.entries);
@@ -742,6 +783,8 @@
       startDate = "";
       endDate = "";
       isDateFilterActive = false;
+      selectedRangeLabel = "NONE";
+      selectedGameType = "R";
       userSelectedTeam = "ALL";
 
       if (availableOverviewSeasons.length > 0) {
@@ -770,12 +813,20 @@
 
   function handleRangeChange(e) {
     const val = e.target.value;
-    selectedRangeLabel = val;
 
-    if (val === "NONE") {
-      clearDateRange();
+    if (val in GAME_TYPE_FILTERS) {
+      selectedRangeLabel = val;
+      selectedGameType = GAME_TYPE_FILTERS[val];
+      if (isDateFilterActive) {
+        startDate = "";
+        endDate = "";
+        isDateFilterActive = false;
+      }
       return;
     }
+
+    selectedRangeLabel = val;
+    selectedGameType = "R";
 
     const today = new Date();
     let calculatedStartDate = new Date();
@@ -1031,7 +1082,7 @@
       <p>{playerProfile.height}</p>
     </div>
     <div class="filter-controls-group">
-      {#if !isCareerMode && new Date().getFullYear() == userSelectedYear}
+      {#if !isCareerMode}
         <div class="date-range-inputs">
           <wa-select
             appearance="filled"
@@ -1039,9 +1090,14 @@
             value={selectedRangeLabel}
             placeholder="Select Range"
             onchange={handleRangeChange}
-            style="width: 160px;"
+            style="width: 210px;"
           >
-            <wa-option value="NONE">Season Year</wa-option>
+            <wa-option value="NONE">Regular Season</wa-option>
+            <wa-option value="P">Postseason</wa-option>
+            <wa-option value="F">Wild Card</wa-option>
+            <wa-option value="D">Division Series</wa-option>
+            <wa-option value="L">Championship Series</wa-option>
+            <wa-option value="W">World Series</wa-option>
             <wa-option value="24 Hours">Last 24 Hours</wa-option>
             <wa-option value="7 Days">Last 7 Days</wa-option>
             <wa-option value="30 Days">Last 30 Days</wa-option>
@@ -1155,7 +1211,7 @@
     <div class="tab-panel-sections">
       <wa-tab-panel name="overview" active={activeSection === "overview"}>
         <div class="advanced-tab-panel">
-          {#if !isDateFilterActive}
+          {#if !hideStatcast}
             <div class="horizontal-wrapper overview-header-row">
               {#if !isCareerMode}
                 <h3>{userSelectedYear} Overview</h3>
@@ -1330,7 +1386,7 @@
               {/if}
             </div>
           {/if}
-          {#if !isDateFilterActive && (isBattingPercentileStatsLoading || battingStatcast?.runValues?.runs_all !== undefined || battingStatcast?.baserunningRunValues?.runs_all !== undefined || battingStatcast?.pitcherRunValues?.runs_all !== undefined || battingStatcast?.fieldingRunValues?.total_runs !== undefined || battingStatcast?.percentiles?.sprint_speed != null || battingStatcast?.percentiles?.arm_strength != null)}
+          {#if !hideStatcast && (isBattingPercentileStatsLoading || battingStatcast?.runValues?.runs_all !== undefined || battingStatcast?.baserunningRunValues?.runs_all !== undefined || battingStatcast?.pitcherRunValues?.runs_all !== undefined || battingStatcast?.fieldingRunValues?.total_runs !== undefined || battingStatcast?.percentiles?.sprint_speed != null || battingStatcast?.percentiles?.arm_strength != null)}
             <wa-divider></wa-divider>
             <div class="horizontal-wrapper">
               <h3>{isCareerMode ? '162 Game Avg' : `${userSelectedYear} Tools`}</h3>
@@ -1432,7 +1488,12 @@
             <div class="horizontal-wrapper">
               <h3>Last {selectedRangeLabel}</h3>
             </div>
-          {:else if !isCareerMode && !isDateFilterActive}
+          {:else if !isCareerMode && selectedGameType !== "R"}
+            <wa-divider></wa-divider>
+            <div class="horizontal-wrapper">
+              <h3>{userSelectedYear} {gameTypeLabel}</h3>
+            </div>
+          {:else if !isCareerMode}
             <wa-divider></wa-divider>
             <div class="horizontal-wrapper">
               <h3>{userSelectedYear} Basics</h3>
@@ -1577,7 +1638,7 @@
         {#if !isCareerMode}
           <div class="recent-performances-section">
             <div class="recent-performances-header">
-              <h3>Recent Performances</h3>
+              <h3>{recentPerformancesLabel}</h3>
               <div class="recent-performances-pager">
                 <ArrowButton
                   direction="prev"
@@ -1758,7 +1819,11 @@
         <wa-divider class="section-divider"></wa-divider>
 
         <div class="horizontal-wrapper">
-          {#if !isCareerMode && !isDateFilterActive}
+          {#if !isCareerMode && selectedGameType !== "R"}
+            <h3 id="battingExplanationStandard">
+              {userSelectedYear} {gameTypeLabel} Batting
+            </h3>
+          {:else if !isCareerMode && !isDateFilterActive}
             <h3 id="battingExplanationStandard">
               {userSelectedYear} Batting
             </h3>
@@ -2028,7 +2093,11 @@
         {/if}
         <wa-divider class="section-divider"></wa-divider>
         <div class="horizontal-wrapper">
-          {#if !isCareerMode && !isDateFilterActive}
+          {#if !isCareerMode && selectedGameType !== "R"}
+            <h3 id="pitchingExplanationStandard">
+              {userSelectedYear} {gameTypeLabel} Pitching
+            </h3>
+          {:else if !isCareerMode && !isDateFilterActive}
             <h3 id="pitchingExplanationStandard">
               {userSelectedYear} Pitching
             </h3>
@@ -2245,7 +2314,11 @@
         <wa-divider class="section-divider"></wa-divider>
 
         <div class="horizontal-wrapper">
-          {#if !isCareerMode && !isDateFilterActive}
+          {#if !isCareerMode && selectedGameType !== "R"}
+            <h3 id="fieldingExplanationStandard">
+              {userSelectedYear} {gameTypeLabel} Fielding
+            </h3>
+          {:else if !isCareerMode && !isDateFilterActive}
             <h3 id="fieldingExplanationStandard">
               {userSelectedYear} Fielding
             </h3>
