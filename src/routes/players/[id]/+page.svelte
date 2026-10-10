@@ -20,7 +20,10 @@
     getPlayerSeasonGames,
     getCachedSeasonGames,
   } from "../../../api/getPlayerGamesPlayed";
-  import { getPlayerGameLogChunk } from "../../../api/getPlayerGameLog";
+  import {
+    getPlayerGameLogChunk,
+    getPlayerGameLogRange,
+  } from "../../../api/getPlayerGameLog";
   import { shapeGameLog } from "../../../formatters/gameLogFormatter";
   import { formatGamesPlayedLabel } from "../../../formatters/gamesFormatter";
   import { getTeamLogo } from "../../../api/getTeamLogo";
@@ -665,6 +668,7 @@
     const id = $page.params.id;
     const targetYear = userSelectedYear;
     const gameType = selectedGameType;
+    const dateFilterActive = isDateFilterActive;
 
     if (
       !id ||
@@ -685,7 +689,11 @@
       gamePage = 1;
       isGameLogLoading = true;
 
-      getPlayerGameLogChunk(id, targetYear, gameType)
+      const request = dateFilterActive
+        ? getPlayerGameLogRange(id, targetYear)
+        : getPlayerGameLogChunk(id, targetYear, gameType);
+
+      request
         .then((result) => {
           if (cancelled) return;
           gameLogGames = shapeGameLog(result.entries);

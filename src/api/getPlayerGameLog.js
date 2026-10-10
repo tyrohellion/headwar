@@ -49,6 +49,23 @@ export async function getPlayerGameLogChunk(id, season, gameType = DEFAULT_GAME_
 	return result;
 }
 
+/**
+ * Fetches and merges a player's regular-season and postseason game logs for a
+ * season. Date-range filters can straddle both, so the combined entries let
+ * "Last X Days" include postseason games instead of regular season only.
+ * @param {string} id - MLB player id.
+ * @param {number|string} season - Season year.
+ * @returns {Promise<{ entries: Array }>} Raw game entries from both scopes.
+ */
+export async function getPlayerGameLogRange(id, season) {
+	const [regular, postseason] = await Promise.all([
+		getPlayerGameLogChunk(id, season, 'R'),
+		getPlayerGameLogChunk(id, season, 'P'),
+	]);
+
+	return { entries: [...regular.entries, ...postseason.entries] };
+}
+
 function chunkKey(id, season, gameType) {
 	return `${id}-${season}-${gameType}`;
 }
