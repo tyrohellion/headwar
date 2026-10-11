@@ -1,5 +1,5 @@
 <script>
-  import { onDestroy, onMount } from "svelte";
+  import { onDestroy, onMount, tick } from "svelte";
   import { getMlbSchedule } from "../api/getMlbSchedule";
   import { getTeamLogo } from "../api/getTeamLogo";
   import { getMlbStandings } from "../api/getMlbDivisionStandings";
@@ -9,6 +9,7 @@
   import GameCard from "$lib/components/gameCard.svelte";
   import HorizontalDatePicker from "$lib/components/horizontalDatePicker.svelte";
   import DivisionStandingsGrid from "$lib/components/divisionStandingsGrid.svelte";
+  import ArrowButton from "$lib/components/arrowButton.svelte";
 
   import WaSpinner from "@awesome.me/webawesome/dist/components/spinner/spinner.js";
   import WaButton from "@awesome.me/webawesome/dist/components/button/button.js";
@@ -28,9 +29,6 @@
   let divisionRecords = $state([]);
   let playerLeaders = $state({ bwar: [], ops: [], era: [] });
   let hasMoreLeaders = $state({ bwar: false, ops: false, era: false });
-  let bwarPage = $state(1);
-  let opsPage = $state(1);
-  let eraPage = $state(1);
   let teamNodes = $state([]);
   let isTeamDataLoading = $state(true);
   let leagueFilter = $state("both");
@@ -100,82 +98,168 @@
       : teamNodes.filter((t) => t.league === leagueFilter.toUpperCase()),
   );
 
+  const LEADER_PAGE_SIZE = 10;
+  const LEADER_BOARDS = ["bwar", "ops", "era"];
+  const LEADER_CONFIG = {
+    bwar: null,
+    ops: { key: "ops", group: "hitting" },
+    era: { key: "earnedRunAverage", group: "pitching" },
+  };
   const leadersRequests = { bwar: 0, ops: 0, era: 0 };
+  const leaderPages = { bwar: 2, ops: 2, era: 2 };
+  const isLeaderAdding = { bwar: false, ops: false, era: false };
+  const leaderLayout = {
+    bwar: { step: 0, perView: 1 },
+    ops: { step: 0, perView: 1 },
+    era: { step: 0, perView: 1 },
+  };
+  const carouselEls = { bwar: null, ops: null, era: null };
+  let leaderView = $state({
+    bwar: { atStart: true, atEnd: true },
+    ops: { atStart: true, atEnd: true },
+    era: { atStart: true, atEnd: true },
+  });
 
-  async function loadBwar(league, page) {
-    const id = ++leadersRequests.bwar;
-    isLeaderLoading.bwar = true;
+  function boardValue(board, player) {
+    return board === "bwar" ? player.war.toFixed(1) : player.value;
+  }
+
+  async function fetchLeaderPage(board, league, page) {
+    if (board === "bwar") {
+      return getFeaturedPlayers(LEADER_PAGE_SIZE, league, page);
+    }
+    const { key, group } = LEADER_CONFIG[board];
+    return getLeagueLeaders(key, group, league, (page - 1) * LEADER_PAGE_SIZE);
+  }
+
+  async function loadBoard(board, league) {
+    const id = ++leadersRequests[board];
+    isLeaderAdding[board] = false;
+    isLeaderLoading[board] = true;
+    leaderPages[board] = 2;
     try {
-      const { list, hasMore } = await getFeaturedPlayers(10, league, page);
-      if (id !== leadersRequests.bwar) return;
-      playerLeaders.bwar = list;
-      hasMoreLeaders.bwar = hasMore;
+      const { list, hasMore } = await fetchLeaderPage(board, league, 1);
+      if (id !== leadersRequests[board]) return;
+      playerLeaders[board] = list;
+      hasMoreLeaders[board] = hasMore;
+      const el = carouselEls[board];
+      if (el) el.scrollLeft = 0;
     } catch (err) {
       console.error(err);
-      if (id !== leadersRequests.bwar) return;
-      playerLeaders.bwar = [];
-      hasMoreLeaders.bwar = false;
+      if (id !== leadersRequests[board]) return;
+      playerLeaders[board] = [];
+      hasMoreLeaders[board] = false;
     } finally {
-      if (id === leadersRequests.bwar) isLeaderLoading.bwar = false;
+      if (id === leadersRequests[board]) {
+        isLeaderLoading[board] = false;
+        await tick();
+        layoutLeaderBoard(board);
+      }
     }
   }
 
-  async function loadOps(league, page) {
-    const id = ++leadersRequests.ops;
-    isLeaderLoading.ops = true;
+  async function loadMoreBoard(board, league) {
+    if (
+      !hasMoreLeaders[board] ||
+      isLeaderLoading[board] ||
+      isLeaderAdding[board]
+    ) {
+      return false;
+    }
+    const id = ++leadersRequests[board];
+    isLeaderAdding[board] = true;
+    const page = leaderPages[board];
     try {
-      const { list, hasMore } = await getLeagueLeaders(
-        "ops",
-        "hitting",
-        league,
-        (page - 1) * 10,
-      );
-      if (id !== leadersRequests.ops) return;
-      playerLeaders.ops = list;
-      hasMoreLeaders.ops = hasMore;
+      const { list, hasMore } = await fetchLeaderPage(board, league, page);
+      if (id !== leadersRequests[board]) return false;
+      playerLeaders[board] = [...playerLeaders[board], ...list];
+      hasMoreLeaders[board] = hasMore;
+      leaderPages[board] = page + 1;
+      return true;
     } catch (err) {
       console.error(err);
-      if (id !== leadersRequests.ops) return;
-      playerLeaders.ops = [];
-      hasMoreLeaders.ops = false;
+      return false;
     } finally {
-      if (id === leadersRequests.ops) isLeaderLoading.ops = false;
+      if (id === leadersRequests[board]) {
+        isLeaderAdding[board] = false;
+        await tick();
+        layoutLeaderBoard(board);
+      }
     }
   }
 
-  async function loadEra(league, page) {
-    const id = ++leadersRequests.era;
-    isLeaderLoading.era = true;
-    try {
-      const { list, hasMore } = await getLeagueLeaders(
-        "earnedRunAverage",
-        "pitching",
-        league,
-        (page - 1) * 10,
-      );
-      if (id !== leadersRequests.era) return;
-      playerLeaders.era = list;
-      hasMoreLeaders.era = hasMore;
-    } catch (err) {
-      console.error(err);
-      if (id !== leadersRequests.era) return;
-      playerLeaders.era = [];
-      hasMoreLeaders.era = false;
-    } finally {
-      if (id === leadersRequests.era) isLeaderLoading.era = false;
+  function leaderGap(el) {
+    const cs = getComputedStyle(el);
+    return parseFloat(cs.columnGap) || parseFloat(cs.gap) || 0;
+  }
+
+  function layoutLeaderBoard(board) {
+    const el = carouselEls[board];
+    if (!el) return;
+    const gap = leaderGap(el);
+    const width = el.clientWidth;
+    if (width <= 0) return;
+    const cols = Math.max(1, Math.floor((width + gap) / (240 + gap)));
+    const cardWidth = Math.min(320, (width - (cols - 1) * gap) / cols);
+    el.style.setProperty("--leader-card-w", `${cardWidth}px`);
+    leaderLayout[board] = { step: cardWidth + gap, perView: cols };
+    updateLeaderView(board);
+  }
+
+  function layoutLeaderBoards() {
+    for (const board of LEADER_BOARDS) layoutLeaderBoard(board);
+  }
+
+  function updateLeaderView(board) {
+    const el = carouselEls[board];
+    if (!el) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    leaderView[board] = {
+      atStart: el.scrollLeft <= 2,
+      atEnd: maxScroll <= 2 || el.scrollLeft >= maxScroll - 2,
+    };
+  }
+
+  async function scrollLeaderBoard(board, direction) {
+    const el = carouselEls[board];
+    if (!el) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+
+    if (
+      direction === 1 &&
+      el.scrollLeft >= maxScroll - 2 &&
+      hasMoreLeaders[board]
+    ) {
+      await loadMoreBoard(board, leaderLeagueFilter);
     }
+
+    const { step, perView } = leaderLayout[board];
+    if (step <= 0) return;
+    const index = Math.round(el.scrollLeft / step);
+    const targetIndex =
+      direction === 1 ? index + perView : Math.max(0, index - perView);
+    const max = el.scrollWidth - el.clientWidth;
+    const left = Math.min(Math.max(0, targetIndex * step), max);
+    el.scrollTo({ left, behavior: "smooth" });
   }
 
   $effect(() => {
-    loadBwar(leaderLeagueFilter, bwarPage);
+    const league = leaderLeagueFilter;
+    for (const board of LEADER_BOARDS) loadBoard(board, league);
   });
 
   $effect(() => {
-    loadOps(leaderLeagueFilter, opsPage);
+    void isLoading;
+    void playerLeaders.bwar;
+    void playerLeaders.ops;
+    void playerLeaders.era;
+    tick().then(layoutLeaderBoards);
   });
 
-  $effect(() => {
-    loadEra(leaderLeagueFilter, eraPage);
+  onMount(() => {
+    const handleResize = () => layoutLeaderBoards();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   });
 
   $effect(() => {
@@ -272,15 +356,45 @@
 </svelte:head>
 
 <main class="home-layout">
+  {#snippet leaderCard(player, value, index)}
+    <a class="leader-card" href="/players/{player.id}">
+      <img
+        src={player.headshot}
+        alt=""
+        width="36"
+        height="58"
+        class="leader-card-photo"
+        loading={index < 3 ? "eager" : "lazy"}
+        fetchpriority={index < 3 ? "high" : "auto"}
+        onerror={(e) => {
+          if (!e.target.dataset.fallback) {
+            e.target.dataset.fallback = "1";
+            e.target.src = player.genericHeadshot || genericHeadshot;
+          }
+        }}
+      />
+      <div class="leader-card-info">
+        <span class="leader-card-name">{player.name}</span>
+        <div class="leader-card-meta">
+          <wa-badge appearance="filled" variant="neutral" size="s">
+            #{player.rank}
+          </wa-badge>
+          <wa-badge appearance="filled" variant="brand" size="s">
+            {value}
+          </wa-badge>
+        </div>
+      </div>
+    </a>
+  {/snippet}
+
   {#snippet leaderSkeleton()}
     {#each skeletonRows as _}
-      <div class="leader-row leader-row-skeleton" aria-hidden="true">
-        <div class="rank-name-group">
-          <span class="row-rank-num"></span>
-          <wa-skeleton class="row-skeleton-avatar"></wa-skeleton>
-          <wa-skeleton class="row-skeleton-name"></wa-skeleton>
+      <div class="leader-card leader-card-skeleton" aria-hidden="true">
+        <wa-skeleton class="leader-card-photo-skeleton"></wa-skeleton>
+        <div class="leader-card-info">
+          <wa-skeleton class="leader-card-name-skeleton"></wa-skeleton>
+          <wa-skeleton class="leader-card-value-skeleton"></wa-skeleton>
         </div>
-        <wa-skeleton class="row-skeleton-value"></wa-skeleton>
       </div>
     {/each}
   {/snippet}
@@ -319,9 +433,6 @@
               aria-pressed={leaderLeagueFilter === option.value}
               onclick={() => {
                 leaderLeagueFilter = option.value;
-                bwarPage = 1;
-                opsPage = 1;
-                eraPage = 1;
               }}
             >
               {option.label}
@@ -334,187 +445,95 @@
         <section class="page-section">
           <div class="spotlight-three-column-grid">
             <div class="spotlight-leaderboard-card">
-              <div class="column-header-title">Season bWAR</div>
-              <wa-divider></wa-divider>
-              <div class="leaderboard-rows-stack">
+              <div class="leaderboard-card-header">
+                <div class="column-header-title">Season bWAR</div>
+                <div class="leaderboard-pager">
+                  <ArrowButton
+                    direction="prev"
+                    disabled={leaderView.bwar.atStart}
+                    onclick={() => scrollLeaderBoard("bwar", -1)}
+                  />
+                  <ArrowButton
+                    direction="next"
+                    disabled={leaderView.bwar.atEnd && !hasMoreLeaders.bwar}
+                    onclick={() => scrollLeaderBoard("bwar", 1)}
+                  />
+                </div>
+              </div>
+              <div
+                class="leaderboard-carousel"
+                bind:this={carouselEls.bwar}
+                onscroll={() => updateLeaderView("bwar")}
+              >
                 {#if isLeaderLoading.bwar}
                   {@render leaderSkeleton()}
                 {:else}
                   {#each playerLeaders.bwar as player, i}
-                    <a class="leader-row" href="/players/{player.id}">
-                      <div class="rank-name-group">
-                        <span class="row-rank-num">{player.rank}</span>
-                        <img
-                          src={player.headshot}
-                          alt=""
-                          width="26"
-                          height="26"
-                          class="row-player-thumb"
-                          loading={i < 3 ? "eager" : "lazy"}
-                          fetchpriority={i < 3 ? "high" : "auto"}
-                          onerror={(e) => {
-                            if (!e.target.dataset.fallback) {
-                              e.target.dataset.fallback = "1";
-                              e.target.src =
-                                player.genericHeadshot || genericHeadshot;
-                            }
-                          }}
-                        />
-                        <span class="player-profile-name">{player.name}</span>
-                      </div>
-                      <span class="metric-score-value">
-                        {player.war.toFixed(1)}
-                      </span>
-                    </a>
+                    {@render leaderCard(player, boardValue("bwar", player), i)}
                   {/each}
                 {/if}
-              </div>
-              <div class="leaderboard-pager">
-                <wa-button
-                  size="small"
-                  appearance="filled"
-                  variant="neutral"
-                  disabled={bwarPage <= 1}
-                  onclick={() => bwarPage--}
-                  aria-label="Previous page"
-                >
-                  <wa-icon name="chevron-left" slot="prefix"></wa-icon>
-                  Prev
-                </wa-button>
-                <span class="pager-label">Page {bwarPage}</span>
-                <wa-button
-                  size="small"
-                  appearance="filled"
-                  variant="neutral"
-                  disabled={!hasMoreLeaders.bwar}
-                  onclick={() => bwarPage++}
-                  aria-label="Next page"
-                >
-                  Next
-                  <wa-icon name="chevron-right" slot="suffix"></wa-icon>
-                </wa-button>
               </div>
             </div>
 
             <div class="spotlight-leaderboard-card">
-              <div class="column-header-title">OPS Leaders</div>
-              <wa-divider></wa-divider>
-              <div class="leaderboard-rows-stack">
+              <div class="leaderboard-card-header">
+                <div class="column-header-title">OPS Leaders</div>
+                <div class="leaderboard-pager">
+                  <ArrowButton
+                    direction="prev"
+                    disabled={leaderView.ops.atStart}
+                    onclick={() => scrollLeaderBoard("ops", -1)}
+                  />
+                  <ArrowButton
+                    direction="next"
+                    disabled={leaderView.ops.atEnd && !hasMoreLeaders.ops}
+                    onclick={() => scrollLeaderBoard("ops", 1)}
+                  />
+                </div>
+              </div>
+              <div
+                class="leaderboard-carousel"
+                bind:this={carouselEls.ops}
+                onscroll={() => updateLeaderView("ops")}
+              >
                 {#if isLeaderLoading.ops}
                   {@render leaderSkeleton()}
                 {:else}
                   {#each playerLeaders.ops as player, i}
-                    <a class="leader-row" href="/players/{player.id}">
-                      <div class="rank-name-group">
-                        <span class="row-rank-num">{player.rank}</span>
-                        <img
-                          src={player.headshot}
-                          alt=""
-                          width="26"
-                          height="26"
-                          class="row-player-thumb"
-                          loading={i < 3 ? "eager" : "lazy"}
-                          fetchpriority={i < 3 ? "high" : "auto"}
-                          onerror={(e) => {
-                            if (!e.target.dataset.fallback) {
-                              e.target.dataset.fallback = "1";
-                              e.target.src =
-                                player.genericHeadshot || genericHeadshot;
-                            }
-                          }}
-                        />
-                        <span class="player-profile-name">{player.name}</span>
-                      </div>
-                      <span class="metric-score-value">{player.value}</span>
-                    </a>
+                    {@render leaderCard(player, boardValue("ops", player), i)}
                   {/each}
                 {/if}
-              </div>
-              <div class="leaderboard-pager">
-                <wa-button
-                  size="small"
-                  appearance="filled"
-                  variant="neutral"
-                  disabled={opsPage <= 1}
-                  onclick={() => opsPage--}
-                  aria-label="Previous page"
-                >
-                  <wa-icon name="chevron-left" slot="prefix"></wa-icon>
-                  Prev
-                </wa-button>
-                <span class="pager-label">Page {opsPage}</span>
-                <wa-button
-                  size="small"
-                  appearance="filled"
-                  variant="neutral"
-                  disabled={!hasMoreLeaders.ops}
-                  onclick={() => opsPage++}
-                  aria-label="Next page"
-                >
-                  Next
-                  <wa-icon name="chevron-right" slot="suffix"></wa-icon>
-                </wa-button>
               </div>
             </div>
 
             <div class="spotlight-leaderboard-card">
-              <div class="column-header-title">ERA Leaders</div>
-              <wa-divider></wa-divider>
-              <div class="leaderboard-rows-stack">
+              <div class="leaderboard-card-header">
+                <div class="column-header-title">ERA Leaders</div>
+                <div class="leaderboard-pager">
+                  <ArrowButton
+                    direction="prev"
+                    disabled={leaderView.era.atStart}
+                    onclick={() => scrollLeaderBoard("era", -1)}
+                  />
+                  <ArrowButton
+                    direction="next"
+                    disabled={leaderView.era.atEnd && !hasMoreLeaders.era}
+                    onclick={() => scrollLeaderBoard("era", 1)}
+                  />
+                </div>
+              </div>
+              <div
+                class="leaderboard-carousel"
+                bind:this={carouselEls.era}
+                onscroll={() => updateLeaderView("era")}
+              >
                 {#if isLeaderLoading.era}
                   {@render leaderSkeleton()}
                 {:else}
                   {#each playerLeaders.era as player, i}
-                    <a class="leader-row" href="/players/{player.id}">
-                      <div class="rank-name-group">
-                        <span class="row-rank-num">{player.rank}</span>
-                        <img
-                          src={player.headshot}
-                          alt=""
-                          width="26"
-                          height="26"
-                          class="row-player-thumb"
-                          loading={i < 3 ? "eager" : "lazy"}
-                          fetchpriority={i < 3 ? "high" : "auto"}
-                          onerror={(e) => {
-                            if (!e.target.dataset.fallback) {
-                              e.target.dataset.fallback = "1";
-                              e.target.src =
-                                player.genericHeadshot || genericHeadshot;
-                            }
-                          }}
-                        />
-                        <span class="player-profile-name">{player.name}</span>
-                      </div>
-                      <span class="metric-score-value">{player.value}</span>
-                    </a>
+                    {@render leaderCard(player, boardValue("era", player), i)}
                   {/each}
                 {/if}
-              </div>
-              <div class="leaderboard-pager">
-                <wa-button
-                  size="small"
-                  appearance="filled"
-                  variant="neutral"
-                  disabled={eraPage <= 1}
-                  onclick={() => eraPage--}
-                  aria-label="Previous page"
-                >
-                  <wa-icon name="chevron-left" slot="prefix"></wa-icon>
-                  Prev
-                </wa-button>
-                <span class="pager-label">Page {eraPage}</span>
-                <wa-button
-                  size="small"
-                  appearance="filled"
-                  variant="neutral"
-                  disabled={!hasMoreLeaders.era}
-                  onclick={() => eraPage++}
-                  aria-label="Next page"
-                >
-                  Next
-                  <wa-icon name="chevron-right" slot="suffix"></wa-icon>
-                </wa-button>
               </div>
             </div>
           </div>
@@ -529,7 +548,7 @@
             <span class="section-head-icon" aria-hidden="true">
               <wa-icon name="diagram-project"></wa-icon>
             </span>
-            <h2 class="section-head-text">Every Team</h2>
+            <h2 class="section-head-text">MLB Teams</h2>
           </div>
           <p class="section-head-sub">
             Teams and their 4 best players from bWAR
@@ -970,7 +989,6 @@
     background-color: var(--wa-color-neutral-fill-normal);
     transform: scale(1.03);
     transition: all 100ms ease;
-    text-decoration: underline;
   }
 
   .team-logo-name-wrapper:active {
@@ -978,7 +996,6 @@
     background-color: var(--wa-color-neutral-fill-normal);
     transform: scale(0.95);
     transition: all 100ms ease;
-    text-decoration: underline;
   }
 
   .team-hover {
@@ -1154,153 +1171,143 @@
 
   .spotlight-three-column-grid {
     display: flex;
-    gap: 1.5rem;
+    flex-direction: column;
+    gap: 1rem;
     width: 100%;
   }
 
   .spotlight-leaderboard-card {
-    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
     background-color: transparent;
-    border: 1px solid var(--wa-color-border-quiet);
     border-radius: var(--wa-border-radius-m);
-    padding: 1.25rem;
     box-sizing: border-box;
-    min-width: 320px;
+  }
+
+  .leaderboard-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
   }
 
   .column-header-title {
-    font-size: 1.1rem;
+    font-size: var(--wa-font-size-l);
     font-weight: var(--wa-font-weight-semibold, 600);
     color: var(--wa-color-filled-on-normal);
   }
 
-  .leaderboard-rows-stack {
+  .leaderboard-carousel {
     display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
+    overflow-x: auto;
+    padding: 0.5rem;
+    scroll-behavior: smooth;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .leaderboard-carousel::-webkit-scrollbar {
+    display: none;
   }
 
   .leaderboard-pager {
     display: flex;
     align-items: center;
-    justify-content: center;
     gap: 0.75rem;
-    margin-top: 0.875rem;
   }
 
-  .pager-label {
-    font-size: var(--wa-font-size-xs);
-    color: var(--wa-color-neutral-on-quiet);
-    font-family: var(--font-mono, monospace);
-    min-width: 4.5rem;
-    text-align: center;
-  }
-
-  .leader-row {
+  .leader-card {
+    flex: 0 0 var(--leader-card-w, 320px);
+    width: var(--leader-card-w, 320px);
     display: flex;
+    flex-direction: row;
     align-items: center;
-    justify-content: space-between;
-    padding: 0.4rem 0.5rem;
-    border-radius: var(--wa-border-radius-s);
+    gap: 1rem;
+    padding: 0.75rem;
+    border: 1px solid var(--wa-color-border-quiet);
+    border-radius: var(--wa-border-radius-m);
     text-decoration: none;
     color: var(--wa-color-filled-on-normal);
     transition: all 100ms ease;
+    scroll-snap-align: start;
   }
 
-  .leader-row:hover {
-    transform: scale(1.015);
+  .leader-card:hover {
     background-color: var(--wa-color-fill-normal);
-    cursor: pointer;
-    transition: all 100ms ease;
 
-    .player-profile-name {
-      text-decoration: underline;
+      wa-badge {
+      border-color: var(
+        --wa-color-border-loud,
+        var(--wa-color-brand-border-loud)
+      );
     }
   }
 
-  .leader-row:active {
-    transform: scale(0.98);
-    transition: all 100ms ease;
-  }
-
-  .leader-row:nth-child(even) {
-    background-color: color-mix(
-      in srgb,
-      var(--wa-color-fill-normal) 30%,
-      transparent
-    );
-  }
-
-  .rank-name-group {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    min-width: 0;
-  }
-
-  .row-rank-num {
-    font-size: var(--wa-font-size-xs);
-    font-family: var(--font-mono, monospace);
-    color: var(--wa-color-neutral-on-quiet);
-    width: 16px;
-    text-align: right;
-  }
-
-  .row-player-thumb {
-    width: 26px;
-    height: 26px;
-    border-radius: 999px;
+  .leader-card-photo {
+    height: 50px;
+    flex-shrink: 0;
+    border-radius: var(--wa-border-radius-m);
     object-fit: cover;
     background: var(--wa-color-neutral-fill-strong);
+    box-shadow: var(--wa-shadow-s);
   }
 
-  .leader-row-skeleton {
+  .leader-card-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+    text-align: center;
+  }
+
+  .leader-card-name {
+    font-size: var(--wa-font-size-m);
+    font-weight: var(--wa-font-weight-semibold, 600);
+    line-height: 1.15;
+    text-align: left;
+    max-width: 100%;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .leader-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .leader-card-skeleton {
     pointer-events: none;
   }
 
-  .leader-row-skeleton wa-skeleton {
+  .leader-card-skeleton wa-skeleton {
     display: block;
     overflow: hidden;
     border-radius: var(--wa-border-radius-s);
   }
 
-  .row-skeleton-avatar {
-    width: 26px;
-    height: 26px;
-    border-radius: var(--wa-border-radius-full);
+  .leader-card-photo-skeleton {
+    width: 36px;
+    height: 50px;
     flex-shrink: 0;
+    border-radius: var(--wa-border-radius-m);
   }
 
-  .row-skeleton-name {
-    width: 7rem;
-    height: 1rem;
+  .leader-card-name-skeleton {
+    width: 80%;
+    height: 0.9rem;
   }
 
-  .row-skeleton-value {
-    width: 2.75rem;
-    height: 1rem;
-  }
-
-  .player-profile-name {
-    font-size: var(--wa-font-size-m);
-    color: var(--wa-color-filled-on-normal);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .metric-score-value {
-    font-family: var(--font-mono, monospace);
-    font-weight: var(--wa-font-weight-bold, 700);
-    color: var(--wa-color-filled-on-normal);
-    font-size: var(--wa-font-size-m);
-    padding-left: 0.5rem;
-  }
-
-  .metric-score-value.subtitle-record {
-    font-size: var(--wa-font-size-xs);
-    color: var(--wa-color-neutral-on-quiet);
-    font-weight: var(--wa-font-weight-normal, 400);
+  .leader-card-value-skeleton {
+    width: 50%;
+    height: 0.9rem;
   }
 
   .collapsible-schedule-wrapper,
@@ -1386,7 +1393,6 @@
 
   @media (max-width: 1125px) {
     .spotlight-three-column-grid {
-      flex-direction: column;
       gap: 1rem;
     }
   }
