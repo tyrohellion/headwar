@@ -47,10 +47,7 @@
   let hoverEnabled = $state(false);
   let hoveredTeamId = $state(null);
 
-  // Hovering a team tile sweeps the cursor across the whole grid, so the popup
-  // waits a beat before opening to avoid flashing it on the way past. Keyboard
-  // focus opens it right away since that intent is deliberate.
-  const HOVER_OPEN_DELAY_MS = 500;
+  const HOVER_OPEN_DELAY_MS = 400;
   let hoverOpenTimer = null;
 
   function clearTeamHoverTimer() {
@@ -417,6 +414,7 @@
           <div class="section-head-left">
             <div class="section-head-title">
               <h2 class="section-head-text">Player Leaders</h2>
+              <wa-icon name="ranking-star" style="color: var(--wa-color-brand-fill-loud); font-size: 1.5rem;"></wa-icon>
             </div>
           </div>
 
@@ -550,6 +548,7 @@
           <div class="section-head-left">
             <div class="section-head-title">
               <h2 class="section-head-text">MLB Teams</h2>
+              <wa-icon name="users-rectangle" style="color: var(--wa-color-brand-fill-loud); font-size: 1.5rem;"></wa-icon>
             </div>
           </div>
 
@@ -684,6 +683,7 @@
         <div class="section-head">
           <div class="section-head-title">
             <h2 class="section-head-text">Today's Games</h2>
+            <wa-icon name="calendar-day" style="color: var(--wa-color-brand-fill-loud); font-size: 1.5rem;"></wa-icon>
           </div>
         </div>
 
@@ -747,6 +747,7 @@
         <div class="section-head">
           <div class="section-head-title">
             <h2 class="section-head-text">Standings</h2>
+            <wa-icon name="medal" style="color: var(--wa-color-brand-fill-loud); font-size: 1.5rem;"></wa-icon>
           </div>
         </div>
 
@@ -1113,9 +1114,12 @@
   }
 
   .column-header-title {
-    font-size: var(--wa-font-size-l);
+    font-size: var(--wa-font-size-s);
     font-weight: var(--wa-font-weight-semibold, 600);
     color: var(--wa-color-filled-on-normal);
+    padding: 0.3rem 0.75rem 0.3rem 0.75rem;
+    background-color: var(--wa-color-fill-normal);
+    border-radius: var(--wa-border-radius-m);
   }
 
   .leaderboard-carousel {

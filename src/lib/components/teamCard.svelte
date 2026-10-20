@@ -81,16 +81,13 @@
     display: inline-flex;
     align-items: center;
     gap: 0.25rem;
-    font-family: var(--font-mono, monospace);
     font-size: 0.6rem;
     font-weight: 700;
-    line-height: 1;
-    letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--wa-color-brand-on-loud);
     background-color: var(--wa-color-brand-fill-loud);
     border-radius: 999px;
-    padding: 0.3rem 0.5rem;
+    padding: 0.1rem 0.5rem;
     box-shadow: var(--wa-shadow-s);
     pointer-events: none;
     user-select: none;

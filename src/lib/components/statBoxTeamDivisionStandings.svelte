@@ -244,7 +244,6 @@
 	}
 
 	wa-badge {
-		font-family: var(--font-mono);
 		height: 22px;
 		font-size: var(--wa-font-size-xs);
 		padding: 0 0.4rem;

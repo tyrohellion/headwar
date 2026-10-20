@@ -13,7 +13,7 @@
   <div class="hero-inner">
     <h1 class="statement" id="hero-title">
       <span class="hero-mark">HEADWAR</span>
-      <span class="hero-line">Baseball for the modern web</span>
+      <span class="hero-line">Baseball for the modern web.</span>
     </h1>
 
     <wa-button
@@ -36,12 +36,9 @@
   .hero {
     position: relative;
     overflow: hidden;
-    /* Start flush with the top of the viewport. */
     margin-top: calc(var(--page-pad-top, 2.5rem) * -1);
     padding: clamp(3rem, 8vw, 6rem) 0 clamp(2.75rem, 7vw, 5rem);
   }
-
-  /* Content ---------------------------------------------------------------- */
 
   @keyframes hero-rise {
     from {
@@ -62,13 +59,9 @@
     gap: clamp(1.75rem, 4vw, 3rem);
     width: 100%;
     margin: 0 auto;
-    /* The sizing container for the statement below. */
     container-type: inline-size;
   }
 
-  /* Big wordmark with the tagline sitting to its right, the way the Vice
-     site sets its hero statement. The pair is sized to its content and
-     centred on the page rather than pinned to the left gutter. */
   .statement {
     display: flex;
     align-items: flex-end;
@@ -79,8 +72,6 @@
     animation: hero-rise 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
-  /* BBH Bartle is an extremely wide face — "HEADWAR" spans ~9.7em, so the
-     size is driven by the width of the container rather than the viewport. */
   .hero-mark {
     font-family: "BBH Bartle", "Inter Variable", system-ui, sans-serif;
     font-weight: 400;
@@ -88,8 +79,6 @@
     line-height: 0.8;
     letter-spacing: 0;
     white-space: nowrap;
-    /* The reference site's blue. It is a light tone, so light mode steps
-       down the same hue to stay legible. */
     color: #2564ab;
   }
 
@@ -97,7 +86,6 @@
     color: #8ab9f3;
   }
 
-  /* Once the tagline drops below, the mark can take the full width. */
   @container (max-width: 640px) {
     .hero-mark {
       font-size: clamp(1.5rem, 10.2cqi, 200px);
@@ -108,15 +96,14 @@
     padding-bottom: 0.08em;
     max-width: 9em;
     font-family: "Inter Variable", system-ui, sans-serif;
-    font-size: clamp(1.4rem, 2.7cqi, 2.6rem);
+    font-size: clamp(1.4rem, 2cqi, 2.6rem);
     line-height: 1.04;
-    font-weight: 700;
+    font-weight: 400;
     letter-spacing: -0.03em;
     color: var(--wa-color-text-normal);
     animation: hero-rise 600ms cubic-bezier(0.22, 1, 0.36, 1) 90ms both;
   }
 
-  /* Search pill ------------------------------------------------------------ */
 
   .hero-search {
     margin-top: 0.25rem;
@@ -138,9 +125,6 @@
       var(--wa-color-surface-default) 82%,
       transparent
     );
-    /* No backdrop-filter here: the hero sits on a flat page background so the
-       blur buys nothing, and it leaves seams at the pill's edges when the
-       hover scale is applied. */
     border: 1px solid var(--wa-color-border-quiet);
     box-shadow: var(--wa-shadow-l);
     transition: all 140ms ease;
