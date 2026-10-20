@@ -10,6 +10,7 @@
   import HorizontalDatePicker from "$lib/components/horizontalDatePicker.svelte";
   import DivisionStandingsGrid from "$lib/components/divisionStandingsGrid.svelte";
   import ArrowButton from "$lib/components/arrowButton.svelte";
+  import HomeHero from "$lib/components/homeHero.svelte";
 
   import WaSpinner from "@awesome.me/webawesome/dist/components/spinner/spinner.js";
   import WaButton from "@awesome.me/webawesome/dist/components/button/button.js";
@@ -355,496 +356,440 @@
   <title>headwar — advanced player stats, decoded</title>
 </svelte:head>
 
-<main class="home-layout">
-  {#snippet leaderCard(player, value, index)}
-    <a class="leader-card" href="/players/{player.id}">
-      <img
-        src={player.headshot}
-        alt=""
-        width="36"
-        height="58"
-        class="leader-card-photo"
-        loading={index < 3 ? "eager" : "lazy"}
-        fetchpriority={index < 3 ? "high" : "auto"}
-        onerror={(e) => {
-          if (!e.target.dataset.fallback) {
-            e.target.dataset.fallback = "1";
-            e.target.src = player.genericHeadshot || genericHeadshot;
-          }
-        }}
-      />
-      <div class="leader-card-info">
-        <span class="leader-card-name">{player.name}</span>
-        <div class="leader-card-meta">
-          <wa-badge appearance="filled" variant="neutral" size="s">
-            #{player.rank}
-          </wa-badge>
-          <wa-badge appearance="filled" variant="brand" size="s">
-            {value}
-          </wa-badge>
-        </div>
-      </div>
-    </a>
-  {/snippet}
+<main class="home-page">
+  <HomeHero />
 
-  {#snippet leaderSkeleton()}
-    {#each skeletonRows as _}
-      <div class="leader-card leader-card-skeleton" aria-hidden="true">
-        <wa-skeleton class="leader-card-photo-skeleton"></wa-skeleton>
+  <div class="home-layout">
+    {#snippet leaderCard(player, value, index)}
+      <a class="leader-card" href="/players/{player.id}">
+        <img
+          src={player.headshot}
+          alt=""
+          width="36"
+          height="58"
+          class="leader-card-photo"
+          loading={index < 3 ? "eager" : "lazy"}
+          fetchpriority={index < 3 ? "high" : "auto"}
+          onerror={(e) => {
+            if (!e.target.dataset.fallback) {
+              e.target.dataset.fallback = "1";
+              e.target.src = player.genericHeadshot || genericHeadshot;
+            }
+          }}
+        />
         <div class="leader-card-info">
-          <wa-skeleton class="leader-card-name-skeleton"></wa-skeleton>
-          <wa-skeleton class="leader-card-value-skeleton"></wa-skeleton>
-        </div>
-      </div>
-    {/each}
-  {/snippet}
-
-  {#if isLoading}
-    <div class="status-message">
-      <wa-spinner style="font-size: 3rem;"></wa-spinner>
-    </div>
-  {:else if errorMessage}
-    <div class="status-message error">
-      <p>{errorMessage}</p>
-    </div>
-  {:else}
-    <section class="home-section" id="player-leaders">
-      <div class="section-head section-head-row">
-        <div class="section-head-left">
-          <div class="section-head-title">
-            <span class="section-head-icon" aria-hidden="true">
-              <wa-icon name="trophy"></wa-icon>
-            </span>
-            <h2 class="section-head-text">Player Leaders</h2>
+          <span class="leader-card-name">{player.name}</span>
+          <div class="leader-card-meta">
+            <wa-badge appearance="filled" variant="neutral" size="s">
+              #{player.rank}
+            </wa-badge>
+            <wa-badge appearance="accent" variant="brand" size="s">
+              {value}
+            </wa-badge>
           </div>
-          <p class="section-head-sub">
-            The quick links — who's worth a visit right now.
-          </p>
         </div>
+      </a>
+    {/snippet}
 
-        <wa-button-group label="Filter by league">
-          {#each filterOptions as option}
-            <wa-button
-              size="small"
-              variant={leaderLeagueFilter === option.value
-                ? "brand"
-                : "neutral"}
-              appearance="filled"
-              aria-pressed={leaderLeagueFilter === option.value}
-              onclick={() => {
-                leaderLeagueFilter = option.value;
-              }}
-            >
-              {option.label}
-            </wa-button>
-          {/each}
-        </wa-button-group>
+    {#snippet leaderSkeleton()}
+      {#each skeletonRows as _}
+        <div class="leader-card leader-card-skeleton" aria-hidden="true">
+          <wa-skeleton class="leader-card-photo-skeleton"></wa-skeleton>
+          <div class="leader-card-info">
+            <wa-skeleton class="leader-card-name-skeleton"></wa-skeleton>
+            <wa-skeleton class="leader-card-value-skeleton"></wa-skeleton>
+          </div>
+        </div>
+      {/each}
+    {/snippet}
+
+    {#if isLoading}
+      <div class="status-message">
+        <wa-spinner style="font-size: 3rem;"></wa-spinner>
       </div>
-
-      <div class="section-body">
-        <section class="page-section">
-          <div class="spotlight-three-column-grid">
-            <div class="spotlight-leaderboard-card">
-              <div class="leaderboard-card-header">
-                <div class="column-header-title">Season bWAR</div>
-                <div class="leaderboard-pager">
-                  <ArrowButton
-                    direction="prev"
-                    disabled={leaderView.bwar.atStart}
-                    onclick={() => scrollLeaderBoard("bwar", -1)}
-                  />
-                  <ArrowButton
-                    direction="next"
-                    disabled={leaderView.bwar.atEnd && !hasMoreLeaders.bwar}
-                    onclick={() => scrollLeaderBoard("bwar", 1)}
-                  />
-                </div>
-              </div>
-              <div
-                class="leaderboard-carousel"
-                bind:this={carouselEls.bwar}
-                onscroll={() => updateLeaderView("bwar")}
-              >
-                {#if isLeaderLoading.bwar}
-                  {@render leaderSkeleton()}
-                {:else}
-                  {#each playerLeaders.bwar as player, i}
-                    {@render leaderCard(player, boardValue("bwar", player), i)}
-                  {/each}
-                {/if}
-              </div>
-            </div>
-
-            <div class="spotlight-leaderboard-card">
-              <div class="leaderboard-card-header">
-                <div class="column-header-title">OPS Leaders</div>
-                <div class="leaderboard-pager">
-                  <ArrowButton
-                    direction="prev"
-                    disabled={leaderView.ops.atStart}
-                    onclick={() => scrollLeaderBoard("ops", -1)}
-                  />
-                  <ArrowButton
-                    direction="next"
-                    disabled={leaderView.ops.atEnd && !hasMoreLeaders.ops}
-                    onclick={() => scrollLeaderBoard("ops", 1)}
-                  />
-                </div>
-              </div>
-              <div
-                class="leaderboard-carousel"
-                bind:this={carouselEls.ops}
-                onscroll={() => updateLeaderView("ops")}
-              >
-                {#if isLeaderLoading.ops}
-                  {@render leaderSkeleton()}
-                {:else}
-                  {#each playerLeaders.ops as player, i}
-                    {@render leaderCard(player, boardValue("ops", player), i)}
-                  {/each}
-                {/if}
-              </div>
-            </div>
-
-            <div class="spotlight-leaderboard-card">
-              <div class="leaderboard-card-header">
-                <div class="column-header-title">ERA Leaders</div>
-                <div class="leaderboard-pager">
-                  <ArrowButton
-                    direction="prev"
-                    disabled={leaderView.era.atStart}
-                    onclick={() => scrollLeaderBoard("era", -1)}
-                  />
-                  <ArrowButton
-                    direction="next"
-                    disabled={leaderView.era.atEnd && !hasMoreLeaders.era}
-                    onclick={() => scrollLeaderBoard("era", 1)}
-                  />
-                </div>
-              </div>
-              <div
-                class="leaderboard-carousel"
-                bind:this={carouselEls.era}
-                onscroll={() => updateLeaderView("era")}
-              >
-                {#if isLeaderLoading.era}
-                  {@render leaderSkeleton()}
-                {:else}
-                  {#each playerLeaders.era as player, i}
-                    {@render leaderCard(player, boardValue("era", player), i)}
-                  {/each}
-                {/if}
-              </div>
+    {:else if errorMessage}
+      <div class="status-message error">
+        <p>{errorMessage}</p>
+      </div>
+    {:else}
+      <section class="home-section" id="player-leaders">
+        <div class="section-head section-head-row">
+          <div class="section-head-left">
+            <div class="section-head-title">
+              <h2 class="section-head-text">Player Leaders</h2>
             </div>
           </div>
-        </section>
-      </div>
-    </section>
 
-    <section class="home-section" id="teams">
-      <div class="section-head section-head-row">
-        <div class="section-head-left">
-          <div class="section-head-title">
-            <span class="section-head-icon" aria-hidden="true">
-              <wa-icon name="diagram-project"></wa-icon>
-            </span>
-            <h2 class="section-head-text">MLB Teams</h2>
-          </div>
-          <p class="section-head-sub">
-            Teams and their 4 best players from bWAR
-          </p>
-        </div>
-
-        <wa-button-group label="Filter by league">
-          {#each filterOptions as option}
-            <wa-button
-              size="small"
-              variant={leagueFilter === option.value ? "brand" : "neutral"}
-              appearance="filled"
-              aria-pressed={leagueFilter === option.value}
-              onclick={() => (leagueFilter = option.value)}
-            >
-              {option.label}
-            </wa-button>
-          {/each}
-        </wa-button-group>
-      </div>
-
-      <div class="section-body">
-        {#if isTeamDataLoading}
-          <div class="empty-inline-state">
-            <wa-spinner style="font-size: 1.5rem;"></wa-spinner>
-            <p>Loading team bWAR...</p>
-          </div>
-        {:else if visibleTeamNodes.length === 0}
-          <div class="empty-inline-state">
-            <p>Team bWAR data is temporarily unavailable.</p>
-          </div>
-        {:else}
-          <div class="team-grid">
-            {#each visibleTeamNodes as team (team.teamId)}
-              <div
-                class="team-tile"
-                onmouseenter={() => openTeamHover(team.teamId)}
-                onmouseleave={() => closeTeamHover(team.teamId)}
-                onfocusin={() => showTeamHover(team.teamId)}
-                onfocusout={(e) => {
-                  if (!e.currentTarget.contains(e.relatedTarget)) {
-                    closeTeamHover(team.teamId);
-                  }
+          <wa-button-group label="Filter by league">
+            {#each filterOptions as option}
+              <wa-button
+                size="small"
+                variant={leaderLeagueFilter === option.value
+                  ? "brand"
+                  : "neutral"}
+                appearance={leaderLeagueFilter === option.value
+                  ? "accent"
+                  : "filled"}
+                aria-pressed={leaderLeagueFilter === option.value}
+                onclick={() => {
+                  leaderLeagueFilter = option.value;
                 }}
               >
-                {#if team.players.length && hoverEnabled && hoveredTeamId === team.teamId}
-                  <div class="team-hover" aria-hidden="true">
-                    <div class="hover-head">
-                      <img
-                        src={team.logo}
-                        alt=""
-                        class="hover-logo"
-                        onerror={(e) => {
-                          if (!e.target.dataset.fallback) {
-                            e.target.dataset.fallback = "1";
-                            e.target.src =
-                              "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
-                          }
-                        }}
-                      />
-                      <span class="hover-abbr">{team.abbreviation}</span>
-                      <span class="hover-label">
-                        <wa-icon name="arrow-trend-up" class="hover-trend"
-                        ></wa-icon>
-                        top bWAR
-                      </span>
-                    </div>
-                    <wa-divider></wa-divider>
-                    <div class="hover-grid">
-                      {#each team.players as player}
-                        <a
-                          class="hover-player"
-                          href="/players/{player.id}"
-                          title="{player.name} — {player.war.toFixed(1)} bWAR"
-                        >
-                          <span class="hover-photo">
-                            <img
-                              src={player.headshot}
-                              alt=""
-                              width="46"
-                              height="68"
-                              onerror={(e) => {
-                                if (!e.target.dataset.fallback) {
-                                  e.target.dataset.fallback = "1";
-                                  e.target.src = genericHeadshot;
-                                }
-                              }}
-                            />
-                            <span class="hover-war">
-                              <wa-badge variant="brand" pill>
-                                {player.war.toFixed(1)}
-                              </wa-badge>
-                            </span>
-                          </span>
-                          <span class="hover-name">{player.name}</span>
-                        </a>
-                      {/each}
-                    </div>
-                  </div>
-                {/if}
-
-                <a
-                  class="team-logo-name-wrapper"
-                  href="/teams/{team.teamId}"
-                  title={team.name}
-                >
-                  <img
-                    src={team.logo}
-                    alt="Team Logo"
-                    width="32"
-                    height="32"
-                    class="team-logo"
-                    onerror={(e) => {
-                      if (!e.target.dataset.fallback) {
-                        e.target.dataset.fallback = "1";
-                        e.target.src =
-                          "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
-                      }
-                    }}
-                  />
-                  <p>{team.name}</p>
-                </a>
-              </div>
+                {option.label}
+              </wa-button>
             {/each}
+          </wa-button-group>
+        </div>
+
+        <div class="section-body">
+          <section class="page-section">
+            <div class="spotlight-three-column-grid">
+              <div class="spotlight-leaderboard-card">
+                <div class="leaderboard-card-header">
+                  <div class="column-header-title">Season bWAR</div>
+                  <div class="leaderboard-pager">
+                    <ArrowButton
+                      direction="prev"
+                      disabled={leaderView.bwar.atStart}
+                      onclick={() => scrollLeaderBoard("bwar", -1)}
+                    />
+                    <ArrowButton
+                      direction="next"
+                      disabled={leaderView.bwar.atEnd && !hasMoreLeaders.bwar}
+                      onclick={() => scrollLeaderBoard("bwar", 1)}
+                    />
+                  </div>
+                </div>
+                <div
+                  class="leaderboard-carousel"
+                  bind:this={carouselEls.bwar}
+                  onscroll={() => updateLeaderView("bwar")}
+                >
+                  {#if isLeaderLoading.bwar}
+                    {@render leaderSkeleton()}
+                  {:else}
+                    {#each playerLeaders.bwar as player, i}
+                      {@render leaderCard(
+                        player,
+                        boardValue("bwar", player),
+                        i,
+                      )}
+                    {/each}
+                  {/if}
+                </div>
+              </div>
+
+              <div class="spotlight-leaderboard-card">
+                <div class="leaderboard-card-header">
+                  <div class="column-header-title">OPS Leaders</div>
+                  <div class="leaderboard-pager">
+                    <ArrowButton
+                      direction="prev"
+                      disabled={leaderView.ops.atStart}
+                      onclick={() => scrollLeaderBoard("ops", -1)}
+                    />
+                    <ArrowButton
+                      direction="next"
+                      disabled={leaderView.ops.atEnd && !hasMoreLeaders.ops}
+                      onclick={() => scrollLeaderBoard("ops", 1)}
+                    />
+                  </div>
+                </div>
+                <div
+                  class="leaderboard-carousel"
+                  bind:this={carouselEls.ops}
+                  onscroll={() => updateLeaderView("ops")}
+                >
+                  {#if isLeaderLoading.ops}
+                    {@render leaderSkeleton()}
+                  {:else}
+                    {#each playerLeaders.ops as player, i}
+                      {@render leaderCard(player, boardValue("ops", player), i)}
+                    {/each}
+                  {/if}
+                </div>
+              </div>
+
+              <div class="spotlight-leaderboard-card">
+                <div class="leaderboard-card-header">
+                  <div class="column-header-title">ERA Leaders</div>
+                  <div class="leaderboard-pager">
+                    <ArrowButton
+                      direction="prev"
+                      disabled={leaderView.era.atStart}
+                      onclick={() => scrollLeaderBoard("era", -1)}
+                    />
+                    <ArrowButton
+                      direction="next"
+                      disabled={leaderView.era.atEnd && !hasMoreLeaders.era}
+                      onclick={() => scrollLeaderBoard("era", 1)}
+                    />
+                  </div>
+                </div>
+                <div
+                  class="leaderboard-carousel"
+                  bind:this={carouselEls.era}
+                  onscroll={() => updateLeaderView("era")}
+                >
+                  {#if isLeaderLoading.era}
+                    {@render leaderSkeleton()}
+                  {:else}
+                    {#each playerLeaders.era as player, i}
+                      {@render leaderCard(player, boardValue("era", player), i)}
+                    {/each}
+                  {/if}
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <section class="home-section" id="teams">
+        <div class="section-head section-head-row">
+          <div class="section-head-left">
+            <div class="section-head-title">
+              <h2 class="section-head-text">MLB Teams</h2>
+            </div>
           </div>
-        {/if}
-      </div>
-    </section>
 
-    <section class="home-section" id="today-games">
-      <div class="section-head">
-        <div class="section-head-title">
-          <span class="section-head-icon" aria-hidden="true">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <rect x="3" y="4" width="18" height="17" rx="4.5" />
-              <path d="M3 9h18M8 2.5v3M16 2.5v3" />
-            </svg>
-          </span>
-          <h2 class="section-head-text">Today's Games</h2>
+          <wa-button-group label="Filter by league">
+            {#each filterOptions as option}
+              <wa-button
+                size="small"
+                variant={leagueFilter === option.value ? "brand" : "neutral"}
+                appearance={leagueFilter === option.value ? "accent" : "filled"}
+                aria-pressed={leagueFilter === option.value}
+                onclick={() => (leagueFilter = option.value)}
+              >
+                {option.label}
+              </wa-button>
+            {/each}
+          </wa-button-group>
         </div>
-        <p class="section-head-sub">
-          Scores, box scores and previews for the date you pick.
-        </p>
-      </div>
 
-      <div class="section-body">
-        <HorizontalDatePicker bind:selectedDate daysRange={10} />
-
-        <section
-          class="page-section"
-          class:is-loading-opaque={isScheduleLoading}
-        >
-          {#if homepageSchedule.length === 0}
+        <div class="section-body">
+          {#if isTeamDataLoading}
             <div class="empty-inline-state">
-              <p>No games scheduled for this date.</p>
+              <wa-spinner style="font-size: 1.5rem;"></wa-spinner>
+              <p>Loading team bWAR...</p>
             </div>
-          {:else if homepageSchedule.length <= 3}
-            <div
-              class="collapsible-schedule-wrapper"
-              class:is-collapsed={!isExpanded}
-            >
-              <div class="homepage-schedule-flex-grid">
-                {#each homepageSchedule as game (game.gamePk)}
-                  <div class="homepage-card-item">
-                    <GameCard {game} {logosMap} {now} />
-                  </div>
-                {/each}
-              </div>
+          {:else if visibleTeamNodes.length === 0}
+            <div class="empty-inline-state">
+              <p>Team bWAR data is temporarily unavailable.</p>
             </div>
           {:else}
-            <div
-              class="collapsible-schedule-wrapper"
-              class:is-collapsed={!isExpanded}
-            >
-              <div class="homepage-schedule-flex-grid">
-                {#each homepageSchedule as game (game.gamePk)}
-                  <div class="homepage-card-item">
-                    <GameCard {game} {logosMap} {now} />
-                  </div>
-                {/each}
-              </div>
+            <div class="team-grid">
+              {#each visibleTeamNodes as team (team.teamId)}
+                <div
+                  class="team-tile"
+                  onmouseenter={() => openTeamHover(team.teamId)}
+                  onmouseleave={() => closeTeamHover(team.teamId)}
+                  onfocusin={() => showTeamHover(team.teamId)}
+                  onfocusout={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget)) {
+                      closeTeamHover(team.teamId);
+                    }
+                  }}
+                >
+                  {#if team.players.length && hoverEnabled && hoveredTeamId === team.teamId}
+                    <div class="team-hover" aria-hidden="true">
+                      <div class="hover-head">
+                        <img
+                          src={team.logo}
+                          alt=""
+                          class="hover-logo"
+                          onerror={(e) => {
+                            if (!e.target.dataset.fallback) {
+                              e.target.dataset.fallback = "1";
+                              e.target.src =
+                                "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+                            }
+                          }}
+                        />
+                        <span class="hover-abbr">{team.abbreviation}</span>
+                        <span class="hover-label">
+                          <wa-icon name="arrow-trend-up" class="hover-trend"
+                          ></wa-icon>
+                          top bWAR
+                        </span>
+                      </div>
+                      <wa-divider></wa-divider>
+                      <div class="hover-grid">
+                        {#each team.players as player}
+                          <a
+                            class="hover-player"
+                            href="/players/{player.id}"
+                            title="{player.name} — {player.war.toFixed(1)} bWAR"
+                          >
+                            <span class="hover-photo">
+                              <img
+                                src={player.headshot}
+                                alt=""
+                                width="46"
+                                height="68"
+                                onerror={(e) => {
+                                  if (!e.target.dataset.fallback) {
+                                    e.target.dataset.fallback = "1";
+                                    e.target.src = genericHeadshot;
+                                  }
+                                }}
+                              />
+                              <span class="hover-war">
+                                <wa-badge
+                                  variant="brand"
+                                  appearance="accent"
+                                  pill
+                                >
+                                  {player.war.toFixed(1)}
+                                </wa-badge>
+                              </span>
+                            </span>
+                            <span class="hover-name">{player.name}</span>
+                          </a>
+                        {/each}
+                      </div>
+                    </div>
+                  {/if}
 
-              {#if !isExpanded}
-                <div class="fade-overlay"></div>
-              {/if}
-            </div>
-
-            <div class="expansion-controls-row">
-              <wa-button
-                variant="neutral"
-                size="s"
-                onclick={() => (isExpanded = !isExpanded)}
-              >
-                {isExpanded ? "Show less" : "Show all"}
-              </wa-button>
+                  <a
+                    class="team-logo-name-wrapper"
+                    href="/teams/{team.teamId}"
+                    title={team.name}
+                  >
+                    <img
+                      src={team.logo}
+                      alt="Team Logo"
+                      width="32"
+                      height="32"
+                      class="team-logo"
+                      onerror={(e) => {
+                        if (!e.target.dataset.fallback) {
+                          e.target.dataset.fallback = "1";
+                          e.target.src =
+                            "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+                        }
+                      }}
+                    />
+                    <p>{team.name}</p>
+                  </a>
+                </div>
+              {/each}
             </div>
           {/if}
-        </section>
-      </div>
-    </section>
-
-    <section class="home-section" id="standings">
-      <div class="section-head">
-        <div class="section-head-title">
-          <span class="section-head-icon" aria-hidden="true">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M4 20h16" />
-              <rect
-                x="6"
-                y="12"
-                width="3.5"
-                height="8"
-                rx="1.5"
-                fill="currentColor"
-                stroke="none"
-              />
-              <rect
-                x="11.5"
-                y="8"
-                width="3.5"
-                height="12"
-                rx="1.5"
-                fill="currentColor"
-                stroke="none"
-              />
-              <rect
-                x="17"
-                y="4"
-                width="3.5"
-                height="16"
-                rx="1.5"
-                fill="currentColor"
-                stroke="none"
-              />
-            </svg>
-          </span>
-          <h2 class="section-head-text">Standings</h2>
         </div>
-        <p class="section-head-sub">
-          Full division picture across both leagues.
-        </p>
-      </div>
+      </section>
 
-      <div class="section-body">
-        <section class="page-section">
-          {#if divisionRecords.length === 0}
-            <div class="empty-inline-state">
-              <p>Standings data temporarily unavailable.</p>
-            </div>
-          {:else}
-            <div
-              class="collapsible-standings-wrapper"
-              class:is-collapsed={!isDivisionExpanded}
-            >
-              <div class="standings-dashboard-grid">
-                {#each divisionRecords as division}
-                  <DivisionStandingsGrid
-                    divisionName={division.displayName}
-                    divisionStandings={division.teamRecords || []}
-                  />
-                {/each}
+      <section class="home-section" id="today-games">
+        <div class="section-head">
+          <div class="section-head-title">
+            <h2 class="section-head-text">Today's Games</h2>
+          </div>
+        </div>
+
+        <div class="section-body">
+          <HorizontalDatePicker bind:selectedDate daysRange={10} />
+
+          <section
+            class="page-section"
+            class:is-loading-opaque={isScheduleLoading}
+          >
+            {#if homepageSchedule.length === 0}
+              <div class="empty-inline-state">
+                <p>No games scheduled for this date.</p>
+              </div>
+            {:else if homepageSchedule.length <= 3}
+              <div
+                class="collapsible-schedule-wrapper"
+                class:is-collapsed={!isExpanded}
+              >
+                <div class="homepage-schedule-flex-grid">
+                  {#each homepageSchedule as game (game.gamePk)}
+                    <div class="homepage-card-item">
+                      <GameCard {game} {logosMap} {now} />
+                    </div>
+                  {/each}
+                </div>
+              </div>
+            {:else}
+              <div
+                class="collapsible-schedule-wrapper"
+                class:is-collapsed={!isExpanded}
+              >
+                <div class="homepage-schedule-flex-grid">
+                  {#each homepageSchedule as game (game.gamePk)}
+                    <div class="homepage-card-item">
+                      <GameCard {game} {logosMap} {now} />
+                    </div>
+                  {/each}
+                </div>
+
+                {#if !isExpanded}
+                  <div class="fade-overlay"></div>
+                {/if}
               </div>
 
-              {#if !isDivisionExpanded}
-                <div class="fade-overlay"></div>
-              {/if}
-            </div>
+              <div class="expansion-controls-row">
+                <wa-button
+                  variant="neutral"
+                  size="s"
+                  onclick={() => (isExpanded = !isExpanded)}
+                >
+                  {isExpanded ? "Show less" : "Show all"}
+                </wa-button>
+              </div>
+            {/if}
+          </section>
+        </div>
+      </section>
 
-            <div class="expansion-controls-row">
-              <wa-button
-                variant="neutral"
-                size="s"
-                onclick={() => (isDivisionExpanded = !isDivisionExpanded)}
+      <section class="home-section" id="standings">
+        <div class="section-head">
+          <div class="section-head-title">
+            <h2 class="section-head-text">Standings</h2>
+          </div>
+        </div>
+
+        <div class="section-body">
+          <section class="page-section">
+            {#if divisionRecords.length === 0}
+              <div class="empty-inline-state">
+                <p>Standings data temporarily unavailable.</p>
+              </div>
+            {:else}
+              <div
+                class="collapsible-standings-wrapper"
+                class:is-collapsed={!isDivisionExpanded}
               >
-                {isDivisionExpanded ? "Show less" : "Show all"}
-              </wa-button>
-            </div>
-          {/if}
-        </section>
-      </div>
-    </section>
-  {/if}
+                <div class="standings-dashboard-grid">
+                  {#each divisionRecords as division}
+                    <DivisionStandingsGrid
+                      divisionName={division.displayName}
+                      divisionStandings={division.teamRecords || []}
+                    />
+                  {/each}
+                </div>
+
+                {#if !isDivisionExpanded}
+                  <div class="fade-overlay"></div>
+                {/if}
+              </div>
+
+              <div class="expansion-controls-row">
+                <wa-button
+                  variant="neutral"
+                  size="s"
+                  onclick={() => (isDivisionExpanded = !isDivisionExpanded)}
+                >
+                  {isDivisionExpanded ? "Show less" : "Show all"}
+                </wa-button>
+              </div>
+            {/if}
+          </section>
+        </div>
+      </section>
+    {/if}
+  </div>
 </main>
 
 <style>
@@ -852,8 +797,14 @@
     scroll-behavior: smooth;
   }
 
+  .home-page {
+    position: relative;
+    display: block;
+    width: 100%;
+  }
+
   .home-layout {
-    margin: 0 auto;
+    margin: 3.5rem auto 0;
     padding: 0;
     max-width: 1280px;
     display: flex;
@@ -899,43 +850,12 @@
     gap: 0.85rem;
   }
 
-  .section-head-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 2.4rem;
-    height: 2.4rem;
-    flex-shrink: 0;
-    color: var(--wa-color-brand-40);
-    background: color-mix(
-      in srgb,
-      var(--wa-color-brand-fill-quiet) 80%,
-      transparent
-    );
-    border: 1px solid var(--wa-color-brand-border-quiet);
-    border-radius: 0.5rem;
-    padding: 0.45rem;
-    box-sizing: border-box;
-  }
-
-  .section-head-icon wa-icon {
-    --wa-icon-size: 1.35rem;
-    width: 100%;
-    height: 100%;
-  }
-
   .section-head-text {
     margin: 0;
     font-size: 1.6rem;
     font-weight: var(--wa-font-weight-bold, 700);
     letter-spacing: -0.01em;
     color: var(--wa-color-filled-on-normal);
-  }
-
-  .section-head-sub {
-    margin: 0;
-    font-size: var(--wa-font-size-m);
-    color: var(--wa-color-text-quiet);
   }
 
   .team-grid {
@@ -1238,7 +1158,7 @@
   .leader-card:hover {
     background-color: var(--wa-color-fill-normal);
 
-      wa-badge {
+    wa-badge {
       border-color: var(
         --wa-color-border-loud,
         var(--wa-color-brand-border-loud)

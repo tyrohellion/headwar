@@ -1066,7 +1066,7 @@
               ></wa-format-date>
             </wa-badge>
           {:else}
-            <wa-badge appearance="filled" variant="brand">Present</wa-badge>
+            <wa-badge appearance="accent" variant="brand">Present</wa-badge>
           {/if}
         </div>
       {:else}
@@ -1701,7 +1701,7 @@
           </h3>
           {/if}
           <wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
-          <wa-badge variant="brand" appearance="filled"
+          <wa-badge variant="brand" appearance="accent"
             >Higher number is better</wa-badge
           >
         </div>
@@ -1957,7 +1957,7 @@
           </h3>
           {/if}
           <wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
-          <wa-badge variant="brand" appearance="filled"
+          <wa-badge variant="brand" appearance="accent"
             >Higher percentile is better</wa-badge
           >
         </div>
@@ -2215,7 +2215,7 @@
           </h3>
           {/if}
           <wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
-          <wa-badge variant="brand" appearance="filled"
+          <wa-badge variant="brand" appearance="accent"
             >Higher number is better</wa-badge
           >
         </div>
@@ -2446,7 +2446,7 @@
                 <div class="honor-badges-wrapper">
                   {#each honor.seasons as yr}
                     <wa-badge
-                      appearance="filled"
+                      appearance={honor.rank <= 4 ? "accent" : "filled"}
                       variant={honor.rank <= 4 ? "brand" : "neutral"}
                       >{yr}</wa-badge
                     >

@@ -45,7 +45,7 @@
         >{player.person?.fullName || "Unknown"}</span
       >
       <div class="status-tags">
-        <wa-badge appearance="filled" size="s" variant="brand"
+        <wa-badge appearance="accent" size="s" variant="brand"
           >{player.position?.name || position}</wa-badge
         >
         {#each extraBadges as badge}

@@ -107,7 +107,7 @@
     <div class="player-text-box">
       <div class="wa-heading-xl">{teamProfile.name}</div>
       <div class="small-details-wrapper">
-        <wa-badge appearance="filled" variant="brand"
+        <wa-badge appearance="accent" variant="brand"
           >{teamProfile.league?.name}</wa-badge
         >
       </div>

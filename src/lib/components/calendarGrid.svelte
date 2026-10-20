@@ -115,7 +115,7 @@
 				<wa-button
 					size="s"
 					variant={dayInfo.isToday ? 'brand' : 'neutral'}
-					appearance="filled"
+					appearance={dayInfo.isToday ? 'accent' : 'filled'}
 					class="day-cell"
 					class:is-today={dayInfo.isToday}
 					class:is-selected={dayInfo.isSelected}

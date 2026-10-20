@@ -85,7 +85,7 @@
     <div class="pill-header">
       <span class="stat-label">{label}</span>
       {#if !simple && rawPercentile !== null}
-        <wa-badge appearance="filled" size="s">
+        <wa-badge appearance="accent" size="s">
           {Math.round(rawPercentile)}
         </wa-badge>
       {/if}

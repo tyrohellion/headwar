@@ -16,6 +16,7 @@
   }
 
   function badgeAppearance(badge) {
+    if (badgeVariant(badge) === "brand") return "accent";
     return badge.key === "strikeOuts" ? "outlined" : "filled";
   }
 

@@ -41,7 +41,7 @@
     {#if isLive}
       <wa-badge appearance="filled" variant="danger">Live</wa-badge>
     {:else}
-      <wa-badge appearance="filled">
+      <wa-badge appearance="accent">
         {dynamicDateCountdown(game.gameDate, now)}
       </wa-badge>
     {/if}

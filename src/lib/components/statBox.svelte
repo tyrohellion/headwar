@@ -77,7 +77,7 @@
           </wa-badge>
         {/if}
         {#if rank}
-          <wa-badge appearance="filled" size="m" variant="brand"
+          <wa-badge appearance="accent" size="m" variant="brand"
             >{rank}</wa-badge
           >
         {/if}

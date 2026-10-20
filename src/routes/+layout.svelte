@@ -33,12 +33,38 @@
     --font-mono: "JetBrains Mono Variable", monospace;
   }
 
+  :global(html.wa-dark) {
+    /* Every brand colour in dark mode uses the reference site's blue, the
+       same one the hero wordmark is set in. The "loud" fill is the
+       reference's own accent with its dark text colour, exactly like the
+       Install button over there. */
+    --wa-color-brand-fill-loud: #8ab9f3;
+    --wa-color-brand-on-loud: #003259;
+
+    --wa-color-brand-fill-normal: #08497c;
+    --wa-color-brand-on-normal: #d2e4ff;
+
+    --wa-color-brand-fill-quiet: #0c2b46;
+    --wa-color-brand-on-quiet: #8ab9f3;
+
+    --wa-color-brand-border-quiet: #0b3456;
+    --wa-color-brand-border-normal: #08497c;
+    --wa-color-brand-border-loud: #8ab9f3;
+
+    /* The numbered aliases the site reaches for. */
+    --wa-color-brand-50: #4981b8;
+    --wa-color-brand-text-default: #8ab9f3;
+    --wa-color-brand-rgb: 139, 185, 243;
+
+    --wa-color-text-link: #8ab9f3;
+    --wa-color-focus: #8ab9f3;
+  }
+
   .app-layout {
     display: flex;
     flex-direction: column;
     min-height: 100vh;
   }
-
   .main {
     width: 100%;
     box-sizing: border-box;

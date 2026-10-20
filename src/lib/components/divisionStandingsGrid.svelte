@@ -48,6 +48,10 @@
 	function getBadgeVariant(pct) {
 		return (parseFloat(pct) || 0) >= 0.5 ? 'brand' : 'neutral';
 	}
+
+	function getBadgeAppearance(pct) {
+		return getBadgeVariant(pct) === 'brand' ? 'accent' : 'filled';
+	}
 </script>
 
 <div class="division-container">
@@ -80,7 +84,7 @@
 							<AnimatedCounter value={row.losses} />
 						</span>
 					</div>
-					<wa-badge appearance="filled" size="m" variant={getBadgeVariant(row.winningPercentage)}>
+					<wa-badge appearance={getBadgeAppearance(row.winningPercentage)} size="m" variant={getBadgeVariant(row.winningPercentage)}>
 						{row.winningPercentage}
 					</wa-badge>
 				</div>

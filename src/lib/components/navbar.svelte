@@ -1,6 +1,7 @@
 <script>
   import { createDebouncedSearch, PAGE_SIZE } from "../../api/universalSearch";
   import { theme } from "$lib/theme.svelte.js";
+  import { searchTrigger } from "$lib/searchTrigger.svelte.js";
   import { afterNavigate, goto } from "$app/navigation";
   import { tick } from "svelte";
   import { fly, fade } from "svelte/transition";
@@ -81,6 +82,14 @@
   function closeSearch() {
     isSearchOpen = false;
   }
+
+  // Other parts of the site (e.g. the home page hero) can ask for the search
+  // to open. The navbar owns the search UI, so it does the actual opening.
+  $effect(() => {
+    const requestId = searchTrigger.requestId;
+    if (requestId === 0) return;
+    openSearch();
+  });
 
   // Preload the next page a little before the user actually hits the bottom
   // (YouTube-style) so the reveal feels seamless. `loadMore()` is idempotent,
@@ -171,7 +180,7 @@
     <wa-button
       size="m"
       variant="brand"
-      appearance="filled"
+      appearance="accent"
       class="nav-round-btn"
     >
       <wa-icon name="house" label="Home"></wa-icon>
