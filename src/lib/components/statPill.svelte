@@ -1,8 +1,11 @@
 <script>
 	import AnimatedCounter from './animatedCounter.svelte';
+	import { ordinal } from '$lib/mlbRanks.js';
 
-	let { percentile = 0, label = '', abbr = '', stat = 0, tooltipText = '' } = $props();
+	let { percentile = 0, label = '', abbr = '', stat = 0, tooltipText = '', rank = 0 } = $props();
 	const tooltipId = `pill-tip-${Math.random().toString(36).substring(2, 9)}`;
+	const rankTooltipId = `pill-rank-${Math.random().toString(36).substring(2, 9)}`;
+
 </script>
 
 {#if percentile === 'N/A' || percentile === '-.--' || percentile === 'NaN' || !percentile || String(percentile).includes('NaN')}
@@ -24,15 +27,29 @@
 	{#if tooltipText}
 		<wa-tooltip for={tooltipId}>{tooltipText}</wa-tooltip>
 	{/if}
-	<div class="stat-molucule" id={tooltipId}>
+	{#if rank}
+		<wa-tooltip for={rankTooltipId}>Ranked {ordinal(rank)} in the MLB</wa-tooltip>
+	{/if}
+	<div class="stat-molucule">
 		<div class="horizontal-wrapper"></div>
 		<div class="stat-bar-container">
 			<div class="stat-bar-content">
-				<span class="stat-label">{label}</span>
+				<span class="stat-label" id={tooltipId}>{label}</span>
 				<div class="name-badge-wrapper">
 					<span class="stat-value">
 						<AnimatedCounter value={percentile} />
 					</span>
+					{#if rank}
+						<wa-badge
+							appearance="accent"
+							size="m"
+							variant="brand"
+							class="stat-rank"
+							id={rankTooltipId}
+						>
+							#{rank}
+						</wa-badge>
+					{/if}
 					<wa-badge appearance="filled" size="m" variant="neutral">{abbr}</wa-badge>
 				</div>
 			</div>
@@ -59,6 +76,13 @@
 	wa-badge {
 		width: 42px;
 		height: 26px;
+	}
+
+	.stat-rank {
+		width: auto;
+		height: 26px;
+		font-variant-numeric: tabular-nums;
+		font-weight: var(--wa-font-weight-bold, 600);
 	}
 
 	.stat-molucule-disabled {

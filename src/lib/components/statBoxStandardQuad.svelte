@@ -1,5 +1,6 @@
 <script>
   import AnimatedCounter from "./animatedCounter.svelte";
+  import { ordinal } from "$lib/mlbRanks.js";
 
   let {
     label1 = "",
@@ -7,21 +8,25 @@
     stat1 = 0,
     decimals1 = null,
     tooltip1 = "",
+    rank1 = 0,
     label2 = "",
     abbr2 = "",
     stat2 = 0,
     decimals2 = null,
     tooltip2 = "",
+    rank2 = 0,
     label3 = "",
     abbr3 = "",
     stat3 = 0,
     decimals3 = null,
     tooltip3 = "",
+    rank3 = 0,
     label4 = "",
     abbr4 = "",
     stat4 = 0,
     decimals4 = null,
     tooltip4 = "",
+    rank4 = 0,
   } = $props();
 
   const tooltipId = `quad-tip-${Math.random().toString(36).substring(2, 9)}`;
@@ -134,14 +139,31 @@
   const sideId4 = $derived(`${tooltipId}-4`);
 </script>
 
-{#snippet statSide(label, abbr, stat, decimals, color, id)}
+{#snippet statSide(label, abbr, stat, decimals, color, id, rank)}
   <div class="quad-side" {id}>
     <span class="stat-label">{label}</span>
     <div class="name-badge-wrapper">
       <span class="stat-value" style="color: {color};">
         <AnimatedCounter value={stat} precision={decimals} />
       </span>
-      <wa-badge appearance="filled" size="m" variant="neutral">{abbr}</wa-badge>
+      <div class="badge-row">
+        {#if rank}
+          <wa-badge
+            appearance="accent"
+            size="m"
+            variant="brand"
+            class="stat-rank"
+            id="{id}-rank">#{rank}</wa-badge
+          >
+          <wa-tooltip for="{id}-rank"
+            >Ranked {ordinal(rank)} in the MLB</wa-tooltip
+          >
+        {:else}
+              <wa-badge appearance="filled" size="m" variant="neutral"
+                >{abbr}</wa-badge
+              >
+              {/if}
+      </div>
     </div>
   </div>
 {/snippet}
@@ -164,25 +186,57 @@
   <div class="stat-molucule">
     <div class="quad-wrapper">
       {#if has1}
-        {@render statSide(label1, abbr1, stat1, decimals1, color1, sideId1)}
+        {@render statSide(
+          label1,
+          abbr1,
+          stat1,
+          decimals1,
+          color1,
+          sideId1,
+          rank1,
+        )}
       {/if}
       {#if has1 && has2}
         <div class="slash-divider"></div>
       {/if}
       {#if has2}
-        {@render statSide(label2, abbr2, stat2, decimals2, color2, sideId2)}
+        {@render statSide(
+          label2,
+          abbr2,
+          stat2,
+          decimals2,
+          color2,
+          sideId2,
+          rank2,
+        )}
       {/if}
       {#if has2 && has3}
         <div class="slash-divider"></div>
       {/if}
       {#if has3}
-        {@render statSide(label3, abbr3, stat3, decimals3, color3, sideId3)}
+        {@render statSide(
+          label3,
+          abbr3,
+          stat3,
+          decimals3,
+          color3,
+          sideId3,
+          rank3,
+        )}
       {/if}
       {#if has3 && has4}
         <div class="slash-divider"></div>
       {/if}
       {#if has4}
-        {@render statSide(label4, abbr4, stat4, decimals4, color4, sideId4)}
+        {@render statSide(
+          label4,
+          abbr4,
+          stat4,
+          decimals4,
+          color4,
+          sideId4,
+          rank4,
+        )}
       {/if}
     </div>
   </div>
@@ -249,6 +303,19 @@
   wa-badge {
     width: 42px;
     height: 26px;
+  }
+
+  .badge-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .stat-rank {
+    width: auto;
+    height: 26px;
+    font-variant-numeric: tabular-nums;
+    font-weight: var(--wa-font-weight-bold, 600);
   }
 
   .quad-side:hover {

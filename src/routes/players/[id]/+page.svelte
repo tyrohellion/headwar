@@ -1,6 +1,7 @@
 <script>
   import { advancedStats, loadAdvancedMetrics } from "$lib/warStore.svelte.js";
   import { getPlayerStatcastProfile, getPlayerSavantCareer } from "$lib/advancedData.js";
+  import { getRanksForSeason, decodePlayerRanks } from "$lib/mlbRanks.js";
   import {
     computePitcherHwar,
     computeHitterHwar,
@@ -315,6 +316,61 @@
   });
 
   let playerProfile = $derived(playerData?.people?.[0] || null);
+
+  // League ranks for the standard stats, from the MLB stats API leaderboards.
+  // Career mode and custom date ranges have no matching leaderboard, so no
+  // rank is shown for those views.
+  let mlbRanksData = $state(null);
+  // "career" is the all-time leaderboard, which is what career mode shows.
+  let rankSeason = $derived(
+    isDateFilterActive ? null : isCareerMode ? "career" : userSelectedYear
+  );
+  // True until the career/season default has been applied to a retired player.
+  let pendingViewDefault = $derived(
+    !!advancedStats && !advancedStats.loading && advancedStats.isRetired && !hasDefaultedViewMode
+  );
+
+  $effect(() => {
+    const season = rankSeason;
+    // Wait for the view mode to settle. A retired player defaults to career
+    // mode, and pulling the ranks file for a season that is about to be
+    // replaced is a wasted download.
+    const settled = !advancedStats?.loading && !pendingViewDefault;
+    if (!season || !settled) {
+      mlbRanksData = null;
+      return;
+    }
+    let cancelled = false;
+    getRanksForSeason(season).then((data) => {
+      if (!cancelled) mlbRanksData = data;
+    });
+    return () => {
+      cancelled = true;
+    };
+  });
+
+  let battingRanks = $derived(
+    mlbRanksData && rankSeason && playerProfile
+      ? decodePlayerRanks(
+          mlbRanksData,
+          playerProfile.id,
+          "hitting",
+          rankSeason
+        )
+      : {}
+  );
+
+  let pitchingRanks = $derived(
+    mlbRanksData && rankSeason && playerProfile
+      ? decodePlayerRanks(
+          mlbRanksData,
+          playerProfile.id,
+          "pitching",
+          rankSeason
+        )
+      : {}
+  );
+
 
   let teamLogoUrl = $derived.by(() => {
     const teamId = playerProfile?.currentTeam?.id;
@@ -1360,6 +1416,7 @@
                   abbr2="FIP"
                   stat2={pitcherAdvanced.fip.toFixed(2)}
                   tooltipText="ERA measures actual runs allowed per nine innings, while FIP estimates the runs a pitcher 'should' have allowed based only on events they control (strikeouts, walks, hit-by-pitches, home runs). A large gap between them hints at good or bad luck. Lower is better for both."
+                    rank={pitchingRanks?.["era"]}
                 />
               {/if}
 
@@ -1390,6 +1447,8 @@
                   abbr2="OPS"
                   stat2={opsDisplay}
                   tooltipText="Batting Average measures how often a batter gets a hit per at-bat (H / AB). OPS combines On-Base Percentage and Slugging Percentage into one number that captures both contact and power. Both are standard measures of offensive production."
+                    rank={battingRanks?.["avg"]}
+                    rank2={battingRanks?.["ops"]}
                 />
               {/if}
             </div>
@@ -1545,6 +1604,10 @@
                   abbr4={battingConfigMap.ops.abbr}
                   stat4={formatBattingStat("ops", activeSeasonStats.ops)}
                   tooltip4={battingConfigMap.ops.description}
+                    rank1={battingRanks?.["avg"]}
+                    rank2={battingRanks?.["obp"]}
+                    rank3={battingRanks?.["slg"]}
+                    rank4={battingRanks?.["ops"]}
                 />
 
                 <StatBoxStandardQuad
@@ -1573,6 +1636,10 @@
                   abbr4={battingConfigMap.rbi.abbr}
                   stat4={formatBattingStat("rbi", activeSeasonStats.rbi)}
                   tooltip4={battingConfigMap.rbi.description}
+                    rank1={battingRanks?.["doubles"]}
+                    rank2={battingRanks?.["triples"]}
+                    rank3={battingRanks?.["homeRuns"]}
+                    rank4={battingRanks?.["rbi"]}
                 />
               </div>
             {/if}
@@ -1606,6 +1673,9 @@
                   abbr4={pitchingConfigMap.whip.abbr}
                   stat4={formatPitchingStat("whip", activePitchingStats?.whip)}
                   tooltip4={pitchingConfigMap.whip.description}
+                    rank1={pitchingRanks?.["era"]}
+                    rank3={pitchingRanks?.["ops"]}
+                    rank4={pitchingRanks?.["whip"]}
                 />
 
                 <StatBoxStandardQuad
@@ -1637,6 +1707,10 @@
                     activePitchingStats?.earnedRuns,
                   )}
                   tooltip4={pitchingConfigMap.earnedRuns.description}
+                    rank1={pitchingRanks?.["strikeoutsPer9Inn"]}
+                    rank2={pitchingRanks?.["walksPer9Inn"]}
+                    rank3={pitchingRanks?.["strikeOuts"]}
+                    rank4={pitchingRanks?.["earnedRuns"]}
                 />
               </div>
             {/if}
@@ -1873,6 +1947,7 @@
                         abbr={stat.abbr}
                         percentile={formattedValue}
                         tooltipText={stat.description}
+                        rank={battingRanks?.[stat.key]}
                       />
                     </div>
                   {:else}
@@ -1899,6 +1974,7 @@
                       label={stat.label}
                       percentile={activeSeasonStats[stat.key]}
                       tooltipText={stat.description}
+                      rank={battingRanks?.[stat.key]}
                     />
                   {:else}
                     <StatPill
@@ -1924,6 +2000,7 @@
                       label={stat.label}
                       percentile={activeSeasonStats[stat.key]}
                       tooltipText={stat.description}
+                      rank={battingRanks?.[stat.key]}
                     />
                   {:else}
                     <StatPill
@@ -2154,6 +2231,7 @@
                         abbr={stat.abbr}
                         percentile={formattedValue}
                         tooltipText={stat.description}
+                        rank={pitchingRanks?.[stat.key]}
                       />
                     </div>
                   {:else}
@@ -2182,6 +2260,7 @@
                       label={stat.label}
                       percentile={activePitchingStats[stat.key]}
                       tooltipText={stat.description}
+                      rank={pitchingRanks?.[stat.key]}
                     />
                   {:else}
                     <StatPill

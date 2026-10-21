@@ -66,6 +66,7 @@ jobs:
           bash .github/scripts/build_bref_index.sh "$YEAR" "$BAT_THRESHOLD" "$ERA_IP_THRESHOLD"
           bash .github/scripts/build_savant_json.sh "$YEAR" "$BAT_THRESHOLD" "$PITCH_THRESHOLD" "$FIELD_THRESHOLD"
           python3 .github/scripts/build_savant_careers.py
+          python3 .github/scripts/build_mlb_ranks.py
 
           rm -rf tmp
 
@@ -75,5 +76,5 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           YEAR=$(date +%Y)
-          git add static/data/bref_index.json static/data/savant_${YEAR}.json static/data/savant_careers.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: daily update bref index, ${YEAR} savant data, and savant career averages" && git push)
+          git add static/data/bref_index.json static/data/savant_${YEAR}.json static/data/savant_careers.json static/data/mlb_ranks.json static/data/mlb_ranks_archive.json static/data/mlb_ranks_career.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: daily update bref index, ${YEAR} savant data, savant career averages, and MLB league ranks" && git push)

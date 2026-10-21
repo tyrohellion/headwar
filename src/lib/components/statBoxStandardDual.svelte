@@ -1,5 +1,6 @@
 <script>
   import AnimatedCounter from "./animatedCounter.svelte";
+  import { ordinal } from "$lib/mlbRanks.js";
 
   /**
    * A variant of StatBoxStandard that combines two related stats into a single
@@ -16,11 +17,13 @@
     abbr = "",
     stat = 0,
     decimals = null,
+    rank = 0,
     // "right" / "secondary" stat
     label2 = "",
     abbr2 = "",
     stat2 = 0,
     decimals2 = null,
+    rank2 = 0,
     // overall box tooltip (optional)
     tooltipText = "",
   } = $props();
@@ -142,9 +145,24 @@
             <span class="stat-value" style="color: {leftColor};">
               <AnimatedCounter value={stat} precision={decimals} />
             </span>
-            <wa-badge appearance="filled" size="m" variant="neutral"
-              >{abbr}</wa-badge
-            >
+            <div class="badge-row">
+              {#if rank}
+                <wa-badge
+                  appearance="accent"
+                  size="m"
+                  variant="brand"
+                  class="stat-rank"
+                  id="{tooltipId}-left-rank">#{rank}</wa-badge
+                >
+                <wa-tooltip for="{tooltipId}-left-rank"
+                  >Ranked {ordinal(rank)} in the MLB</wa-tooltip
+                >
+              {:else}
+              <wa-badge appearance="filled" size="m" variant="neutral"
+                >{abbr}</wa-badge
+              >
+              {/if}
+            </div>
           </div>
         </div>
       {/if}
@@ -160,9 +178,24 @@
             <span class="stat-value" style="color: {rightColor};">
               <AnimatedCounter value={stat2} precision={decimals2} />
             </span>
-            <wa-badge appearance="filled" size="m" variant="neutral"
-              >{abbr2}</wa-badge
-            >
+            <div class="badge-row">
+              {#if rank2}
+                <wa-badge
+                  appearance="accent"
+                  size="m"
+                  variant="brand"
+                  class="stat-rank"
+                  id="{tooltipId}-right-rank">#{rank2}</wa-badge
+                >
+                <wa-tooltip for="{tooltipId}-right-rank"
+                  >Ranked {ordinal(rank2)} in the MLB</wa-tooltip
+                >
+              {:else}
+              <wa-badge appearance="filled" size="m" variant="neutral"
+                >{abbr2}</wa-badge
+              >
+              {/if}
+            </div>
           </div>
         </div>
       {/if}
@@ -237,6 +270,19 @@
   wa-badge {
     width: 42px;
     height: 26px;
+  }
+
+  .badge-row {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .stat-rank {
+    width: auto;
+    height: 26px;
+    font-variant-numeric: tabular-nums;
+    font-weight: var(--wa-font-weight-bold, 600);
   }
 
   .stat-molucule:hover {
