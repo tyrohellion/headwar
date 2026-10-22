@@ -37,7 +37,7 @@
     position: relative;
     overflow: hidden;
     margin-top: calc(var(--page-pad-top, 2.5rem) * -1);
-    padding: clamp(3rem, 8vw, 6rem) 0 clamp(2.75rem, 7vw, 5rem);
+    padding-top: clamp(3rem, 8vw, 6rem);
   }
 
   @keyframes hero-rise {

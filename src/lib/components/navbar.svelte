@@ -698,8 +698,9 @@
     .bottom-nav {
       gap: 0.6rem;
       bottom: max(2rem, env(safe-area-inset-bottom));
-      width: 100%;
-      left: 1rem;
+      width: auto;
+      left: 1.75rem;
+      right: 1.75rem;
       transform: none;
     }
 

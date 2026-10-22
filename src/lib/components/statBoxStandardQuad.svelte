@@ -142,6 +142,11 @@
 {#snippet statSide(label, abbr, stat, decimals, color, id, rank)}
   <div class="quad-side" {id}>
     <span class="stat-label">{label}</span>
+    <div class="stat-abr">
+                  <wa-badge appearance="filled" size="m" variant="neutral"
+                >{abbr}</wa-badge
+              >
+              </div>
     <div class="name-badge-wrapper">
       <span class="stat-value" style="color: {color};">
         <AnimatedCounter value={stat} precision={decimals} />
@@ -345,10 +350,18 @@
     transition: color 0.3s ease;
   }
 
+  .stat-abr {
+    display: none;
+  }
+
   @media (max-width: 760px) {
     .stat-label {
       display: none;
     }
+
+      .stat-abr {
+    display: block;
+  }
 
     .stat-molucule {
       min-width: 320px;
