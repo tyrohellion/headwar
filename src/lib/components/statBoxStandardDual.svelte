@@ -18,12 +18,14 @@
     stat = 0,
     decimals = null,
     rank = 0,
+    rankHref = "",
     // "right" / "secondary" stat
     label2 = "",
     abbr2 = "",
     stat2 = 0,
     decimals2 = null,
     rank2 = 0,
+    rank2Href = "",
     // overall box tooltip (optional)
     tooltipText = "",
   } = $props();
@@ -147,13 +149,25 @@
             </span>
             <div class="badge-row">
               {#if rank}
-                <wa-badge
-                  appearance="accent"
-                  size="m"
-                  variant="brand"
-                  class="stat-rank"
-                  id="{tooltipId}-left-rank">#{rank}</wa-badge
-                >
+                {#if rankHref}
+                  <a href={rankHref} class="stat-rank-link" aria-label="Open the leaderboard for {abbr}">
+                    <wa-badge
+                      appearance="accent"
+                      size="m"
+                      variant="brand"
+                      class="stat-rank"
+                      id="{tooltipId}-left-rank">#{rank}</wa-badge
+                    >
+                  </a>
+                {:else}
+                  <wa-badge
+                    appearance="accent"
+                    size="m"
+                    variant="brand"
+                    class="stat-rank"
+                    id="{tooltipId}-left-rank">#{rank}</wa-badge
+                  >
+                {/if}
                 <wa-tooltip for="{tooltipId}-left-rank"
                   >Ranked {ordinal(rank)} in the MLB</wa-tooltip
                 >
@@ -180,13 +194,25 @@
             </span>
             <div class="badge-row">
               {#if rank2}
-                <wa-badge
-                  appearance="accent"
-                  size="m"
-                  variant="brand"
-                  class="stat-rank"
-                  id="{tooltipId}-right-rank">#{rank2}</wa-badge
-                >
+                {#if rank2Href}
+                  <a href={rank2Href} class="stat-rank-link" aria-label="Open the leaderboard for {abbr2}">
+                    <wa-badge
+                      appearance="accent"
+                      size="m"
+                      variant="brand"
+                      class="stat-rank"
+                      id="{tooltipId}-right-rank">#{rank2}</wa-badge
+                    >
+                  </a>
+                {:else}
+                  <wa-badge
+                    appearance="accent"
+                    size="m"
+                    variant="brand"
+                    class="stat-rank"
+                    id="{tooltipId}-right-rank">#{rank2}</wa-badge
+                  >
+                {/if}
                 <wa-tooltip for="{tooltipId}-right-rank"
                   >Ranked {ordinal(rank2)} in the MLB</wa-tooltip
                 >
@@ -283,6 +309,15 @@
     height: 26px;
     font-variant-numeric: tabular-nums;
     font-weight: var(--wa-font-weight-bold, 600);
+  }
+
+  .stat-rank-link {
+    display: inline-flex;
+    text-decoration: none;
+  }
+
+  .stat-rank-link:hover .stat-rank {
+    filter: brightness(1.15);
   }
 
   .stat-molucule:hover {

@@ -10,6 +10,7 @@
     runValue = false,
     tooltipText = "",
     simple = false,
+    badgeHref = "",
   } = $props();
 
   const tooltipId = `statcast-pill-${Math.random().toString(36).substring(2, 9)}`;
@@ -85,9 +86,21 @@
     <div class="pill-header">
       <span class="stat-label">{label}</span>
       {#if !simple && rawPercentile !== null}
-        <wa-badge appearance="accent" size="s">
-          {Math.round(rawPercentile)}
-        </wa-badge>
+        {#if badgeHref}
+          <a
+            href={badgeHref}
+            class="percentile-badge-link"
+            aria-label="{label} leaderboard"
+          >
+            <wa-badge appearance="accent" size="s">
+              {Math.round(rawPercentile)}
+            </wa-badge>
+          </a>
+        {:else}
+          <wa-badge appearance="accent" size="s">
+            {Math.round(rawPercentile)}
+          </wa-badge>
+        {/if}
       {/if}
     </div>
 
@@ -136,6 +149,15 @@
     transform: translateY(-2px);
     box-shadow: var(--wa-shadow-s, 0 2px 8px rgba(0, 0, 0, 0.08));
     border-color: var(--wa-color-border-loud, #b0b0b0);
+  }
+
+  .percentile-badge-link {
+    display: inline-flex;
+    text-decoration: none;
+  }
+
+  .percentile-badge-link:hover wa-badge {
+    filter: brightness(1.15);
   }
 
   .pill-header {

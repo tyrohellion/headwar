@@ -9,24 +9,28 @@
     decimals1 = null,
     tooltip1 = "",
     rank1 = 0,
+    rank1Href = "",
     label2 = "",
     abbr2 = "",
     stat2 = 0,
     decimals2 = null,
     tooltip2 = "",
     rank2 = 0,
+    rank2Href = "",
     label3 = "",
     abbr3 = "",
     stat3 = 0,
     decimals3 = null,
     tooltip3 = "",
     rank3 = 0,
+    rank3Href = "",
     label4 = "",
     abbr4 = "",
     stat4 = 0,
     decimals4 = null,
     tooltip4 = "",
     rank4 = 0,
+    rank4Href = "",
   } = $props();
 
   const tooltipId = `quad-tip-${Math.random().toString(36).substring(2, 9)}`;
@@ -139,7 +143,7 @@
   const sideId4 = $derived(`${tooltipId}-4`);
 </script>
 
-{#snippet statSide(label, abbr, stat, decimals, color, id, rank)}
+{#snippet statSide(label, abbr, stat, decimals, color, id, rank, href)}
   <div class="quad-side" {id}>
     <span class="stat-label">{label}</span>
     <div class="stat-abr">
@@ -153,13 +157,25 @@
       </span>
       <div class="badge-row">
         {#if rank}
-          <wa-badge
-            appearance="accent"
-            size="m"
-            variant="brand"
-            class="stat-rank"
-            id="{id}-rank">#{rank}</wa-badge
-          >
+          {#if href}
+            <a href={href} class="stat-rank-link" aria-label="Open the leaderboard for {abbr}">
+              <wa-badge
+                appearance="accent"
+                size="m"
+                variant="brand"
+                class="stat-rank"
+                id="{id}-rank">#{rank}</wa-badge
+              >
+            </a>
+          {:else}
+            <wa-badge
+              appearance="accent"
+              size="m"
+              variant="brand"
+              class="stat-rank"
+              id="{id}-rank">#{rank}</wa-badge
+            >
+          {/if}
           <wa-tooltip for="{id}-rank"
             >Ranked {ordinal(rank)} in the MLB</wa-tooltip
           >
@@ -199,6 +215,7 @@
           color1,
           sideId1,
           rank1,
+          rank1Href,
         )}
       {/if}
       {#if has1 && has2}
@@ -213,6 +230,7 @@
           color2,
           sideId2,
           rank2,
+          rank2Href,
         )}
       {/if}
       {#if has2 && has3}
@@ -227,6 +245,7 @@
           color3,
           sideId3,
           rank3,
+          rank3Href,
         )}
       {/if}
       {#if has3 && has4}
@@ -241,6 +260,7 @@
           color4,
           sideId4,
           rank4,
+          rank4Href,
         )}
       {/if}
     </div>
@@ -321,6 +341,15 @@
     height: 26px;
     font-variant-numeric: tabular-nums;
     font-weight: var(--wa-font-weight-bold, 600);
+  }
+
+  .stat-rank-link {
+    display: inline-flex;
+    text-decoration: none;
+  }
+
+  .stat-rank-link:hover .stat-rank {
+    filter: brightness(1.15);
   }
 
   .quad-side:hover {

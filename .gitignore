@@ -27,6 +27,10 @@ Thumbs.db
 /data
 *.csv
 
+# Python
+__pycache__/
+*.pyc
+
 # Calculator scratch output
 .cal*-result.json
 .cal*.json

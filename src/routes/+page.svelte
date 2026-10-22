@@ -6,6 +6,7 @@
   import { getLeagueLeaders } from "../api/getHomePageSpotlight";
   import { getFeaturedPlayers } from "../api/getFeaturedPlayers";
   import { getTeamBubbleLeaders } from "../api/getTeamBubbleLeaders";
+  import { leaderboardHref } from "$lib/leaderboardLinks.js";
   import GameCard from "$lib/components/gameCard.svelte";
   import HorizontalDatePicker from "$lib/components/horizontalDatePicker.svelte";
   import DivisionStandingsGrid from "$lib/components/divisionStandingsGrid.svelte";
@@ -120,6 +121,26 @@
 
   function boardValue(board, player) {
     return board === "bwar" ? player.war.toFixed(1) : player.value;
+  }
+
+  // Each home board is a slice of a real leaderboard, so "See more" opens the
+  // same board with the same season and league the card is showing.
+  const LEADERBOARD_STAT = {
+    bwar: { namespace: "hitting", stat: "war" },
+    ops: { namespace: "hitting", stat: "ops" },
+    era: { namespace: "pitching", stat: "era" },
+  };
+
+  function leaderBoardHref(board) {
+    const { namespace, stat } = LEADERBOARD_STAT[board];
+    return leaderboardHref({
+      namespace,
+      stat,
+      season: new Date().getFullYear(),
+      league: leaderLeagueFilter === "both"
+        ? undefined
+        : leaderLeagueFilter.toUpperCase(),
+    });
   }
 
   async function fetchLeaderPage(board, league, page) {
@@ -456,6 +477,17 @@
                       disabled={leaderView.bwar.atEnd && !hasMoreLeaders.bwar}
                       onclick={() => scrollLeaderBoard("bwar", 1)}
                     />
+                    <wa-button
+                      class="see-more-button"
+                      size="xs"
+                      pill
+                      variant="brand"
+                      appearance="accent"
+                      href={leaderBoardHref("bwar")}
+                    >
+                      See more
+                      <wa-icon slot="end" name="arrow-right"></wa-icon>
+                    </wa-button>
                   </div>
                 </div>
                 <div
@@ -491,6 +523,17 @@
                       disabled={leaderView.ops.atEnd && !hasMoreLeaders.ops}
                       onclick={() => scrollLeaderBoard("ops", 1)}
                     />
+                    <wa-button
+                      class="see-more-button"
+                      size="xs"
+                      pill
+                      variant="brand"
+                      appearance="accent"
+                      href={leaderBoardHref("ops")}
+                    >
+                      See more
+                      <wa-icon slot="end" name="arrow-right"></wa-icon>
+                    </wa-button>
                   </div>
                 </div>
                 <div
@@ -522,6 +565,17 @@
                       disabled={leaderView.era.atEnd && !hasMoreLeaders.era}
                       onclick={() => scrollLeaderBoard("era", 1)}
                     />
+                    <wa-button
+                      class="see-more-button"
+                      size="xs"
+                      pill
+                      variant="brand"
+                      appearance="accent"
+                      href={leaderBoardHref("era")}
+                    >
+                      See more
+                      <wa-icon slot="end" name="arrow-right"></wa-icon>
+                    </wa-button>
                   </div>
                 </div>
                 <div
@@ -1141,6 +1195,11 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+  }
+
+  .see-more-button {
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .leader-card {

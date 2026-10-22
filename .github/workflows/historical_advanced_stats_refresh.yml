@@ -115,10 +115,17 @@ jobs:
 
           rm -rf tmp
 
+      - name: Rebuild MLB Rank Files
+        run: |
+          set -euo pipefail
+          mkdir -p tmp
+          python3 .github/scripts/build_mlb_ranks.py
+          rm -rf tmp
+
       - name: Commit Archive JSON Files
         run: |
           set -euo pipefail
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add static/data/bref_index.json static/data/savant_*.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: generate historical bref index and savant JSON archive" && git push)
+          git add static/data/bref_index.json static/data/savant_*.json static/data/mlb_ranks.json static/data/mlb_ranks_archive.json static/data/mlb_ranks_career.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: generate historical bref index, savant JSON archive, and MLB ranks" && git push)

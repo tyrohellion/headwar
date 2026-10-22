@@ -6,6 +6,8 @@ export const fieldingStatcastConfig = [
     category: "overall",
     decimals: 1,
     runValue: true,
+    leaderboardNamespace: "hitting",
+    leaderboardKey: "field_total_runs",
     description:
       "Total runs saved or surrendered across all defensive opportunities relative to average.",
     getValue: (data) => data?.fieldingRunValues?.total_runs,
@@ -53,6 +55,8 @@ export const fieldingStatcastConfig = [
     label: "5-Star Catches",
     category: "defense",
     decimals: 0,
+    leaderboardNamespace: "hitting",
+    leaderboardKey: "five_star_catches",
     description:
       "Catches converted on the hardest balls, where the fielder was given a five-star play to make.",
     getValue: (data) => data?.fiveStarCatches,
@@ -64,6 +68,8 @@ export const fieldingStatcastConfig = [
     category: "catcher",
     decimals: 1,
     runValue: true,
+    leaderboardNamespace: "hitting",
+    leaderboardKey: "field_catching_runs",
     description:
       "Overall runs saved by the catcher across framing, blocking, and throwing components.",
     getValue: (data) => data?.fieldingRunValues?.catching_runs,
@@ -75,6 +81,8 @@ export const fieldingStatcastConfig = [
     category: "catcher",
     decimals: 1,
     runValue: true,
+    leaderboardNamespace: "hitting",
+    leaderboardKey: "field_framing_runs",
     description:
       "Runs saved by converting borderline pitches into called strikes for the pitching staff.",
     getValue: (data) => data?.fieldingRunValues?.framing_runs,
@@ -86,6 +94,8 @@ export const fieldingStatcastConfig = [
     category: "catcher",
     decimals: 1,
     runValue: true,
+    leaderboardNamespace: "hitting",
+    leaderboardKey: "field_blocking_runs",
     description:
       "Runs saved by preventing passed balls and wild pitches on pitches out of the strike zone.",
     getValue: (data) => data?.fieldingRunValues?.blocking_runs,
@@ -96,6 +106,8 @@ export const fieldingStatcastConfig = [
     label: "Throwing Runs",
     category: "catcher",
     runValue: true,
+    leaderboardNamespace: "hitting",
+    leaderboardKey: "field_throwing_runs",
     decimals: 1,
     description:
       "Runs saved by controlling the opposition running game and throwing out stolen base attempts.",

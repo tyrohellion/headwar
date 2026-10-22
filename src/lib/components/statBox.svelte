@@ -9,6 +9,7 @@
     careerSeasonLength = 0,
     progressContext = "",
     rank = undefined,
+    rankHref = "",
     tooltipText = "",
     isRetired = false,
   } = $props();
@@ -77,9 +78,17 @@
           </wa-badge>
         {/if}
         {#if rank}
-          <wa-badge appearance="accent" size="m" variant="brand"
-            >{rank}</wa-badge
-          >
+          {#if rankHref}
+            <a href={rankHref} class="stat-rank-link" aria-label="Open the leaderboard for this rank">
+              <wa-badge appearance="accent" size="m" variant="brand"
+                >{rank}</wa-badge
+              >
+            </a>
+          {:else}
+            <wa-badge appearance="accent" size="m" variant="brand"
+              >{rank}</wa-badge
+            >
+          {/if}
         {/if}
         {#if progressContext !== ""}
           {#if isWarStat}
@@ -211,6 +220,15 @@
   .badges-wrapper {
     display: flex;
     gap: 0.5rem;
+  }
+
+  .stat-rank-link {
+    display: inline-flex;
+    text-decoration: none;
+  }
+
+  .stat-rank-link:hover wa-badge {
+    filter: brightness(1.15);
   }
 
   .season-count {

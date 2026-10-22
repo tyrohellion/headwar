@@ -2,6 +2,7 @@
   import { advancedStats, loadAdvancedMetrics } from "$lib/warStore.svelte.js";
   import { getPlayerStatcastProfile, getPlayerSavantCareer } from "$lib/advancedData.js";
   import { getRanksForSeason, decodePlayerRanks } from "$lib/mlbRanks.js";
+  import { leaderboardHref } from "$lib/leaderboardLinks.js";
   import {
     computePitcherHwar,
     computeHitterHwar,
@@ -370,6 +371,22 @@
         )
       : {}
   );
+
+  // A click on a rank badge opens the leaderboard that produced it: same
+  // season, same stat. Built with a helper so every badge links the same way.
+  function rankLink(namespace, key) {
+    if (!rankSeason) return "";
+    return leaderboardHref({ namespace, stat: key, season: rankSeason });
+  }
+
+  // Statcast run values only exist from 2015 on and have no career board, so
+  // their badges link only when a real Statcast season is in view.
+  function savantRankLink(namespace, key) {
+    if (isCareerMode || isDateFilterActive) return "";
+    const year = Number(userSelectedYear);
+    if (!Number.isFinite(year) || year < 2015) return "";
+    return leaderboardHref({ namespace, stat: key, season: year });
+  }
 
 
   let teamLogoUrl = $derived.by(() => {
@@ -1343,6 +1360,12 @@
                   rank={advancedStats.currentSeasonWarRank
                     ? `#${advancedStats.currentSeasonWarRank}`
                     : null}
+                  rankHref={rankLink(
+                    playerProfile?.primaryPosition?.abbreviation === "P"
+                      ? "pitching"
+                      : "hitting",
+                    "war",
+                  )}
                   isRetired={advancedStats.isRetired}
                   tooltipText="The total estimated wins a player added to their teams over a baseline replacement-level player throughout the selected season. 2.0+ is a solid starter, 5.0+ is an All-Star, and 8.0+ is an MVP-caliber performance. This stat is additive over the year. The percentage value is how far into the MLB season we are."
                 />
@@ -1374,6 +1397,9 @@
                 advancedStats.currentSeasonOpsPlusRank !== "N/A"
                   ? { rank: `#${advancedStats.currentSeasonOpsPlusRank}` }
                   : {}}
+                rankHref={!isCareerMode
+                  ? rankLink("hitting", "opsPlus")
+                  : ""}
                 isRetired={advancedStats.isRetired}
                 progressContext={activeSeasonStats?.atBats}
                 tooltipText={isCareerMode
@@ -1393,6 +1419,9 @@
                 advancedStats.currentSeasonEraPlusRank !== "N/A"
                   ? `#${advancedStats.currentSeasonEraPlusRank}`
                   : undefined}
+                rankHref={!isCareerMode
+                  ? rankLink("pitching", "eraPlus")
+                  : ""}
                 isRetired={advancedStats.isRetired}
                 progressContext={activePitchingStats?.inningsPitched}
                 tooltipText={isCareerMode
@@ -1417,6 +1446,7 @@
                   stat2={pitcherAdvanced.fip.toFixed(2)}
                   tooltipText="ERA measures actual runs allowed per nine innings, while FIP estimates the runs a pitcher 'should' have allowed based only on events they control (strikeouts, walks, hit-by-pitches, home runs). A large gap between them hints at good or bad luck. Lower is better for both."
                     rank={pitchingRanks?.["era"]}
+                    rankHref={rankLink("pitching", "era")}
                 />
               {/if}
 
@@ -1448,7 +1478,9 @@
                   stat2={opsDisplay}
                   tooltipText="Batting Average measures how often a batter gets a hit per at-bat (H / AB). OPS combines On-Base Percentage and Slugging Percentage into one number that captures both contact and power. Both are standard measures of offensive production."
                     rank={battingRanks?.["avg"]}
+                    rankHref={rankLink("hitting", "avg")}
                     rank2={battingRanks?.["ops"]}
+                    rank2Href={rankLink("hitting", "ops")}
                 />
               {/if}
             </div>
@@ -1475,6 +1507,7 @@
                     percentile={battingStatcast.percentiles?.bat_run_val}
                     decimals={1}
                     runValue={true}
+                    badgeHref={savantRankLink("hitting", "bat_run_val")}
                     tooltipText="Total run value contributed across all batting outcomes according to statcast data."
                   />
                 {/if}
@@ -1487,6 +1520,7 @@
                       ?.pitch_run_val}
                     decimals={1}
                     runValue={true}
+                    badgeHref={savantRankLink("pitching", "pitch_run_val")}
                     tooltipText="Total run value contributed across all pitching outcomes according to statcast data."
                   />
                 {/if}
@@ -1498,6 +1532,7 @@
                     percentile={battingStatcast.percentiles?.total_runs}
                     decimals={1}
                     runValue={true}
+                    badgeHref={savantRankLink("hitting", "field_total_runs")}
                     tooltipText="Total run value contributed across all fielding outcomes according to statcast data."
                   />
                 {/if}
@@ -1509,6 +1544,7 @@
                     percentile={battingStatcast.percentiles?.base_run_val}
                     decimals={1}
                     runValue={true}
+                    badgeHref={savantRankLink("hitting", "base_run_val")}
                     tooltipText="Total run value contributed across all baserunning outcomes according to statcast data."
                   />
                 {/if}
@@ -1605,9 +1641,13 @@
                   stat4={formatBattingStat("ops", activeSeasonStats.ops)}
                   tooltip4={battingConfigMap.ops.description}
                     rank1={battingRanks?.["avg"]}
+                    rank1Href={rankLink("hitting", "avg")}
                     rank2={battingRanks?.["obp"]}
+                    rank2Href={rankLink("hitting", "obp")}
                     rank3={battingRanks?.["slg"]}
+                    rank3Href={rankLink("hitting", "slg")}
                     rank4={battingRanks?.["ops"]}
+                    rank4Href={rankLink("hitting", "ops")}
                 />
 
                 <StatBoxStandardQuad
@@ -1637,9 +1677,13 @@
                   stat4={formatBattingStat("rbi", activeSeasonStats.rbi)}
                   tooltip4={battingConfigMap.rbi.description}
                     rank1={battingRanks?.["doubles"]}
+                    rank1Href={rankLink("hitting", "doubles")}
                     rank2={battingRanks?.["triples"]}
+                    rank2Href={rankLink("hitting", "triples")}
                     rank3={battingRanks?.["homeRuns"]}
+                    rank3Href={rankLink("hitting", "homeRuns")}
                     rank4={battingRanks?.["rbi"]}
+                    rank4Href={rankLink("hitting", "rbi")}
                 />
               </div>
             {/if}
@@ -1674,8 +1718,11 @@
                   stat4={formatPitchingStat("whip", activePitchingStats?.whip)}
                   tooltip4={pitchingConfigMap.whip.description}
                     rank1={pitchingRanks?.["era"]}
+                    rank1Href={rankLink("pitching", "era")}
                     rank3={pitchingRanks?.["ops"]}
+                    rank3Href={rankLink("pitching", "ops")}
                     rank4={pitchingRanks?.["whip"]}
+                    rank4Href={rankLink("pitching", "whip")}
                 />
 
                 <StatBoxStandardQuad
@@ -1708,9 +1755,13 @@
                   )}
                   tooltip4={pitchingConfigMap.earnedRuns.description}
                     rank1={pitchingRanks?.["strikeoutsPer9Inn"]}
+                    rank1Href={rankLink("pitching", "strikeoutsPer9Inn")}
                     rank2={pitchingRanks?.["walksPer9Inn"]}
+                    rank2Href={rankLink("pitching", "walksPer9Inn")}
                     rank3={pitchingRanks?.["strikeOuts"]}
+                    rank3Href={rankLink("pitching", "strikeOuts")}
                     rank4={pitchingRanks?.["earnedRuns"]}
+                    rank4Href={rankLink("pitching", "earnedRuns")}
                 />
               </div>
             {/if}
@@ -1948,6 +1999,7 @@
                         percentile={formattedValue}
                         tooltipText={stat.description}
                         rank={battingRanks?.[stat.key]}
+                        rankHref={rankLink("hitting", stat.key)}
                       />
                     </div>
                   {:else}
@@ -1975,6 +2027,7 @@
                       percentile={activeSeasonStats[stat.key]}
                       tooltipText={stat.description}
                       rank={battingRanks?.[stat.key]}
+                      rankHref={rankLink("hitting", stat.key)}
                     />
                   {:else}
                     <StatPill
@@ -2001,6 +2054,7 @@
                       percentile={activeSeasonStats[stat.key]}
                       tooltipText={stat.description}
                       rank={battingRanks?.[stat.key]}
+                      rankHref={rankLink("hitting", stat.key)}
                     />
                   {:else}
                     <StatPill
@@ -2232,6 +2286,7 @@
                         percentile={formattedValue}
                         tooltipText={stat.description}
                         rank={pitchingRanks?.[stat.key]}
+                        rankHref={rankLink("pitching", stat.key)}
                       />
                     </div>
                   {:else}
@@ -2261,6 +2316,7 @@
                       percentile={activePitchingStats[stat.key]}
                       tooltipText={stat.description}
                       rank={pitchingRanks?.[stat.key]}
+                      rankHref={rankLink("pitching", stat.key)}
                     />
                   {:else}
                     <StatPill
@@ -2319,6 +2375,9 @@
                   decimals={conf.decimals ?? 1}
                   percentile={percentileVal}
                   runValue={conf.runValue ?? false}
+                  badgeHref={conf.leaderboardKey
+                    ? savantRankLink(conf.leaderboardNamespace, conf.leaderboardKey)
+                    : ""}
                   tooltipText={conf.description}
                   simple={conf.simple ??
                     (percentileVal === undefined || percentileVal === null)}
@@ -2377,6 +2436,9 @@
                     percentile={percentileVal}
                     decimals={conf.decimals ?? 0}
                     runValue={conf.runValue ?? false}
+                    badgeHref={conf.leaderboardKey
+                      ? savantRankLink(conf.leaderboardNamespace, conf.leaderboardKey)
+                      : ""}
                     tooltipText={conf.description}
                     simple={conf.simple ??
                       (percentileVal === undefined || percentileVal === null)}

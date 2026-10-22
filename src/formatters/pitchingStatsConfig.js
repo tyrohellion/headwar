@@ -202,6 +202,8 @@ export const pitchingStatsConfig = [
 		category: 'run_value',
 		decimals: 1,
 		runValue: true,
+		leaderboardNamespace: 'pitching',
+		leaderboardKey: 'pitch_run_val',
 		description: 'Total run value contributed across all pitching outcomes based on the Swing-Take model.',
 		getValue: (data) => data?.pitcherRunValues?.runs_all
 	}

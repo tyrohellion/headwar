@@ -2,7 +2,16 @@
 	import AnimatedCounter from './animatedCounter.svelte';
 	import { ordinal } from '$lib/mlbRanks.js';
 
-	let { percentile = 0, label = '', abbr = '', stat = 0, tooltipText = '', rank = 0 } = $props();
+	let {
+		percentile = 0,
+		label = '',
+		abbr = '',
+		stat = 0,
+		tooltipText = '',
+		rank = 0,
+		rankHref = ''
+	} = $props();
+
 	const tooltipId = `pill-tip-${Math.random().toString(36).substring(2, 9)}`;
 	const rankTooltipId = `pill-rank-${Math.random().toString(36).substring(2, 9)}`;
 
@@ -40,15 +49,33 @@
 						<AnimatedCounter value={percentile} />
 					</span>
 					{#if rank}
-						<wa-badge
-							appearance="accent"
-							size="m"
-							variant="brand"
-							class="stat-rank"
-							id={rankTooltipId}
-						>
-							#{rank}
-						</wa-badge>
+						{#if rankHref}
+							<a
+								href={rankHref}
+								class="stat-rank-link"
+								aria-label="Ranked {ordinal(rank)} in the MLB — open the leaderboard"
+							>
+								<wa-badge
+									appearance="accent"
+									size="m"
+									variant="brand"
+									class="stat-rank"
+									id={rankTooltipId}
+								>
+									#{rank}
+								</wa-badge>
+							</a>
+						{:else}
+							<wa-badge
+								appearance="accent"
+								size="m"
+								variant="brand"
+								class="stat-rank"
+								id={rankTooltipId}
+							>
+								#{rank}
+							</wa-badge>
+						{/if}
 					{/if}
 					<wa-badge appearance="filled" size="m" variant="neutral">{abbr}</wa-badge>
 				</div>
@@ -83,6 +110,15 @@
 		height: 26px;
 		font-variant-numeric: tabular-nums;
 		font-weight: var(--wa-font-weight-bold, 600);
+	}
+
+	.stat-rank-link {
+		display: inline-flex;
+		text-decoration: none;
+	}
+
+	.stat-rank-link:hover .stat-rank {
+		filter: brightness(1.15);
 	}
 
 	.stat-molucule-disabled {
