@@ -361,6 +361,7 @@
     <div class="control">
       <label>Show me top</label>
       <wa-select
+      appearance="filled"
         size="s"
         value={position}
         onchange={(e) => {
@@ -389,7 +390,7 @@
 
     <div class="control">
       <label>by</label>
-      <wa-select size="s" value={statKey} onchange={(e) => (statKey = e.target.value)}>
+      <wa-select size="s" appearance="filled" value={statKey} onchange={(e) => (statKey = e.target.value)}>
         {#each statOptions as group}
           {#each group.stats as option}
             <wa-option value={option.key}>{option.label}</wa-option>
@@ -400,7 +401,7 @@
 
     <div class="control">
       <label>in the</label>
-      <wa-select size="s" value={league} onchange={(e) => (league = e.target.value)}>
+      <wa-select size="s" appearance="filled" value={league} onchange={(e) => (league = e.target.value)}>
         <wa-option value="ALL">MLB</wa-option>
         {#each leagues as lg}
           <wa-option value={lg}>{leagueName(lg)}</wa-option>
@@ -410,7 +411,7 @@
 
     <div class="control">
       <label>in</label>
-      <wa-select size="s" value={effectiveSeason} onchange={(e) => (season = e.target.value)}>
+      <wa-select size="s" appearance="filled" value={effectiveSeason} onchange={(e) => (season = e.target.value)}>
         <wa-option value="career">all time</wa-option>
         {#each seasons as option}
           <wa-option value={String(option)}>{option}</wa-option>
@@ -422,6 +423,7 @@
       <label>grouped as</label>
       <wa-select
         size="s"
+        appearance="filled"
         value={order}
         onchange={(e) => (order = e.target.value)}
       >
@@ -433,7 +435,7 @@
 
     <div class="control">
       <label>showing</label>
-      <wa-select size="s" value={String(limit)} onchange={(e) => (limit = Number(e.target.value))}>
+      <wa-select size="s" appearance="filled" value={String(limit)} onchange={(e) => (limit = Number(e.target.value))}>
         <wa-option value="10">top 10</wa-option>
         <wa-option value="25">top 25</wa-option>
         <wa-option value="50">top 50</wa-option>
@@ -534,7 +536,7 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.75rem 1rem;
+    gap: 0.5rem;
   }
 
   .control {
