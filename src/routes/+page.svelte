@@ -371,7 +371,7 @@
 </script>
 
 <svelte:head>
-  <title>headwar — advanced player stats, decoded</title>
+  <title>headwar</title>
 </svelte:head>
 
 <main class="home-page">

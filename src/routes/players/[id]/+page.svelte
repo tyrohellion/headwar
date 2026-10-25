@@ -29,6 +29,8 @@
   import { shapeGameLog } from "../../../formatters/gameLogFormatter";
   import { formatGamesPlayedLabel } from "../../../formatters/gamesFormatter";
   import { getTeamLogo } from "../../../api/getTeamLogo";
+  import { getPlayerStory } from "../../../api/getPlayerStory";
+  import { getPlayerVideos } from "../../../api/getPlayerVideos";
   import { standardBattingConfig } from "../../../formatters/standardBattingStatsConfig";
   import { battingStatConfig } from "../../../formatters/battingStatsConfig";
   import { processPlayerAwards } from "../../../formatters/playerAwardFormatter";
@@ -38,7 +40,7 @@
   import { fieldingStatcastConfig } from "../../../formatters/fieldingStatcastConfig";
   import { getSeasonProgressPercentage } from "../../../formatters/getSeasonProgressPercentage";
   import { page } from "$app/stores";
-  import { onMount, untrack } from "svelte";
+  import { onMount, tick, untrack } from "svelte";
   import { goto } from "$app/navigation";
 
   import {
@@ -72,6 +74,7 @@
   import StatBoxStandardDual from "$lib/components/statBoxStandardDual.svelte";
   import StatBoxStandardQuad from "$lib/components/statBoxStandardQuad.svelte";
   import RecentPerformance from "$lib/components/recentPerformance.svelte";
+  import VideoModal from "$lib/components/videoModal.svelte";
   import ArrowButton from "$lib/components/arrowButton.svelte";
 
   const seasonProgress = $derived.by(() => getSeasonProgressPercentage());
@@ -198,6 +201,98 @@
     const name = event.detail?.name;
     if (name) activeSection = name;
   }
+
+  // Highlights are fetched only when the tab is opened (and re-fetched if the
+  // season or player changes), so they never slow down the initial page load.
+  const HIGHLIGHTS_PAGE_SIZE = 12;
+  let highlightsSeason = $derived(isCareerMode ? null : userSelectedYear);
+  let highlights = $state([]);
+  let highlightsHasMore = $state(false);
+  let highlightsLoading = $state(false);
+  let highlightsError = $state("");
+  let highlightsPage = $state(-1);
+  let highlightsLoadedKey = $state("");
+  let highlightsRequestId = 0;
+
+  async function fetchHighlights(id, season, key, reset) {
+    const requestId = ++highlightsRequestId;
+    const page = reset ? 0 : highlightsPage + 1;
+
+    if (reset) {
+      highlights = [];
+      highlightsHasMore = false;
+    }
+    highlightsLoading = true;
+    highlightsError = "";
+
+    try {
+      const result = await getPlayerVideos(id, {
+        season,
+        limit: HIGHLIGHTS_PAGE_SIZE,
+        page,
+      });
+      // Ignore a response that arrived after the player/season changed.
+      if (requestId !== highlightsRequestId) return;
+
+      const known = new Set(highlights.map((video) => video.id));
+      const next = result.videos.filter((video) => !known.has(video.id));
+      // The gateway orders by publish timestamp, which can interleave dates
+      // (e.g. an older play re-published later). Show a clean newest-first list.
+      highlights = (reset ? next : [...highlights, ...next]).sort((a, b) =>
+        (b.date || "").localeCompare(a.date || ""),
+      );
+      highlightsHasMore = result.hasMore;
+      highlightsPage = page;
+      highlightsLoadedKey = key;
+    } catch {
+      if (requestId === highlightsRequestId) {
+        highlightsError = "Couldn't load highlights right now. Please try again.";
+      }
+    } finally {
+      if (requestId === highlightsRequestId) highlightsLoading = false;
+    }
+  }
+
+  function loadMoreHighlights() {
+    const id = playerProfile?.id;
+    if (!id || highlightsLoading || !highlightsHasMore) return;
+    const key = `${id}-${highlightsSeason ?? "all"}`;
+    fetchHighlights(id, highlightsSeason, key, false);
+  }
+
+  function retryHighlights() {
+    const id = playerProfile?.id;
+    if (!id || highlightsLoading) return;
+    const key = `${id}-${highlightsSeason ?? "all"}`;
+    fetchHighlights(id, highlightsSeason, key, true);
+  }
+
+  let activeHighlight = $state(null);
+  let highlightTriggerEl = null;
+
+  function openHighlight(video, trigger) {
+    activeHighlight = video;
+    highlightTriggerEl = trigger;
+  }
+
+  function closeHighlight() {
+    const trigger = highlightTriggerEl;
+    activeHighlight = null;
+    tick().then(() => trigger?.focus?.());
+  }
+
+  $effect(() => {
+    const id = playerProfile?.id;
+    const section = activeSection;
+    const season = highlightsSeason;
+    if (!id || section !== "highlights") return;
+
+    const key = `${id}-${season ?? "all"}`;
+    untrack(() => {
+      if (highlightsLoadedKey === key) return;
+      fetchHighlights(id, season, key, true);
+    });
+  });
 
   let detailsFiltersEl = $state(null);
   let showFloatingHeadshot = $state(false);
@@ -1063,22 +1158,34 @@
   <div class="wa-heading-m">We couldn't find that player :(</div>
 {:else if playerProfile}
   <div class="player-info-box">
+    <wa-tooltip class="player-story-tooltip" for="playerStoryLink"
+      >View {playerProfile.fullName}'s latest MLB Story</wa-tooltip
+    >
     <div class="image-container">
       {#if imgLoading}
         <div class="img-loading"></div>
       {/if}
-      <img
-        src={getPlayerPictureLarge($page.params.id)}
-        alt="playerHeadshot"
-        class="player-thumb"
-        loading="lazy"
-        onload={() => (imgLoading = false)}
-        onerror={(e) => {
-          imgLoading = false;
-          e.target.src =
-            "https://img.mlbstatic.com/mlb-photos/image/upload/w_50,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current";
-        }}
-      />
+      <a
+        id="playerStoryLink"
+        class="player-story-link"
+        href={getPlayerStory(playerProfile.id)}
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label={`View ${playerProfile.fullName}'s latest MLB Story`}
+      >
+        <img
+          src={getPlayerPictureLarge($page.params.id)}
+          alt="playerHeadshot"
+          class="player-thumb"
+          loading="lazy"
+          onload={() => (imgLoading = false)}
+          onerror={(e) => {
+            imgLoading = false;
+            e.target.src =
+              "https://img.mlbstatic.com/mlb-photos/image/upload/w_50,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current";
+          }}
+        />
+      </a>
     </div>
     <div class="player-text-box">
       <div class="player-name-and-team-wrapper">
@@ -1277,6 +1384,7 @@
           onwa-tab-show={handleTabActivate}
         >
           <wa-tab panel="overview">Overview</wa-tab>
+          <wa-tab panel="highlights">Videos</wa-tab>
           {#if activeSeasonStats && activeSeasonStats.atBats > 0}
             <wa-tab panel="batting">Batting</wa-tab>
           {/if}
@@ -1808,6 +1916,99 @@
             {/if}
           </div>
         {/if}
+      </wa-tab-panel>
+
+      <wa-tab-panel
+        name="highlights"
+        active={activeSection === "highlights"}
+      >
+        <div class="highlights-panel">
+          <div class="horizontal-wrapper">
+            <h3>
+              {isCareerMode
+                ? "Latest Highlights"
+                : `${userSelectedYear} Highlights`}
+            </h3>
+          </div>
+
+          {#if highlightsLoading && highlights.length === 0}
+            <div class="video-grid" aria-busy="true">
+              {#each Array(6) as _}
+                <div class="video-skeleton">
+                  <wa-skeleton effect="sheen"></wa-skeleton>
+                  <wa-skeleton effect="sheen"></wa-skeleton>
+                </div>
+              {/each}
+            </div>
+          {:else if highlightsError}
+            <div class="highlights-message">
+              <p>{highlightsError}</p>
+              <wa-button
+                size="s"
+                variant="neutral"
+                appearance="outlined"
+                onclick={retryHighlights}
+              >
+                Try again
+              </wa-button>
+            </div>
+          {:else if highlights.length === 0}
+            <p class="highlights-message">
+              No highlights found for this player{isCareerMode
+                ? ""
+                : ` in ${userSelectedYear}`}.
+            </p>
+          {:else}
+            <div class="video-grid">
+              {#each highlights as video (video.id)}
+                <figure class="video-card">
+                  <button
+                    type="button"
+                    class="video-thumb"
+                    onclick={(event) =>
+                      openHighlight(video, event.currentTarget)}
+                    aria-label={`Play ${video.title}`}
+                  >
+                    {#if video.thumbnail}
+                      <img
+                        class="video-thumb-image"
+                        src={video.thumbnail}
+                        alt=""
+                        loading="lazy"
+                      />
+                    {/if}
+                    <span class="video-thumb-play" aria-hidden="true">
+                      <wa-icon name="play"></wa-icon>
+                    </span>
+                  </button>
+                  <figcaption>
+                    <p class="video-title">{video.title}</p>
+                    <div class="video-meta">
+                      <span>{video.dateLabel}</span>
+                      {#if video.durationLabel}
+                        <wa-divider orientation="vertical"></wa-divider>
+                        <span>{video.durationLabel}</span>
+                      {/if}
+                    </div>
+                  </figcaption>
+                </figure>
+              {/each}
+            </div>
+
+            {#if highlightsHasMore}
+              <div class="highlights-footer">
+                <wa-button
+                  variant="neutral"
+                  appearance="outlined"
+                  loading={highlightsLoading}
+                  onclick={loadMoreHighlights}
+                >
+                  Load more highlights
+                </wa-button>
+              </div>
+            {/if}
+          {/if}
+        </div>
       </wa-tab-panel>
 
       <wa-tab-panel name="batting" active={activeSection === "batting"}>
@@ -2604,6 +2805,10 @@
   </div>
 {/if}
 
+{#if activeHighlight}
+  <VideoModal video={activeHighlight} onClose={closeHighlight} />
+{/if}
+
 <style>
   .status-message {
     display: flex;
@@ -2650,8 +2855,40 @@
     width: 150px;
     height: 225px;
     flex-shrink: 0;
+    border-radius: var(--wa-border-radius-m);
     box-shadow: var(--wa-shadow-l);
+    overflow: hidden;
+    transition: transform 180ms ease;
   }
+
+  .image-container:hover,
+  .image-container:focus-within {
+    transform: scale(1.02);
+  }
+
+  .player-story-tooltip {
+    --max-width: max-content;
+  }
+
+  .player-story-link {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: var(--wa-border-radius-m);
+  }
+
+  .player-story-link:focus-visible {
+    outline: 2px solid var(--wa-color-focus);
+    outline-offset: -2px;
+  }
+
+  .player-thumb {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
   .img-loading {
     width: 150px;
     height: 225px;
@@ -2992,6 +3229,164 @@
     display: grid;
     grid-template-columns: repeat(3, minmax(352px, 1fr));
     gap: 0.75rem;
+  }
+
+  .highlights-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .video-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+
+  .video-card {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--wa-color-surface-default);
+    border: 1px solid var(--wa-color-border-quiet);
+    border-radius: var(--wa-border-radius-m);
+    overflow: hidden;
+  }
+
+  .video-thumb {
+    position: relative;
+    display: block;
+    flex-shrink: 0;
+    width: 100%;
+    height: auto;
+    padding: 0;
+    border: 0;
+    background-color: #000;
+    border-radius: 0;
+    overflow: hidden;
+    cursor: pointer;
+    isolation: isolate;
+  }
+
+  .video-thumb:focus-visible {
+    outline: 2px solid var(--wa-color-focus);
+    outline-offset: -2px;
+  }
+
+  .video-thumb-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    max-height: none;
+    border-radius: 0;
+    box-shadow: none;
+    object-fit: cover;
+    transition: transform 220ms ease;
+  }
+
+  .video-thumb:hover .video-thumb-image {
+    transform: scale(1.03);
+  }
+
+  .video-thumb-play {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    border-radius: 50%;
+    background-color: var(--wa-color-brand-fill-loud);
+    color: var(--wa-color-brand-on-loud);
+    box-shadow: 0 4px 18px rgb(0 0 0 / 0.45);
+    transform: translate(-50%, -50%);
+    transition: transform 150ms ease;
+    pointer-events: none;
+  }
+
+  .video-thumb:hover .video-thumb-play,
+  .video-thumb:focus-visible .video-thumb-play {
+    transform: translate(-50%, -50%) scale(1.07);
+  }
+
+  .video-thumb-play wa-icon {
+    font-size: 1.2rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .video-thumb-image,
+    .video-thumb-play {
+      transition: none;
+    }
+  }
+
+  .video-card figcaption {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.75rem;
+  }
+
+  .video-title {
+    margin: 0;
+    font-size: var(--wa-font-size-s);
+    font-weight: var(--wa-font-weight-semibold, 600);
+    line-height: 1.35;
+    color: var(--wa-color-text-normal);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .video-meta {
+    display: flex;
+    align-items: center;
+    font-size: var(--wa-font-size-xs);
+    color: var(--wa-color-text-quiet);
+  }
+
+  .highlights-message {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+    color: var(--wa-color-text-quiet);
+  }
+
+  .highlights-message p {
+    margin: 0;
+  }
+
+  .highlights-footer {
+    display: flex;
+    justify-content: center;
+    padding-top: 0.5rem;
+  }
+
+  .video-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .video-skeleton wa-skeleton {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: var(--wa-border-radius-m);
+  }
+
+  .video-skeleton wa-skeleton + wa-skeleton {
+    aspect-ratio: auto;
+    width: 70%;
+    height: 0.9rem;
   }
 
   @media (max-width: 1600px) {
