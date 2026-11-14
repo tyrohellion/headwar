@@ -13,7 +13,7 @@
   <div class="hero-inner">
     <h1 class="statement" id="hero-title">
       <span class="hero-mark">HEADWAR</span>
-      <span class="hero-line">Baseball for the modern web.</span>
+      <span class="hero-line">The modern player index.</span>
     </h1>
 
     <wa-button

@@ -124,8 +124,6 @@
     return board === "bwar" ? player.war.toFixed(1) : player.value;
   }
 
-  // Each home board is a slice of a real leaderboard, so "See more" opens the
-  // same board with the same season and league the card is showing.
   const LEADERBOARD_STAT = {
     bwar: { namespace: "hitting", stat: "war" },
     ops: { namespace: "hitting", stat: "ops" },
