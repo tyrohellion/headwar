@@ -1,3 +1,6 @@
+import { getPlayerActionPicture } from './getPlayerPicture.js';
+import { getTeamNicknameMap } from './getTeamNicknames.js';
+
 function headshotUrl(id, width = 96) {
 	return `https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_${width},d_people:generic:headshot:67:current.png,q_auto/v1/people/${id}/headshot/67/current`;
 }
@@ -6,15 +9,17 @@ function genericHeadshot() {
 	return 'https://img.mlbstatic.com/mlb-photos/image/upload/w_96,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current';
 }
 
-function toLeaderRows(leaders) {
+function toLeaderRows(leaders, nicknames) {
 	return leaders.map((player) => ({
 		rank: player.rank,
 		value: player.value,
 		name: player.person.fullName,
 		id: player.person.id,
 		team: player.team.name,
+		teamNickname: nicknames.get(player.team.id) || player.team.name,
 		teamId: player.team.id,
 		headshot: headshotUrl(player.person.id),
+		actionPhoto: getPlayerActionPicture(player.person.id),
 		genericHeadshot: genericHeadshot()
 	}));
 }
@@ -33,8 +38,10 @@ async function fetchTopLeaders(leaderCategories, statGroup, leagueId, offset) {
 
 	const hasMore = leaderList.length > 10;
 
+	const nicknames = await getTeamNicknameMap(currentYear);
+
 	return {
-		list: toLeaderRows(leaderList.slice(0, 10)),
+		list: toLeaderRows(leaderList.slice(0, 10), nicknames),
 		hasMore
 	};
 }

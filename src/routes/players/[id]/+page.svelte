@@ -12,7 +12,10 @@
     inningsToDecimal,
   } from "$lib/warCalculator.js";
   import { getLeagueContext } from "$lib/leagueContext.js";
-  import { getPlayerPictureLarge } from "../../../api/getPlayerPicture";
+  import {
+    getPlayerPictureLarge,
+    getPlayerActionPicture,
+  } from "../../../api/getPlayerPicture";
   import { getPlayerInfo } from "../../../api/getPlayerInfo";
   import {
     getPlayerSeasonInjuries,
@@ -1161,29 +1164,52 @@
     <wa-tooltip class="player-story-tooltip" for="playerStoryLink"
       >View {playerProfile.fullName}'s latest MLB Story</wa-tooltip
     >
-    <div class="image-container">
-      {#if imgLoading}
-        <div class="img-loading"></div>
-      {/if}
+    <wa-tooltip class="player-story-tooltip" for="playerActionStoryLink"
+      >View {playerProfile.fullName}'s latest MLB Story</wa-tooltip
+    >
+    <div class="player-images">
+      <div class="image-container">
+        {#if imgLoading}
+          <div class="img-loading"></div>
+        {/if}
+        <a
+          id="playerStoryLink"
+          class="player-story-link"
+          href={getPlayerStory(playerProfile.id)}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={`View ${playerProfile.fullName}'s latest MLB Story`}
+        >
+          <img
+            src={getPlayerPictureLarge($page.params.id)}
+            alt="playerHeadshot"
+            class="player-thumb"
+            loading="lazy"
+            onload={() => (imgLoading = false)}
+            onerror={(e) => {
+              imgLoading = false;
+              e.target.src =
+                "https://img.mlbstatic.com/mlb-photos/image/upload/w_50,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current";
+            }}
+          />
+        </a>
+      </div>
       <a
-        id="playerStoryLink"
-        class="player-story-link"
+        id="playerActionStoryLink"
+        class="player-action-link"
         href={getPlayerStory(playerProfile.id)}
         target="_blank"
         rel="noopener noreferrer"
         aria-label={`View ${playerProfile.fullName}'s latest MLB Story`}
       >
         <img
-          src={getPlayerPictureLarge($page.params.id)}
-          alt="playerHeadshot"
-          class="player-thumb"
+          src={getPlayerActionPicture($page.params.id)}
+          alt={`${playerProfile.fullName} game photo`}
+          class="player-action-thumb"
+          width="150"
+          height="225"
           loading="lazy"
-          onload={() => (imgLoading = false)}
-          onerror={(e) => {
-            imgLoading = false;
-            e.target.src =
-              "https://img.mlbstatic.com/mlb-photos/image/upload/w_50,d_people:generic:headshot:67:current.png/v1/people/generic/headshot/67/current";
-          }}
+          onerror={(e) => (e.currentTarget.closest("a").style.display = "none")}
         />
       </a>
     </div>
@@ -2848,6 +2874,33 @@
   a {
     text-decoration: none;
     color: inherit;
+  }
+
+  .player-images {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    flex-shrink: 0;
+  }
+
+  .player-action-link {
+    display: block;
+    border-radius: var(--wa-border-radius-m);
+    transition: transform 180ms ease;
+  }
+
+  .player-action-link:hover,
+  .player-action-link:focus-within {
+    transform: scale(1.02);
+  }
+
+  .player-action-link:focus-visible {
+    outline: 2px solid var(--wa-color-focus);
+    outline-offset: -2px;
+  }
+
+  .player-action-thumb {
+    display: block;
   }
 
   .image-container {

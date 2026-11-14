@@ -5,6 +5,7 @@
     percentile = 0,
     label = "",
     abbr = "",
+    badgeText = "",
     stat = 0,
     careerSeasonLength = 0,
     progressContext = "",
@@ -12,13 +13,24 @@
     rankHref = "",
     tooltipText = "",
     isRetired = false,
+    image = "",
+    imageAlt = "",
+    imageFallback = "",
   } = $props();
 
   const tooltipId = `pill-tip-${Math.random().toString(36).substring(2, 9)}`;
 
   const isCareer = $derived(label.toLowerCase().includes("career"));
-  const isNormalizedStat = $derived(abbr === "OPS+" || abbr === "ERA+");
-  const isWarStat = $derived(abbr === "WAR" || abbr === "hWAR");
+
+  // Stat family detection. The abbr drives both the value color and the bottom
+  // track, so normalize it once and match case-insensitively.
+  const statAbbr = $derived(String(abbr).toUpperCase());
+  const isNormalizedStat = $derived(
+    statAbbr === "OPS+" || statAbbr === "ERA+",
+  );
+  const isWarStat = $derived(statAbbr === "WAR" || statAbbr === "HWAR");
+  const isOpsStat = $derived(statAbbr === "OPS");
+  const isEraStat = $derived(statAbbr === "ERA" || statAbbr === "FIP");
 
   const isCareerWar = $derived(isCareer && isWarStat);
 
@@ -40,12 +52,29 @@
       if (numericValue >= 115) return "var(--wa-color-success-80)";
       if (numericValue >= 90) return "var(--wa-color-neutral-50)";
       return "var(--wa-color-danger-70)";
-    } else {
-      if (numericValue >= 5.0) return "var(--wa-color-success-60)";
-      if (numericValue >= 2.5) return "var(--wa-color-success-80)";
-      if (numericValue >= 0.5) return "var(--wa-color-neutral-50)";
+    }
+
+    // ERA-like stats: lower is better (matches statBoxStandardQuad/Dual).
+    if (isEraStat) {
+      if (numericValue <= 3.0) return "var(--wa-color-success-60)";
+      if (numericValue <= 4.0) return "var(--wa-color-success-80)";
+      if (numericValue <= 4.8) return "var(--wa-color-neutral-50)";
       return "var(--wa-color-danger-70)";
     }
+
+    // OPS: higher is better (matches statBoxStandardQuad/Dual).
+    if (isOpsStat) {
+      if (numericValue >= 0.9) return "var(--wa-color-success-60)";
+      if (numericValue >= 0.78) return "var(--wa-color-success-80)";
+      if (numericValue >= 0.72) return "var(--wa-color-neutral-50)";
+      return "var(--wa-color-danger-70)";
+    }
+
+    // WAR (and anything else) is higher-is-better on the WAR scale.
+    if (numericValue >= 5.0) return "var(--wa-color-success-60)";
+    if (numericValue >= 2.5) return "var(--wa-color-success-80)";
+    if (numericValue >= 0.5) return "var(--wa-color-neutral-50)";
+    return "var(--wa-color-danger-70)";
   });
 
   let fillWidthPercent = $derived.by(() => {
@@ -60,7 +89,24 @@
   {#if tooltipText}
     <wa-tooltip for={tooltipId}>{tooltipText}</wa-tooltip>
   {/if}
-  <div class="stat-molucule" id={tooltipId}>
+  <div class="stat-molucule" id={tooltipId} class:has-image={image}>
+    {#if image}
+      <img
+        class="stat-image"
+        src={image}
+        alt={imageAlt}
+        loading="lazy"
+        decoding="async"
+        onerror={(event) => {
+          const img = event.currentTarget;
+          if (imageFallback && img.src !== imageFallback) {
+            img.src = imageFallback;
+          } else {
+            img.style.display = "none";
+          }
+        }}
+      />
+    {/if}
     <span class="stat-label">{label}</span>
     <div class="name-badge-wrapper">
       <div class="war-career-length-wrapper">
@@ -70,7 +116,7 @@
       </div>
       <div class="badges-wrapper">
         <wa-badge appearance="filled" size="m" variant="neutral"
-          >{abbr}</wa-badge
+          >{badgeText || abbr}</wa-badge
         >
         {#if !careerSeasonLength == 0}
           <wa-badge appearance="outlined" size="m" variant="neutral">
@@ -96,12 +142,12 @@
               <AnimatedCounter value={progressContext} /> Games
             </wa-badge>
           {/if}
-          {#if abbr === "OPS+"}
+          {#if statAbbr === "OPS+"}
             <wa-badge appearance="outlined" size="m" variant="neutral">
               <AnimatedCounter value={progressContext} /> At Bats
             </wa-badge>
           {/if}
-          {#if abbr === "ERA+"}
+          {#if statAbbr === "ERA+"}
             <wa-badge appearance="outlined" size="m" variant="neutral">
               <AnimatedCounter value={progressContext} /> Innings Pitched
             </wa-badge>
@@ -196,11 +242,44 @@
     }
   }
 
+  .stat-molucule.has-image {
+    --stat-image-w: 75px;
+  }
+
+  .stat-image {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: var(--stat-image-w, 75px);
+    height: auto;
+    object-fit: contain;
+    object-position: top right;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* Reserve the top-right corner for the image without disturbing the box's
+     own padding, so the label and value never run underneath it. */
+  .has-image .stat-label,
+  .has-image .name-badge-wrapper {
+    position: relative;
+    z-index: 1;
+    max-width: min(
+      100%,
+      calc(100% - var(--stat-image-w, 75px) + 1.5rem)
+    );
+  }
+
   .stat-label {
     font-weight: var(--wa-font-weight-semibold, 700);
     color: var(--wa-color-filled-on-normal);
     font-size: var(--wa-font-size-s);
     white-space: nowrap;
+  }
+
+  .has-image .stat-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .stat-value {

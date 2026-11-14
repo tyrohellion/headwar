@@ -12,6 +12,8 @@
   import DivisionStandingsGrid from "$lib/components/divisionStandingsGrid.svelte";
   import ArrowButton from "$lib/components/arrowButton.svelte";
   import HomeHero from "$lib/components/homeHero.svelte";
+  import StatBox from "$lib/components/statBox.svelte";
+  import StatBoxSkeleton from "$lib/components/statBoxSkeleton.svelte";
 
   import WaSpinner from "@awesome.me/webawesome/dist/components/spinner/spinner.js";
   import WaButton from "@awesome.me/webawesome/dist/components/button/button.js";
@@ -19,7 +21,6 @@
   import WaIcon from "@awesome.me/webawesome/dist/components/icon/icon.js";
   import WaDivider from "@awesome.me/webawesome/dist/components/divider/divider.js";
   import WaBadge from "@awesome.me/webawesome/dist/components/badge/badge.js";
-  import WaSkeleton from "@awesome.me/webawesome/dist/components/skeleton/skeleton.js";
 
   function getTodayString() {
     const d = new Date();
@@ -218,9 +219,12 @@
     const gap = leaderGap(el);
     const width = el.clientWidth;
     if (width <= 0) return;
-    const cols = Math.max(1, Math.floor((width + gap) / (240 + gap)));
-    const cardWidth = Math.min(320, (width - (cols - 1) * gap) / cols);
-    el.style.setProperty("--leader-card-w", `${cardWidth}px`);
+    // Card width is set in CSS; measure it so paging matches whatever the stat
+    // boxes actually render at.
+    const firstCard = el.querySelector(".leader-card-link");
+    const cardWidth = firstCard ? firstCard.offsetWidth : 300;
+    if (cardWidth <= 0) return;
+    const cols = Math.max(1, Math.floor((width + gap) / (cardWidth + gap)));
     leaderLayout[board] = { step: cardWidth + gap, perView: cols };
     updateLeaderView(board);
   }
@@ -378,45 +382,29 @@
   <HomeHero />
 
   <div class="home-layout">
-    {#snippet leaderCard(player, value, index)}
-      <a class="leader-card" href="/players/{player.id}">
-        <img
-          src={player.headshot}
-          alt=""
-          width="36"
-          height="58"
-          class="leader-card-photo"
-          loading={index < 3 ? "eager" : "lazy"}
-          fetchpriority={index < 3 ? "high" : "auto"}
-          onerror={(e) => {
-            if (!e.target.dataset.fallback) {
-              e.target.dataset.fallback = "1";
-              e.target.src = player.genericHeadshot || genericHeadshot;
-            }
-          }}
+    {#snippet leaderCard(player, value, abbr)}
+      <a
+        class="leader-card-link"
+        href="/players/{player.id}"
+        aria-label="{player.name}, {player.teamNickname || player.team} — {value} {abbr}"
+      >
+        <StatBox
+          label={player.name}
+          {abbr}
+          badgeText={player.teamNickname || player.team}
+          percentile={value}
+          rank={player.rank ? `#${player.rank}` : undefined}
+          image={player.actionPhoto}
+          imageFallback={player.headshot || player.genericHeadshot}
+          imageAlt=""
         />
-        <div class="leader-card-info">
-          <span class="leader-card-name">{player.name}</span>
-          <div class="leader-card-meta">
-            <wa-badge appearance="filled" variant="neutral" size="s">
-              #{player.rank}
-            </wa-badge>
-            <wa-badge appearance="accent" variant="brand" size="s">
-              {value}
-            </wa-badge>
-          </div>
-        </div>
       </a>
     {/snippet}
 
-    {#snippet leaderSkeleton()}
+    {#snippet leaderSkeleton(abbr)}
       {#each skeletonRows as _}
-        <div class="leader-card leader-card-skeleton" aria-hidden="true">
-          <wa-skeleton class="leader-card-photo-skeleton"></wa-skeleton>
-          <div class="leader-card-info">
-            <wa-skeleton class="leader-card-name-skeleton"></wa-skeleton>
-            <wa-skeleton class="leader-card-value-skeleton"></wa-skeleton>
-          </div>
+        <div class="leader-card-link leader-card-skeleton" aria-hidden="true">
+          <StatBoxSkeleton {abbr} />
         </div>
       {/each}
     {/snippet}
@@ -485,7 +473,7 @@
                       appearance="accent"
                       href={leaderBoardHref("bwar")}
                     >
-                      See more
+                      More
                       <wa-icon slot="end" name="arrow-right"></wa-icon>
                     </wa-button>
                   </div>
@@ -496,13 +484,13 @@
                   onscroll={() => updateLeaderView("bwar")}
                 >
                   {#if isLeaderLoading.bwar}
-                    {@render leaderSkeleton()}
+                    {@render leaderSkeleton("WAR")}
                   {:else}
-                    {#each playerLeaders.bwar as player, i}
+                    {#each playerLeaders.bwar as player}
                       {@render leaderCard(
                         player,
                         boardValue("bwar", player),
-                        i,
+                        "WAR",
                       )}
                     {/each}
                   {/if}
@@ -531,7 +519,7 @@
                       appearance="accent"
                       href={leaderBoardHref("ops")}
                     >
-                      See more
+                      More
                       <wa-icon slot="end" name="arrow-right"></wa-icon>
                     </wa-button>
                   </div>
@@ -542,10 +530,10 @@
                   onscroll={() => updateLeaderView("ops")}
                 >
                   {#if isLeaderLoading.ops}
-                    {@render leaderSkeleton()}
+                    {@render leaderSkeleton("OPS")}
                   {:else}
-                    {#each playerLeaders.ops as player, i}
-                      {@render leaderCard(player, boardValue("ops", player), i)}
+                    {#each playerLeaders.ops as player}
+                      {@render leaderCard(player, boardValue("ops", player), "OPS")}
                     {/each}
                   {/if}
                 </div>
@@ -573,7 +561,7 @@
                       appearance="accent"
                       href={leaderBoardHref("era")}
                     >
-                      See more
+                      More
                       <wa-icon slot="end" name="arrow-right"></wa-icon>
                     </wa-button>
                   </div>
@@ -584,10 +572,10 @@
                   onscroll={() => updateLeaderView("era")}
                 >
                   {#if isLeaderLoading.era}
-                    {@render leaderSkeleton()}
+                    {@render leaderSkeleton("ERA")}
                   {:else}
-                    {#each playerLeaders.era as player, i}
-                      {@render leaderCard(player, boardValue("era", player), i)}
+                    {#each playerLeaders.era as player}
+                      {@render leaderCard(player, boardValue("era", player), "ERA")}
                     {/each}
                   {/if}
                 </div>
@@ -1202,95 +1190,21 @@
     flex-shrink: 0;
   }
 
-  .leader-card {
-    flex: 0 0 var(--leader-card-w, 320px);
-    width: var(--leader-card-w, 320px);
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.75rem;
-    border: 1px solid var(--wa-color-border-quiet);
-    border-radius: var(--wa-border-radius-m);
-    text-decoration: none;
-    color: var(--wa-color-filled-on-normal);
-    transition: all 100ms ease;
+  .leader-card-link {
+    display: block;
+    flex: 0 0 auto;
+    width: 300px;
     scroll-snap-align: start;
+    text-decoration: none;
+    color: inherit;
   }
 
-  .leader-card:hover {
-    background-color: var(--wa-color-fill-normal);
-
-    wa-badge {
-      border-color: var(
-        --wa-color-border-loud,
-        var(--wa-color-brand-border-loud)
-      );
-    }
-  }
-
-  .leader-card-photo {
-    height: 50px;
-    flex-shrink: 0;
-    border-radius: var(--wa-border-radius-m);
-    object-fit: cover;
-    background: var(--wa-color-neutral-fill-strong);
-    box-shadow: var(--wa-shadow-s);
-  }
-
-  .leader-card-info {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 0.5rem;
-    flex: 1;
-    min-width: 0;
-    text-align: center;
-  }
-
-  .leader-card-name {
-    font-size: var(--wa-font-size-m);
-    font-weight: var(--wa-font-weight-semibold, 600);
-    line-height: 1.15;
-    text-align: left;
-    max-width: 100%;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .leader-card-meta {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+  .leader-card-link :global(.stat-molucule) {
+    cursor: pointer;
   }
 
   .leader-card-skeleton {
     pointer-events: none;
-  }
-
-  .leader-card-skeleton wa-skeleton {
-    display: block;
-    overflow: hidden;
-    border-radius: var(--wa-border-radius-s);
-  }
-
-  .leader-card-photo-skeleton {
-    width: 36px;
-    height: 50px;
-    flex-shrink: 0;
-    border-radius: var(--wa-border-radius-m);
-  }
-
-  .leader-card-name-skeleton {
-    width: 80%;
-    height: 0.9rem;
-  }
-
-  .leader-card-value-skeleton {
-    width: 50%;
-    height: 0.9rem;
   }
 
   .collapsible-schedule-wrapper,

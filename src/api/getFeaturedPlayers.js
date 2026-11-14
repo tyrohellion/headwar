@@ -1,4 +1,6 @@
 import { getBrefSeasonWarLeaders } from "$lib/advancedData.js";
+import { getPlayerActionPicture } from "./getPlayerPicture.js";
+import { getTeamNicknameMap } from "./getTeamNicknames.js";
 
 function headshotUrl(id, width = 96) {
   return `https://img.mlbstatic.com/mlb-photos/image/upload/c_fill,g_auto/w_${width},d_people:generic:headshot:67:current.png,q_auto/v1/people/${id}/headshot/67/current`;
@@ -35,6 +37,8 @@ export async function getFeaturedPlayers(limit = 5, league = "both", page = 1) {
       (data.people || []).map((p) => [String(p.id), p]),
     );
 
+    const nicknames = await getTeamNicknameMap(year);
+
     const toRow = (leader, rank) => {
       const person = peopleMap.get(String(leader.id));
       if (!person) return null;
@@ -47,11 +51,13 @@ export async function getFeaturedPlayers(limit = 5, league = "both", page = 1) {
           person.primaryPosition?.name ||
           "",
         team: team.name || "",
+        teamNickname: nicknames.get(team.id) || team.name || "",
         teamId: team.id || null,
         logo: team.id
           ? `https://www.mlbstatic.com/team-logos/${team.id}.svg`
           : "",
         headshot: headshotUrl(person.id),
+        actionPhoto: getPlayerActionPicture(person.id),
         genericHeadshot: genericHeadshot(),
         war: leader.war,
         rank,
