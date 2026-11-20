@@ -1,6 +1,7 @@
 <script>
 	import AnimatedCounter from './animatedCounter.svelte';
 	import { getTeamLogo } from '../../api/getTeamLogo';
+	import { teamModalTrigger } from '$lib/teamModalTrigger.svelte.js';
 
 	let { divisionName = '', divisionStandings = [] } = $props();
 
@@ -61,7 +62,18 @@
 		{#each divisionStandings as row}
 			{@const teamIdKey = row.team?.id}
 
-			<a href="/teams/{teamIdKey}" class="team-standings-card">
+			<button
+				type="button"
+				class="team-standings-card"
+				aria-label="View {row.team?.clubName || row.team?.name || 'team'} roster"
+				onclick={() =>
+					teamModalTrigger.open({
+						id: teamIdKey,
+						name: row.team?.clubName || row.team?.name,
+						abbreviation: row.team?.abbreviation,
+						logo: logosMap[teamIdKey],
+					})}
+			>
 				<div class="team-info-header">
 					{#if teamIdKey && logosMap[teamIdKey]}
 						<img src={logosMap[teamIdKey]} alt="" class="team-logo-small" />
@@ -88,7 +100,7 @@
 						{row.winningPercentage}
 					</wa-badge>
 				</div>
-			</a>
+			</button>
 		{/each}
 	</div>
 </div>
@@ -126,13 +138,19 @@
 		display: flex;
 		flex-direction: column;
 		flex: 1;
+		height: 100%;
 		gap: 1rem;
+		box-sizing: border-box;
 		padding: 1rem;
+		border: none;
+		background: transparent;
+		font: inherit;
+		text-align: left;
+		color: inherit;
+		cursor: pointer;
 		border-radius: var(--wa-border-radius-s);
 		transition: all 100ms ease;
 		text-decoration: none;
-		color: inherit;
-		min-width: 140px;
 	}
 
 	.team-standings-card:hover {

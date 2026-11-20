@@ -121,15 +121,6 @@
 		border: 1px solid var(--wa-color-border-quiet, var(--wa-color-brand-border-loud));
 	}
 
-	.stat-molecule:hover {
-		transform: scale(1.02);
-		background-color: var(--wa-color-fill-normal);
-
-		.streak-pill {
-			border-color: var(--wa-color-border-loud, var(--wa-color-brand-border-loud));
-		}
-	}
-
 	h3 {
 		margin: 0;
 		font-size: var(--wa-font-size-l);

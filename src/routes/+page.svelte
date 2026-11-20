@@ -7,6 +7,7 @@
   import { getFeaturedPlayers } from "../api/getFeaturedPlayers";
   import { getTeamBubbleLeaders } from "../api/getTeamBubbleLeaders";
   import { leaderboardHref } from "$lib/leaderboardLinks.js";
+  import { teamModalTrigger } from "$lib/teamModalTrigger.svelte.js";
   import GameCard from "$lib/components/gameCard.svelte";
   import HorizontalDatePicker from "$lib/components/horizontalDatePicker.svelte";
   import DivisionStandingsGrid from "$lib/components/divisionStandingsGrid.svelte";
@@ -478,6 +479,8 @@
                 </div>
                 <div
                   class="leaderboard-carousel"
+                  class:has-overflow-right={!leaderView.bwar.atEnd ||
+                    hasMoreLeaders.bwar}
                   bind:this={carouselEls.bwar}
                   onscroll={() => updateLeaderView("bwar")}
                 >
@@ -524,6 +527,8 @@
                 </div>
                 <div
                   class="leaderboard-carousel"
+                  class:has-overflow-right={!leaderView.ops.atEnd ||
+                    hasMoreLeaders.ops}
                   bind:this={carouselEls.ops}
                   onscroll={() => updateLeaderView("ops")}
                 >
@@ -566,6 +571,8 @@
                 </div>
                 <div
                   class="leaderboard-carousel"
+                  class:has-overflow-right={!leaderView.era.atEnd ||
+                    hasMoreLeaders.era}
                   bind:this={carouselEls.era}
                   onscroll={() => updateLeaderView("era")}
                 >
@@ -691,10 +698,18 @@
                     </div>
                   {/if}
 
-                  <a
+                  <button
+                    type="button"
                     class="team-logo-name-wrapper"
-                    href="/teams/{team.teamId}"
                     title={team.name}
+                    aria-label="View {team.name} roster"
+                    onclick={() =>
+                      teamModalTrigger.open({
+                        id: team.teamId,
+                        name: team.name,
+                        abbreviation: team.abbreviation,
+                        logo: team.logo,
+                      })}
                   >
                     <img
                       src={team.logo}
@@ -711,7 +726,7 @@
                       }}
                     />
                     <p>{team.name}</p>
-                  </a>
+                  </button>
                 </div>
               {/each}
             </div>
@@ -914,15 +929,21 @@
 
   .team-logo-name-wrapper {
     display: flex;
+    box-sizing: border-box;
     width: 100%;
     align-items: center;
+    justify-content: left;
     gap: 0.5rem;
     white-space: nowrap;
-    padding: 0.75rem 1rem 0.75rem 1rem;
+    padding: 1.5rem 1rem 1.5rem 1rem;
+    border: none;
     border-radius: var(--wa-border-radius-m);
+    font: inherit;
+    text-align: left;
+    color: inherit;
+    cursor: pointer;
     transition: all 100ms ease;
     text-decoration: none;
-    color: inherit;
     background: var(
       --wa-color-canvas-background,
       var(--wa-color-surface-default)
@@ -1177,6 +1198,19 @@
     display: none;
   }
 
+  .leaderboard-carousel.has-overflow-right {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      #000 calc(100% - 2rem),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to right,
+      #000 calc(100% - 2rem),
+      transparent 100%
+    );
+  }
+
   .leaderboard-pager {
     display: flex;
     align-items: center;
@@ -1193,6 +1227,8 @@
     flex: 0 0 auto;
     width: 300px;
     scroll-snap-align: start;
+    /* Gives the scaled hover card room at the carousel's snap edge. */
+    scroll-margin-left: 1rem;
     text-decoration: none;
     color: inherit;
   }

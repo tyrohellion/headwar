@@ -2,6 +2,7 @@
   import { createDebouncedSearch, PAGE_SIZE } from "../../api/universalSearch";
   import { theme } from "$lib/theme.svelte.js";
   import { searchTrigger } from "$lib/searchTrigger.svelte.js";
+  import { teamModalTrigger } from "$lib/teamModalTrigger.svelte.js";
   import { afterNavigate, goto } from "$app/navigation";
   import { tick } from "svelte";
   import { fly, fade } from "svelte/transition";
@@ -13,6 +14,7 @@
   import WaSpinner from "@awesome.me/webawesome/dist/components/spinner/spinner.js";
   import PlayerCard from "$lib/components/playerCard.svelte";
   import TeamCard from "$lib/components/teamCard.svelte";
+  import TeamModal from "$lib/components/teamModal.svelte";
 
   let query = $state("");
   let matchedPlayers = $state([]);
@@ -91,6 +93,18 @@
     openSearch();
   });
 
+  // Opening a team from the results replaces the search overlay with the team
+  // overlay, so both are never stacked on top of each other.
+  $effect(() => {
+    if (teamModalTrigger.team) closeSearch();
+  });
+
+  // And opening universal search dismisses a team modal instead of layering
+  // the two overlays. Use the plain close so compatibility routes don't redirect.
+  $effect(() => {
+    if (isSearchOpen) teamModalTrigger.close();
+  });
+
   // Preload the next page a little before the user actually hits the bottom
   // (YouTube-style) so the reveal feels seamless. `loadMore()` is idempotent,
   // so firing this on every scroll event is harmless.
@@ -144,8 +158,7 @@
     if (mlbTeams[0]) {
       return {
         type: "team",
-        id: mlbTeams[0].id,
-        href: `/teams/${mlbTeams[0].id}`,
+        team: mlbTeams[0],
       };
     }
     if (mlbPlayers[0]) {
@@ -163,11 +176,15 @@
   );
 
   function handleSearchKeydown(e) {
-    if (e.key === "Enter" && isSearchOpen && !narrowScreen && topResult?.href) {
-      e.preventDefault();
-      const href = topResult.href;
-      closeSearch();
-      goto(href);
+    if (e.key !== "Enter" || !isSearchOpen || narrowScreen || !topResult) return;
+
+    e.preventDefault();
+    closeSearch();
+
+    if (topResult.type === "team") {
+      teamModalTrigger.open(topResult.team);
+    } else {
+      goto(topResult.href);
     }
   }
 </script>
@@ -338,6 +355,8 @@
     </div>
   </div>
 {/if}
+
+<TeamModal />
 
 {#snippet moreToggleCard({ expanded, count, label, onToggle, wide = false })}
   <button
@@ -569,7 +588,7 @@
   .category-header {
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: 2;
     background-color: var(--wa-color-surface-default);
     display: flex;
     align-items: center;
@@ -608,7 +627,7 @@
     display: flex;
     flex-wrap: wrap;
     gap: 1rem;
-    padding: 1rem 0;
+    padding: 1rem 0.5rem 0 0.5rem;
   }
 
   .minors-list {

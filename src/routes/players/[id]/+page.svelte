@@ -3,6 +3,7 @@
   import { getPlayerStatcastProfile, getPlayerSavantCareer } from "$lib/advancedData.js";
   import { getRanksForSeason, decodePlayerRanks } from "$lib/mlbRanks.js";
   import { leaderboardHref } from "$lib/leaderboardLinks.js";
+  import { teamModalTrigger } from "$lib/teamModalTrigger.svelte.js";
   import {
     computePitcherHwar,
     computeHitterHwar,
@@ -1219,12 +1220,20 @@
         {#if !playerProfile.deathDate && !playerProfile.lastPlayedDate}
           <wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
           <wa-tooltip for="teamLogoNameButton"
-            >{playerProfile.currentTeam?.name} team page</wa-tooltip
+            >{playerProfile.currentTeam?.name} team details</wa-tooltip
           >
-          <a
-            href="/teams/{playerProfile.currentTeam?.id}"
+          <button
+            type="button"
             class="team-logo-name-wrapper"
             id="teamLogoNameButton"
+            aria-label="View {playerProfile.currentTeam?.name} roster"
+            onclick={() =>
+              teamModalTrigger.open({
+                id: playerProfile.currentTeam?.id,
+                name: playerProfile.currentTeam?.name,
+                abbreviation: playerProfile.currentTeam?.abbreviation,
+                logo: teamLogoUrl,
+              })}
           >
             {#if teamLogoUrl}
               <img
@@ -1235,7 +1244,7 @@
               />
             {/if}
             <p>{playerProfile.currentTeam?.name}</p>
-          </a>
+          </button>
         {/if}
       </div>
     </div>
@@ -3012,13 +3021,20 @@
   }
   .team-logo-name-wrapper {
     display: flex;
+    box-sizing: border-box;
     justify-content: center;
     width: min-content;
     align-items: center;
     gap: 0.5rem;
     white-space: nowrap;
     padding: 0.5rem 1rem 0.5rem 1rem;
+    border: none;
     border-radius: var(--wa-border-radius-m);
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    color: inherit;
+    cursor: pointer;
     transition: all 100ms ease;
   }
   .team-logo-name-wrapper p {

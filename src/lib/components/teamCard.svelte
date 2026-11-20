@@ -1,12 +1,19 @@
 <script>
   import { overflowFade } from "$lib/actions/overflowFade.js";
+  import { teamModalTrigger } from "$lib/teamModalTrigger.svelte.js";
 
   let { team, extraBadges = [], highlighted = false } = $props();
 
   let imgLoaded = $state(false);
 </script>
 
-<a href="/teams/{team?.id}" class="team-roster-card" class:highlighted>
+<button
+  type="button"
+  class="team-roster-card"
+  class:highlighted
+  aria-label="View {team?.name || 'team'} roster"
+  onclick={() => teamModalTrigger.open(team)}
+>
   {#if highlighted}
     <span class="enter-badge" aria-hidden="true">↵ Enter</span>
   {/if}
@@ -44,21 +51,27 @@
       </div>
     </div>
   </div>
-</a>
+</button>
 
 <style>
   .team-roster-card {
     display: flex;
     flex-direction: column;
     gap: 1rem;
+    box-sizing: border-box;
+    height: max-content;
     width: 296px;
     padding: 1rem;
     border-radius: var(--wa-border-radius-s);
     border: 1px solid
       var(--wa-color-border-quiet, var(--wa-color-brand-border-loud));
+    background: transparent;
+    font: inherit;
+    text-align: left;
+    color: inherit;
+    cursor: pointer;
     transition: all 100ms ease;
     text-decoration: none;
-    color: inherit;
     overflow: hidden;
     position: relative;
   }

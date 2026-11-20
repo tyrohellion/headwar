@@ -1,6 +1,7 @@
 <script>
   import { dynamicDateCountdown } from "../../formatters/dynamicRelativeDateCountdown";
   import AnimatedCounter from "./animatedCounter.svelte";
+  import { teamModalTrigger } from "$lib/teamModalTrigger.svelte.js";
 
   let { game, logosMap = {}, now, currentTeamId = null } = $props();
 
@@ -59,7 +60,18 @@
   </div>
 
   <div class="matchup-vertical-stack">
-    <a class="team-meta-group" href="/teams/{away?.team?.id}">
+    <button
+      type="button"
+      class="team-meta-group"
+      aria-label="View {away?.team?.clubName || away?.team?.name || 'away team'} roster"
+      onclick={() =>
+        teamModalTrigger.open({
+          id: away?.team?.id,
+          name: away?.team?.clubName || away?.team?.name,
+          abbreviation: away?.team?.abbreviation,
+          logo: logosMap[away?.team?.id],
+        })}
+    >
       <div
         class="team-row"
         class:is-current={currentTeamId &&
@@ -96,9 +108,20 @@
           {/if}
         {/if}
       </div>
-    </a>
+    </button>
 
-    <a class="team-meta-group" href="/teams/{home?.team?.id}">
+    <button
+      type="button"
+      class="team-meta-group"
+      aria-label="View {home?.team?.clubName || home?.team?.name || 'home team'} roster"
+      onclick={() =>
+        teamModalTrigger.open({
+          id: home?.team?.id,
+          name: home?.team?.clubName || home?.team?.name,
+          abbreviation: home?.team?.abbreviation,
+          logo: logosMap[home?.team?.id],
+        })}
+    >
       <div
         class="team-row"
         class:is-current={currentTeamId &&
@@ -135,7 +158,7 @@
           {/if}
         {/if}
       </div>
-    </a>
+    </button>
   </div>
 
   <div class="game-details-cta-wrapper">
@@ -244,9 +267,16 @@
   .team-meta-group {
     display: flex;
     align-items: center;
+    width: 100%;
     gap: 0.75rem;
-    text-decoration: none;
+    padding: 0;
+    border: none;
+    background: transparent;
+    font: inherit;
+    text-align: left;
     color: var(--wa-color-filled-on-normal);
+    cursor: pointer;
+    text-decoration: none;
   }
 
   .team-logo-name-wrapper {

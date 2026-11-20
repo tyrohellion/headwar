@@ -35,16 +35,28 @@ async function fetchLevelGames(id, season, sportId, gameType) {
 
 	const data = await response.json();
 
-	// gamesPlayed may live on either the hitting or pitching split (a two-way
-	// player has both); within a group, sum across splits so a season played
-	// for multiple teams at the same level is counted fully.
+	// MLB can return both a team-less season total and per-team splits when a
+	// player changes teams (e.g. 95 overall, 38 with team A, 57 with team B).
+	// Summing every split double counts that season, so prefer the per-team
+	// splits and fall back to the overall total when there are none.
+	// Taking the max across hitting/pitching avoids double counting two-way
+	// players who appear in both stat groups.
 	let games = 0;
 	for (const stat of data.stats || []) {
-		let sum = 0;
-		for (const split of stat.splits || []) {
-			sum += split.stat?.gamesPlayed || 0;
-		}
-		games = Math.max(games, sum);
+		const splits = stat.splits || [];
+		const teamSplits = splits.filter((split) => split.team?.id != null);
+		const overallSplit = splits.find((split) => split.team?.id == null);
+
+		const teamGames = teamSplits.reduce(
+			(sum, split) => sum + (split.stat?.gamesPlayed || 0),
+			0,
+		);
+		const overallGames = overallSplit?.stat?.gamesPlayed || 0;
+		const groupGames = teamSplits.length
+			? Math.max(teamGames, overallGames)
+			: overallGames;
+
+		games = Math.max(games, groupGames);
 	}
 
 	return games;
