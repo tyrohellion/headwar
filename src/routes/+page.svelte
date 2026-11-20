@@ -1227,10 +1227,15 @@
     flex: 0 0 auto;
     width: 300px;
     scroll-snap-align: start;
-    /* Gives the scaled hover card room at the carousel's snap edge. */
     scroll-margin-left: 1rem;
     text-decoration: none;
     color: inherit;
+    transition: all 150ms;
+  }
+
+  .leader-card-link:active {
+    transform: scale(0.95);
+    transition: all 150ms;
   }
 
   .leader-card-link :global(.stat-molucule) {
