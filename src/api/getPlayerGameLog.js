@@ -36,7 +36,7 @@ export async function getPlayerGameLogChunk(id, season, gameType = DEFAULT_GAME_
 	if (cached !== undefined) return cached;
 
 	const main = await fetch(
-		`https://statsapi.mlb.com/api/v1/people/${id}/stats?stats=gameLog&group=hitting,pitching&season=${season}&sportId=1&gameType=${gameType}`,
+		`https://statsapi.mlb.com/api/v1/people/${id}/stats?stats=gameLog&group=hitting,pitching&season=${season}&sportId=1&gameType=${gameType}`
 	);
 
 	if (!main.ok) {
@@ -60,7 +60,7 @@ export async function getPlayerGameLogChunk(id, season, gameType = DEFAULT_GAME_
 export async function getPlayerGameLogRange(id, season) {
 	const [regular, postseason] = await Promise.all([
 		getPlayerGameLogChunk(id, season, 'R'),
-		getPlayerGameLogChunk(id, season, 'P'),
+		getPlayerGameLogChunk(id, season, 'P')
 	]);
 
 	return { entries: [...regular.entries, ...postseason.entries] };

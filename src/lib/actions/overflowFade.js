@@ -6,20 +6,20 @@
 // Re-checks when the element resizes (viewport/card changes) and once document
 // fonts finish loading, since glyph widths can change after the first paint.
 export function overflowFade(node) {
-  const check = () => {
-    node.classList.toggle("overflowing", node.scrollWidth > node.clientWidth);
-  };
+	const check = () => {
+		node.classList.toggle('overflowing', node.scrollWidth > node.clientWidth);
+	};
 
-  check();
+	check();
 
-  const observer = new ResizeObserver(check);
-  observer.observe(node);
+	const observer = new ResizeObserver(check);
+	observer.observe(node);
 
-  document.fonts?.ready?.then(check);
+	document.fonts?.ready?.then(check);
 
-  return {
-    destroy() {
-      observer.disconnect();
-    },
-  };
+	return {
+		destroy() {
+			observer.disconnect();
+		}
+	};
 }

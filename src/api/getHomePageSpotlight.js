@@ -48,12 +48,7 @@ async function fetchTopLeaders(leaderCategories, statGroup, leagueId, offset) {
 
 // One paginated leaderboard per category/stat group. `league` is "both",
 // "al", or "nl"; `offset` skips ahead (0 = ranks 1-10, 10 = 11-20, ...).
-export async function getLeagueLeaders(
-	leaderCategories,
-	statGroup,
-	league = 'both',
-	offset = 0
-) {
+export async function getLeagueLeaders(leaderCategories, statGroup, league = 'both', offset = 0) {
 	const leagueId = league === 'al' ? 103 : league === 'nl' ? 104 : null;
 	return fetchTopLeaders(leaderCategories, statGroup, leagueId, offset);
 }

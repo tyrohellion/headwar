@@ -10,9 +10,7 @@ export async function getTeamNicknameMap(year = new Date().getFullYear()) {
 			year,
 			(async () => {
 				try {
-					const res = await fetch(
-						`https://statsapi.mlb.com/api/v1/teams?sportId=1&season=${year}`
-					);
+					const res = await fetch(`https://statsapi.mlb.com/api/v1/teams?sportId=1&season=${year}`);
 					if (!res.ok) return new Map();
 					const data = await res.json();
 					return new Map(

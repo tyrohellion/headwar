@@ -1,6 +1,6 @@
 <script>
 	import AnimatedCounter from './animatedCounter.svelte';
-	import { ordinal } from '$lib/mlbRanks.js';
+	import { ordinal } from '#lib/mlbRanks.js';
 
 	let {
 		percentile = 0,
@@ -14,7 +14,6 @@
 
 	const tooltipId = `pill-tip-${Math.random().toString(36).substring(2, 9)}`;
 	const rankTooltipId = `pill-rank-${Math.random().toString(36).substring(2, 9)}`;
-
 </script>
 
 {#if percentile === 'N/A' || percentile === '-.--' || percentile === 'NaN' || !percentile || String(percentile).includes('NaN')}

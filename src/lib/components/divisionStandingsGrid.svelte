@@ -1,7 +1,7 @@
 <script>
 	import AnimatedCounter from './animatedCounter.svelte';
 	import { getTeamLogo } from '../../api/getTeamLogo';
-	import { teamModalTrigger } from '$lib/teamModalTrigger.svelte.js';
+	import { teamModalTrigger } from '#lib/teamModalTrigger.svelte.js';
 
 	let { divisionName = '', divisionStandings = [] } = $props();
 
@@ -71,7 +71,7 @@
 						id: teamIdKey,
 						name: row.team?.clubName || row.team?.name,
 						abbreviation: row.team?.abbreviation,
-						logo: logosMap[teamIdKey],
+						logo: logosMap[teamIdKey]
 					})}
 			>
 				<div class="team-info-header">
@@ -96,7 +96,11 @@
 							<AnimatedCounter value={row.losses} />
 						</span>
 					</div>
-					<wa-badge appearance={getBadgeAppearance(row.winningPercentage)} size="m" variant={getBadgeVariant(row.winningPercentage)}>
+					<wa-badge
+						appearance={getBadgeAppearance(row.winningPercentage)}
+						size="m"
+						variant={getBadgeVariant(row.winningPercentage)}
+					>
 						{row.winningPercentage}
 					</wa-badge>
 				</div>

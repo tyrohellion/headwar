@@ -1,16 +1,16 @@
 <script>
-	import { onMount } from "svelte";
-	import { fade, fly } from "svelte/transition";
-	import WaButton from "@awesome.me/webawesome/dist/components/button/button.js";
-	import WaIcon from "@awesome.me/webawesome/dist/components/icon/icon.js";
-	import VideoPlayer from "./videoPlayer.svelte";
+	import { onMount } from 'svelte';
+	import { fade, fly } from 'svelte/transition';
+	import WaButton from '@awesome.me/webawesome/dist/components/button/button.js';
+	import WaIcon from '@awesome.me/webawesome/dist/components/icon/icon.js';
+	import VideoPlayer from './videoPlayer.svelte';
 
 	let { video, onClose } = $props();
 
 	let dialogEl = $state(null);
 
 	function handleKeydown(event) {
-		if (event.key !== "Escape") return;
+		if (event.key !== 'Escape') return;
 		// Esc is also how a browser leaves fullscreen; don't close the whole
 		// modal when the player itself is fullscreen.
 		if (document.fullscreenElement) return;
@@ -56,12 +56,7 @@
 
 			<div class="video-modal-actions">
 				<kbd class="esc-kbd" title="Press esc to close">esc</kbd>
-				<wa-button
-					size="m"
-					appearance="plain"
-					onclick={onClose}
-					aria-label="Close video"
-				>
+				<wa-button size="m" appearance="plain" onclick={onClose} aria-label="Close video">
 					<wa-icon name="xmark" label="Close"></wa-icon>
 				</wa-button>
 			</div>

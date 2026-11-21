@@ -27,12 +27,7 @@ export async function getTeamInfo(id, season) {
 			isCurrentSeason ? fetch(scheduleUrl) : Promise.resolve(null)
 		]);
 
-		if (
-			!teamRes.ok ||
-			!rosterRes.ok ||
-			!standingsRes.ok ||
-			(scheduleRes && !scheduleRes.ok)
-		) {
+		if (!teamRes.ok || !rosterRes.ok || !standingsRes.ok || (scheduleRes && !scheduleRes.ok)) {
 			throw new Error('Failed to retrieve full profile asset bundles from MLB API');
 		}
 
@@ -62,9 +57,7 @@ export async function getTeamInfo(id, season) {
 			if (targetDivisionRecord) {
 				divisionStandings = targetDivisionRecord.teamRecords || [];
 
-				const specificTeamRow = divisionStandings.find(
-					(tr) => tr.team?.id === numericTeamId
-				);
+				const specificTeamRow = divisionStandings.find((tr) => tr.team?.id === numericTeamId);
 				if (specificTeamRow) {
 					currentRecord = {
 						wins: specificTeamRow.wins,
@@ -120,9 +113,7 @@ export async function getTeamInfo(id, season) {
 
 		const firstYear = parseInt(teamProfile.firstYearOfPlay, 10);
 		const startYear =
-			Number.isFinite(firstYear) && firstYear <= currentYear
-				? firstYear
-				: currentYear - 10;
+			Number.isFinite(firstYear) && firstYear <= currentYear ? firstYear : currentYear - 10;
 		const seasons = [];
 		for (let year = currentYear; year >= startYear; year--) {
 			seasons.push(String(year));

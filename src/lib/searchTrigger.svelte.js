@@ -6,12 +6,12 @@
  * `searchTrigger.open()`.
  */
 class SearchTrigger {
-  /** Bumped every time someone asks for the search to open. */
-  requestId = $state(0);
+	/** Bumped every time someone asks for the search to open. */
+	requestId = $state(0);
 
-  open() {
-    this.requestId += 1;
-  }
+	open() {
+		this.requestId += 1;
+	}
 }
 
 export const searchTrigger = new SearchTrigger();

@@ -1,8 +1,8 @@
 <script>
-	import WaButton from "@awesome.me/webawesome/dist/components/button/button.js";
-	import WaIcon from "@awesome.me/webawesome/dist/components/icon/icon.js";
-	import WaSlider from "@awesome.me/webawesome/dist/components/slider/slider.js";
-	import WaSpinner from "@awesome.me/webawesome/dist/components/spinner/spinner.js";
+	import WaButton from '@awesome.me/webawesome/dist/components/button/button.js';
+	import WaIcon from '@awesome.me/webawesome/dist/components/icon/icon.js';
+	import WaSlider from '@awesome.me/webawesome/dist/components/slider/slider.js';
+	import WaSpinner from '@awesome.me/webawesome/dist/components/spinner/spinner.js';
 
 	let { video, onPlay = null, autoplay = false } = $props();
 
@@ -22,23 +22,19 @@
 	let hideControlsTimer;
 
 	let volumeIcon = $derived(
-		muted || volume === 0
-			? "volume-xmark"
-			: volume < 0.5
-				? "volume-low"
-				: "volume-high",
+		muted || volume === 0 ? 'volume-xmark' : volume < 0.5 ? 'volume-low' : 'volume-high'
 	);
 
 	function formatTime(seconds) {
-		if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+		if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
 		const total = Math.floor(seconds);
 		const hours = Math.floor(total / 3600);
 		const minutes = Math.floor((total % 3600) / 60);
 		const secs = total % 60;
 		if (hours > 0) {
-			return `${hours}:${String(minutes).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+			return `${hours}:${String(minutes).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 		}
-		return `${minutes}:${String(secs).padStart(2, "0")}`;
+		return `${minutes}:${String(secs).padStart(2, '0')}`;
 	}
 
 	function clearHideControlsTimer() {
@@ -127,9 +123,8 @@
 		const handleFullscreenChange = () => {
 			isFullscreen = document.fullscreenElement === playerEl;
 		};
-		document.addEventListener("fullscreenchange", handleFullscreenChange);
-		return () =>
-			document.removeEventListener("fullscreenchange", handleFullscreenChange);
+		document.addEventListener('fullscreenchange', handleFullscreenChange);
+		return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
 	});
 
 	// The modal gets a fresh player after a click, so the user activation is
@@ -208,15 +203,9 @@
 	</video>
 
 	{#if !playing && !failed && !waiting}
-		<wa-button
-			class="big-play"
-			pill
-			variant="brand"
-			appearance="accent"
-			onclick={togglePlay}
-		>
-			<wa-icon name={ended ? "rotate-left" : "play"}></wa-icon>
-			<span class="sr-only">{ended ? "Replay" : "Play"}</span>
+		<wa-button class="big-play" pill variant="brand" appearance="accent" onclick={togglePlay}>
+			<wa-icon name={ended ? 'rotate-left' : 'play'}></wa-icon>
+			<span class="sr-only">{ended ? 'Replay' : 'Play'}</span>
 		</wa-button>
 	{/if}
 
@@ -239,8 +228,8 @@
 	<div class="controls">
 		<div class="controls-row">
 			<wa-button class="control" appearance="plain" onclick={togglePlay}>
-				<wa-icon name={playing ? "pause" : "play"}></wa-icon>
-				<span class="sr-only">{playing ? "Pause" : "Play"}</span>
+				<wa-icon name={playing ? 'pause' : 'play'}></wa-icon>
+				<span class="sr-only">{playing ? 'Pause' : 'Play'}</span>
 			</wa-button>
 
 			<span class="time">
@@ -253,7 +242,7 @@
 				<wa-button class="control" appearance="plain" onclick={toggleMute}>
 					<wa-icon name={volumeIcon}></wa-icon>
 					<span class="sr-only">
-						{muted || volume === 0 ? "Unmute" : "Mute"}
+						{muted || volume === 0 ? 'Unmute' : 'Mute'}
 					</span>
 				</wa-button>
 
@@ -271,9 +260,9 @@
 			</div>
 
 			<wa-button class="control" appearance="plain" onclick={toggleFullscreen}>
-				<wa-icon name={isFullscreen ? "compress" : "expand"}></wa-icon>
+				<wa-icon name={isFullscreen ? 'compress' : 'expand'}></wa-icon>
 				<span class="sr-only">
-					{isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+					{isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
 				</span>
 			</wa-button>
 		</div>
@@ -457,17 +446,13 @@
 	}
 
 	.volume-slider::part(track) {
-		
 	}
 
 	.volume-slider::part(indicator) {
-		
 	}
 
 	.volume-slider::part(thumb) {
-		
 	}
-
 
 	.seek {
 		padding: 0.5rem 1rem 1rem 1rem;
@@ -484,15 +469,12 @@
 	}
 
 	.seek::part(track) {
-		
 	}
 
 	.seek::part(indicator) {
-		
 	}
 
 	.seek::part(thumb) {
-		
 	}
 
 	.sr-only {

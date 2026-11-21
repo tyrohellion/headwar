@@ -54,9 +54,7 @@ function combineScopes(regular, postseason) {
 	if (!person) return regular;
 
 	const postStats = postseason?.people?.[0]?.stats || [];
-	const postByGroup = new Map(
-		postStats.map((block) => [groupName(block), block])
-	);
+	const postByGroup = new Map(postStats.map((block) => [groupName(block), block]));
 
 	const seen = new Set();
 	const combined = [];
@@ -187,8 +185,7 @@ function combineFielding(regular, postseason) {
 function fieldingSplits(block) {
 	const splits = block?.splits || [];
 	const all = splits.filter(
-		(split) =>
-			split.sport?.id === 0 || String(split.sport?.code).toLowerCase() === 'all'
+		(split) => split.sport?.id === 0 || String(split.sport?.code).toLowerCase() === 'all'
 	);
 	const chosen = all.length ? all : splits;
 
@@ -208,8 +205,7 @@ function groupName(block) {
 function aggregateStat(block) {
 	const splits = block?.splits || [];
 	const all = splits.find(
-		(split) =>
-			split.sport?.id === 0 || String(split.sport?.code).toLowerCase() === 'all'
+		(split) => split.sport?.id === 0 || String(split.sport?.code).toLowerCase() === 'all'
 	);
 	return all?.stat || splits[0]?.stat || null;
 }

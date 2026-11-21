@@ -4,7 +4,7 @@
 // Timestamp) resolves its results through fastball-gateway.mlb.com. That
 // endpoint is CORS-enabled and returns each video's direct MP4/HLS playbacks, so
 // these highlights can be played natively on our pages instead of linking out.
-const GATEWAY_URL = "https://fastball-gateway.mlb.com/graphql";
+const GATEWAY_URL = 'https://fastball-gateway.mlb.com/graphql';
 
 const SEARCH_QUERY = `
 query Search($query: String!, $page: Int, $limit: Int, $languagePreference: LanguagePreference, $contentPreference: ContentPreference) {
@@ -44,16 +44,16 @@ query Search($query: String!, $page: Int, $limit: Int, $languagePreference: Lang
 
 const cache = new Map();
 
-const DATE_FORMATTER = new Intl.DateTimeFormat("en-US", {
-	month: "short",
-	day: "numeric",
-	year: "numeric",
+const DATE_FORMATTER = new Intl.DateTimeFormat('en-US', {
+	month: 'short',
+	day: 'numeric',
+	year: 'numeric'
 });
 
 /** Pick the best thumbnail from a feed's image cuts (closest to 640px wide). */
 function pickThumbnail(feed) {
 	const cuts = (feed?.image?.cuts || []).filter((cut) => cut?.src);
-	if (cuts.length === 0) return "";
+	if (cuts.length === 0) return '';
 	return (
 		cuts.find((cut) => cut.width === 640) ??
 		cuts.find((cut) => cut.width === 1024) ??
@@ -65,26 +65,26 @@ function pickThumbnail(feed) {
 function pickPlayback(feed) {
 	const playbacks = feed?.playbacks || [];
 	return (
-		playbacks.find((playback) => playback.name === "mp4Avc") ??
-		playbacks.find((playback) => playback.mimetype === "video/mp4") ??
-		playbacks.find((playback) => playback.name === "highBit") ??
+		playbacks.find((playback) => playback.name === 'mp4Avc') ??
+		playbacks.find((playback) => playback.mimetype === 'video/mp4') ??
+		playbacks.find((playback) => playback.name === 'highBit') ??
 		null
 	);
 }
 
 /** "00:01:26" -> "1:26", "00:34:18" -> "34:18". */
 function formatDuration(duration) {
-	if (!duration) return "";
-	const [hours, minutes, seconds] = duration.split(":").map(Number);
+	if (!duration) return '';
+	const [hours, minutes, seconds] = duration.split(':').map(Number);
 	if (!Number.isFinite(minutes) || !Number.isFinite(seconds)) return duration;
 	if (hours > 0) {
-		return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+		return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 	}
-	return `${minutes}:${String(seconds).padStart(2, "0")}`;
+	return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
 function formatDate(date) {
-	if (!date) return "";
+	if (!date) return '';
 	// Parse at midday so the displayed calendar date never shifts by timezone.
 	const parsed = new Date(`${date}T12:00:00`);
 	return Number.isNaN(parsed.getTime()) ? date : DATE_FORMATTER.format(parsed);
@@ -99,17 +99,16 @@ function normalizeVideo(media, feed) {
 	return {
 		id: media.id,
 		slug: media.slug,
-		title: media.title || media.blurb || "MLB highlight",
-		date: media.date || "",
+		title: media.title || media.blurb || 'MLB highlight',
+		date: media.date || '',
 		dateLabel: formatDate(media.date),
-		duration: feed?.duration || "",
+		duration: feed?.duration || '',
 		durationLabel: formatDuration(feed?.duration),
 		thumbnail: pickThumbnail(feed),
 		mp4Url: playback.url,
-		hlsUrl:
-			feed?.playbacks?.find((item) => item.name === "hlsCloud")?.url || "",
+		hlsUrl: feed?.playbacks?.find((item) => item.name === 'hlsCloud')?.url || '',
 		gamePk: media.playInfo?.gamePk || null,
-		pageUrl: `https://www.mlb.com/video/${media.slug}`,
+		pageUrl: `https://www.mlb.com/video/${media.slug}`
 	};
 }
 
@@ -123,11 +122,8 @@ function normalizeVideo(media, feed) {
  * @param {number} [options.page=0] - Zero-based page index.
  * @returns {Promise<{ videos: Array<object>, total: number, hasMore: boolean }>}
  */
-export async function getPlayerVideos(
-	id,
-	{ season = null, limit = 12, page = 0 } = {},
-) {
-	const cacheKey = `${id}-${season || "all"}-${page}-${limit}`;
+export async function getPlayerVideos(id, { season = null, limit = 12, page = 0 } = {}) {
+	const cacheKey = `${id}-${season || 'all'}-${page}-${limit}`;
 	const cached = cache.get(cacheKey);
 	if (cached) return cached;
 
@@ -138,14 +134,14 @@ export async function getPlayerVideos(
 
 	const params = new URLSearchParams({
 		query: SEARCH_QUERY,
-		operationName: "Search",
+		operationName: 'Search',
 		variables: JSON.stringify({
 			query,
 			limit,
 			page,
-			languagePreference: "EN",
-			contentPreference: "CMS_FIRST",
-		}),
+			languagePreference: 'EN',
+			contentPreference: 'CMS_FIRST'
+		})
 	});
 
 	const response = await fetch(`${GATEWAY_URL}?${params}`);
@@ -155,7 +151,7 @@ export async function getPlayerVideos(
 
 	const data = await response.json();
 	if (data.errors?.length) {
-		throw new Error(data.errors[0]?.message || "MLB video search failed");
+		throw new Error(data.errors[0]?.message || 'MLB video search failed');
 	}
 
 	const result = data.data?.search || {};
@@ -178,7 +174,7 @@ export async function getPlayerVideos(
 	const pageResult = {
 		videos,
 		total,
-		hasMore: videos.length > 0 && page * limit + limit < total,
+		hasMore: videos.length > 0 && page * limit + limit < total
 	};
 	cache.set(cacheKey, pageResult);
 	return pageResult;

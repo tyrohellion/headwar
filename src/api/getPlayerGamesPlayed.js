@@ -47,14 +47,9 @@ async function fetchLevelGames(id, season, sportId, gameType) {
 		const teamSplits = splits.filter((split) => split.team?.id != null);
 		const overallSplit = splits.find((split) => split.team?.id == null);
 
-		const teamGames = teamSplits.reduce(
-			(sum, split) => sum + (split.stat?.gamesPlayed || 0),
-			0,
-		);
+		const teamGames = teamSplits.reduce((sum, split) => sum + (split.stat?.gamesPlayed || 0), 0);
 		const overallGames = overallSplit?.stat?.gamesPlayed || 0;
-		const groupGames = teamSplits.length
-			? Math.max(teamGames, overallGames)
-			: overallGames;
+		const groupGames = teamSplits.length ? Math.max(teamGames, overallGames) : overallGames;
 
 		games = Math.max(games, groupGames);
 	}

@@ -21,8 +21,7 @@
 function isInjuredListPlacement(description = '') {
 	const lower = description.toLowerCase();
 	return (
-		lower.includes('placed') &&
-		(lower.includes('injured list') || lower.includes('disabled list'))
+		lower.includes('placed') && (lower.includes('injured list') || lower.includes('disabled list'))
 	);
 }
 
@@ -42,10 +41,7 @@ function isInjuredListActivation(description = '') {
 function isBareActivation(description = '') {
 	const lower = description.toLowerCase();
 	if (/all[- ]stars?/.test(lower)) return false;
-	return (
-		(lower.includes('activated') || lower.includes('reinstated')) &&
-		!/\blist\b/.test(lower)
-	);
+	return (lower.includes('activated') || lower.includes('reinstated')) && !/\blist\b/.test(lower);
 }
 
 // The transactions feed does not always record the "activated from the injured
@@ -84,11 +80,7 @@ function extractReason(description = '') {
 }
 
 function normalizeReason(reason) {
-	return reason
-		.replace(/\s+/g, ' ')
-		.replace(/\.+$/g, '')
-		.trim()
-		.toLowerCase();
+	return reason.replace(/\s+/g, ' ').replace(/\.+$/g, '').trim().toLowerCase();
 }
 
 /**
@@ -122,8 +114,7 @@ export function summarizeSeasonInjuries(transactions = [], season, gameDates = [
 			if (!existing || (date && date < existing.date)) {
 				byReason.set(key, {
 					date,
-					reason:
-						rawReason.replace(/\.+$/g, '').trim() || 'Injured list'
+					reason: rawReason.replace(/\.+$/g, '').trim() || 'Injured list'
 				});
 			}
 		} else if (isInjuredListActivation(t.description)) {
@@ -142,9 +133,7 @@ export function summarizeSeasonInjuries(transactions = [], season, gameDates = [
 	// bare activations (e.g. "Atlanta Braves activated LHP Chris Sale.") closes
 	// one stint. Option/recall moves are the last resort when the feed omits the
 	// activation entirely. A stint with no closing move in the window is ongoing.
-	const entries = [...byReason.values()].sort((a, b) =>
-		a.date.localeCompare(b.date)
-	);
+	const entries = [...byReason.values()].sort((a, b) => a.date.localeCompare(b.date));
 	const explicitPool = [...new Set(activations)].sort();
 	const barePool = [...new Set(bareActivations)].sort();
 	const rosterPool = [...new Set(rosterMoves)].sort();
@@ -159,9 +148,7 @@ export function summarizeSeasonInjuries(transactions = [], season, gameDates = [
 			if (bareIndex !== -1) {
 				[end] = barePool.splice(bareIndex, 1);
 			} else {
-				const rosterIndex = rosterPool.findIndex(
-					(date) => date >= entry.date
-				);
+				const rosterIndex = rosterPool.findIndex((date) => date >= entry.date);
 				if (rosterIndex !== -1) {
 					[end] = rosterPool.splice(rosterIndex, 1);
 				}

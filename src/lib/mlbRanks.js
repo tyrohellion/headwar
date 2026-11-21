@@ -13,68 +13,68 @@
  * repeating every stat name in every row does not blow the file size up.
  */
 
-const DATA_PATH = "/data/";
+const DATA_PATH = '/data/';
 
 let mainPromise = null;
 let archivePromise = null;
 let careerPromise = null;
 
 function fetchRanks(file) {
-  return fetch(`${DATA_PATH}${file}`)
-    .then((res) => {
-      if (!res.ok) {
-        throw new Error(`Failed to load ${file}: ${res.status}`);
-      }
-      return res.json();
-    })
-    .catch((err) => {
-      // A missing ranks file should never take the page down with it.
-      console.error(err);
-      return { keys: {}, players: {} };
-    });
+	return fetch(`${DATA_PATH}${file}`)
+		.then((res) => {
+			if (!res.ok) {
+				throw new Error(`Failed to load ${file}: ${res.status}`);
+			}
+			return res.json();
+		})
+		.catch((err) => {
+			// A missing ranks file should never take the page down with it.
+			console.error(err);
+			return { keys: {}, players: {} };
+		});
 }
 
 /** The recent seasons, loaded with the page. */
 export function getMlbRanks() {
-  if (!mainPromise) {
-    mainPromise = fetchRanks("mlb_ranks.json").catch((err) => {
-      mainPromise = null;
-      throw err;
-    });
-  }
-  return mainPromise;
+	if (!mainPromise) {
+		mainPromise = fetchRanks('mlb_ranks.json').catch((err) => {
+			mainPromise = null;
+			throw err;
+		});
+	}
+	return mainPromise;
 }
 
 /** The older seasons, loaded only when a season outside the main file is picked. */
 export function getMlbRanksArchive() {
-  if (!archivePromise) {
-    archivePromise = fetchRanks("mlb_ranks_archive.json").catch((err) => {
-      archivePromise = null;
-      throw err;
-    });
-  }
-  return archivePromise;
+	if (!archivePromise) {
+		archivePromise = fetchRanks('mlb_ranks_archive.json').catch((err) => {
+			archivePromise = null;
+			throw err;
+		});
+	}
+	return archivePromise;
 }
 
 /** The all-time board, loaded only in career mode. */
 export function getMlbRanksCareer() {
-  if (!careerPromise) {
-    careerPromise = fetchRanks("mlb_ranks_career.json").catch((err) => {
-      careerPromise = null;
-      throw err;
-    });
-  }
-  return careerPromise;
+	if (!careerPromise) {
+		careerPromise = fetchRanks('mlb_ranks_career.json').catch((err) => {
+			careerPromise = null;
+			throw err;
+		});
+	}
+	return careerPromise;
 }
 
 function hasSeason(data, season) {
-  const key = String(season);
-  for (const namespaces of Object.values(data?.players || {})) {
-    for (const seasonMap of Object.values(namespaces)) {
-      if (key in seasonMap) return true;
-    }
-  }
-  return false;
+	const key = String(season);
+	for (const namespaces of Object.values(data?.players || {})) {
+		for (const seasonMap of Object.values(namespaces)) {
+			if (key in seasonMap) return true;
+		}
+	}
+	return false;
 }
 
 /**
@@ -82,18 +82,18 @@ function hasSeason(data, season) {
  * the archive. "career" is the all-time board.
  */
 export async function getRanksForSeason(season) {
-  if (!season) return null;
+	if (!season) return null;
 
-  if (season === "career") {
-    const career = await getMlbRanksCareer();
-    return hasSeason(career, "career") ? career : null;
-  }
+	if (season === 'career') {
+		const career = await getMlbRanksCareer();
+		return hasSeason(career, 'career') ? career : null;
+	}
 
-  const main = await getMlbRanks();
-  if (hasSeason(main, season)) return main;
+	const main = await getMlbRanks();
+	if (hasSeason(main, season)) return main;
 
-  const archive = await getMlbRanksArchive();
-  return hasSeason(archive, season) ? archive : null;
+	const archive = await getMlbRanksArchive();
+	return hasSeason(archive, season) ? archive : null;
 }
 
 /**
@@ -102,31 +102,31 @@ export async function getRanksForSeason(season) {
  * holds qualified players, so there is no rank to show for anyone else.
  */
 export function decodePlayerRanks(data, playerId, namespace, season) {
-  const keys = data?.keys?.[namespace];
-  const row = data?.players?.[String(playerId)]?.[namespace]?.[String(season)];
-  if (!keys || !row) return {};
+	const keys = data?.keys?.[namespace];
+	const row = data?.players?.[String(playerId)]?.[namespace]?.[String(season)];
+	if (!keys || !row) return {};
 
-  const ranks = {};
-  for (let i = 0; i < keys.length; i++) {
-    const rank = row[i];
-    if (rank) ranks[keys[i]] = rank;
-  }
-  return ranks;
+	const ranks = {};
+	for (let i = 0; i < keys.length; i++) {
+		const rank = row[i];
+		if (rank) ranks[keys[i]] = rank;
+	}
+	return ranks;
 }
 
 /** "1st", "2nd", "3rd", "4th" ... */
 export function ordinal(rank) {
-  if (!rank) return "";
-  const mod100 = rank % 100;
-  if (mod100 >= 11 && mod100 <= 13) return `${rank}th`;
-  switch (rank % 10) {
-    case 1:
-      return `${rank}st`;
-    case 2:
-      return `${rank}nd`;
-    case 3:
-      return `${rank}rd`;
-    default:
-      return `${rank}th`;
-  }
+	if (!rank) return '';
+	const mod100 = rank % 100;
+	if (mod100 >= 11 && mod100 <= 13) return `${rank}th`;
+	switch (rank % 10) {
+		case 1:
+			return `${rank}st`;
+		case 2:
+			return `${rank}nd`;
+		case 3:
+			return `${rank}rd`;
+		default:
+			return `${rank}th`;
+	}
 }

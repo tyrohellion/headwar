@@ -1,5 +1,5 @@
 <script>
-	import patrick from '$lib/assets/patrick.png';
+	import patrick from '#lib/assets/patrick.png';
 </script>
 
 <div class="center">

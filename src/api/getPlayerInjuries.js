@@ -77,10 +77,7 @@ export async function getPlayerSeasonInjuries(id, season) {
 		fetchPlayerGameDates(id, season)
 	]);
 	if (injuriesRes.status !== 'fulfilled' || !injuriesRes.value.ok) {
-		const status =
-			injuriesRes.status === 'fulfilled'
-				? injuriesRes.value.status
-				: 'network error';
+		const status = injuriesRes.status === 'fulfilled' ? injuriesRes.value.status : 'network error';
 		throw new Error(`MLB transactions fetch failed with status: ${status}`);
 	}
 

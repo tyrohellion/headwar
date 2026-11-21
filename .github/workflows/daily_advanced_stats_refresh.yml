@@ -3,7 +3,7 @@ name: Daily Baseball Data Pipeline
 on:
   schedule:
     # Runs every morning at 10:14am EST (14:14 UTC)
-    - cron: "14 14 * * *"
+    - cron: '14 14 * * *'
   workflow_dispatch:
 
 permissions:
