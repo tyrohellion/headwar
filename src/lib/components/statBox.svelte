@@ -15,15 +15,14 @@
 		isRetired = false,
 		image = '',
 		imageAlt = '',
-		imageFallback = ''
+		imageFallback = '',
+		homeLeaderboard = false
 	} = $props();
 
 	const tooltipId = `pill-tip-${Math.random().toString(36).substring(2, 9)}`;
 
 	const isCareer = $derived(label.toLowerCase().includes('career'));
 
-	// Stat family detection. The abbr drives both the value color and the bottom
-	// track, so normalize it once and match case-insensitively.
 	const statAbbr = $derived(String(abbr).toUpperCase());
 	const isNormalizedStat = $derived(statAbbr === 'OPS+' || statAbbr === 'ERA+');
 	const isWarStat = $derived(statAbbr === 'WAR' || statAbbr === 'HWAR');
@@ -75,6 +74,11 @@
 		return 'var(--wa-color-danger-70)';
 	});
 
+	// Home leaderboard cards use the site blue instead of the good/bad scale.
+	const valueColor = $derived(
+		homeLeaderboard && !disableVisuals ? 'var(--wa-color-brand-fill-loud)' : activeColor
+	);
+
 	let fillWidthPercent = $derived.by(() => {
 		if (!isNormalizedStat || disableVisuals) return 0;
 		return Math.min(Math.max((numericValue / 200) * 100, 0), 100);
@@ -108,7 +112,7 @@
 		<span class="stat-label">{label}</span>
 		<div class="name-badge-wrapper">
 			<div class="war-career-length-wrapper">
-				<span class="stat-value" style="color: {activeColor};">
+				<span class="stat-value" style="color: {valueColor};">
 					<AnimatedCounter value={percentile} />
 				</span>
 			</div>
@@ -157,12 +161,12 @@
 				<div class="league-avg-tick"></div>
 				<div
 					class="context-fill"
-					style="width: {fillWidthPercent}%; background-color: {activeColor};"
+					style="width: {fillWidthPercent}%; background-color: {valueColor};"
 				></div>
 			</div>
 		{/if}
 
-		{#if isWarStat && !disableVisuals && !isCareerWar}
+		{#if isWarStat && !disableVisuals && !isCareerWar && !homeLeaderboard}
 			<div class="segmented-track">
 				<div
 					class="track-segment"

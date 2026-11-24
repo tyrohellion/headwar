@@ -26,8 +26,6 @@
 	let nonDebutExpanded = $state(false);
 	let isSearching = $state(false);
 	let isSearchOpen = $state(false);
-	// Sub-480px screens (small phones) offer no real Enter key, so the
-	// "Enter opens the first result" shortcut is disabled there.
 	let narrowScreen = $state(false);
 	let searchTriggerEl = $state(null);
 	let resultsContainerEl = $state(null);
@@ -85,29 +83,20 @@
 		isSearchOpen = false;
 	}
 
-	// Other parts of the site (e.g. the home page hero) can ask for the search
-	// to open. The navbar owns the search UI, so it does the actual opening.
 	$effect(() => {
 		const requestId = searchTrigger.requestId;
 		if (requestId === 0) return;
 		openSearch();
 	});
 
-	// Opening a team from the results replaces the search overlay with the team
-	// overlay, so both are never stacked on top of each other.
 	$effect(() => {
 		if (teamModalTrigger.team) closeSearch();
 	});
 
-	// And opening universal search dismisses a team modal instead of layering
-	// the two overlays. Use the plain close so compatibility routes don't redirect.
 	$effect(() => {
 		if (isSearchOpen) teamModalTrigger.close();
 	});
 
-	// Preload the next page a little before the user actually hits the bottom
-	// (YouTube-style) so the reveal feels seamless. `loadMore()` is idempotent,
-	// so firing this on every scroll event is harmless.
 	const RESULTS_PRELOAD = 300;
 
 	function handleResultsScroll() {
@@ -148,8 +137,6 @@
 		nonDebutExpanded = !nonDebutExpanded;
 	};
 
-	// The single result that Enter will open. Matches the first card rendered:
-	// first MLB team if any matched, otherwise the first MLB player.
 	const topResult = $derived.by(() => {
 		if (mlbTeams[0]) {
 			return {
@@ -328,7 +315,7 @@
 				</div>
 			{:else}
 				<div class="empty-state hint">
-					<p>Type at least 2 characters to search across MLB + minors.</p>
+					<p>Search a baseball player, ex: "Ohtani"</p>
 				</div>
 			{/if}
 		</div>
