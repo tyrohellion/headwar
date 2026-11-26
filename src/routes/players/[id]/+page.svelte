@@ -83,6 +83,10 @@
 		W: 'W'
 	};
 
+	// Season awards that are important enough to surface beside the overview
+	// heading. Labels come from processPlayerAwards/AWARD_PRESTIGE.
+	const OVERVIEW_AWARD_IDS = ['ALMVP', 'NLMVP', 'ALCY', 'NLCY', 'WSMVP'];
+
 	let playerData = $state(null);
 	let loading = $state(true);
 	let errorMsg = $state('');
@@ -1044,6 +1048,35 @@
 
 	const gamesLabel = $derived.by(() => (seasonGames ? formatGamesPlayedLabel(seasonGames) : ''));
 
+	const overviewAwardBadges = $derived.by(() => {
+		const premierAwards = processedAccolades.filter((honor) =>
+			OVERVIEW_AWARD_IDS.includes(honor.id)
+		);
+
+		// Career mode collapses each award into one badge with its win count.
+		// Most recent award first, with MVP ahead of Cy Young on a tie.
+		if (isCareerMode) {
+			return premierAwards
+				.map((honor) => ({
+					id: honor.id,
+					label: `${honor.label} x${honor.count}`,
+					latestSeason: honor.seasons.length
+						? Math.max(...honor.seasons.map((season) => Number(season) || 0))
+						: 0,
+					rank: honor.rank
+				}))
+				.sort((a, b) => b.latestSeason - a.latestSeason || a.rank - b.rank)
+				.map(({ id, label }) => ({ id, label }));
+		}
+
+		if (isDateFilterActive || selectedGameType !== 'R') return [];
+
+		const season = String(userSelectedYear);
+		return premierAwards
+			.filter((honor) => honor.seasons.some((awardSeason) => String(awardSeason) === season))
+			.map((honor) => ({ id: honor.id, label: honor.label }));
+	});
+
 	const isInjuryOngoing = $derived.by(() => {
 		if (!seasonInjuries || seasonInjuries.count === 0) return false;
 		return (
@@ -1352,14 +1385,16 @@
 							{:else}
 								<h3>Career Overview</h3>
 							{/if}
-							{#if gamesLabel}
+							{#if gamesLabel || overviewAwardBadges.length > 0 || (seasonInjuries && seasonInjuries.count > 0)}
 								<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
+							{/if}
+							{#if gamesLabel}
 								<wa-badge variant="neutral" appearance="outlined">{gamesLabel}</wa-badge>
 							{/if}
+							{#each overviewAwardBadges as award (award.id)}
+								<wa-badge appearance="accent" variant="brand">{award.label}</wa-badge>
+							{/each}
 							{#if seasonInjuries && seasonInjuries.count > 0}
-								{#if !gamesLabel}
-									<wa-divider orientation="vertical" id="verticalDividers"></wa-divider>
-								{/if}
 								<wa-tooltip for="injuryCountBadge">{injuryTooltipText}</wa-tooltip>
 								<wa-badge
 									id="injuryCountBadge"

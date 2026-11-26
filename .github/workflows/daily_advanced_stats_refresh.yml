@@ -70,11 +70,16 @@ jobs:
 
           rm -rf tmp
 
+      - name: Build Award Winner Data
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/build_award_winners.py
+
       - name: Commit Updated JSON Data Files
         run: |
           set -euo pipefail
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           YEAR=$(date +%Y)
-          git add static/data/bref_index.json static/data/savant_${YEAR}.json static/data/savant_careers.json static/data/mlb_ranks.json static/data/mlb_ranks_archive.json static/data/mlb_ranks_career.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: daily update bref index, ${YEAR} savant data, savant career averages, and MLB league ranks" && git push)
+          git add static/data/bref_index.json static/data/savant_${YEAR}.json static/data/savant_careers.json static/data/mlb_ranks.json static/data/mlb_ranks_archive.json static/data/mlb_ranks_career.json src/lib/data/awardWinners.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: daily update bref index, ${YEAR} savant data, savant career averages, MLB league ranks, and award winners" && git push)

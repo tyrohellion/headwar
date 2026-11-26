@@ -5,8 +5,8 @@
 	import { getMlbStandings } from '../api/getMlbDivisionStandings';
 	import { getLeagueLeaders } from '../api/getHomePageSpotlight';
 	import { getFeaturedPlayers } from '../api/getFeaturedPlayers';
-	import { getHeroFeaturedPlayers } from '../api/getAwardWinners';
 	import { getTeamBubbleLeaders } from '../api/getTeamBubbleLeaders';
+	import awardWinners from '#lib/data/awardWinners.json';
 	import { leaderboardHref } from '#lib/leaderboardLinks.js';
 	import { teamModalTrigger } from '#lib/teamModalTrigger.svelte.js';
 	import GameCard from '#lib/components/gameCard.svelte';
@@ -44,7 +44,6 @@
 	let isScheduleLoading = $state(false);
 	let errorMessage = $state('');
 	let now = $state(new Date());
-	let featuredPlayers = $state([]);
 
 	let isExpanded = $state(false);
 	let isDivisionExpanded = $state(false);
@@ -80,14 +79,6 @@
 	}
 
 	onDestroy(() => clearTeamHoverTimer());
-
-	onMount(() => {
-		getHeroFeaturedPlayers()
-			.then((players) => {
-				featuredPlayers = players;
-			})
-			.catch((err) => console.error('Failed to load hero featured players:', err));
-	});
 
 	let initialLoaded = false;
 	let previousLoadedDate = $state('');
@@ -368,7 +359,7 @@
 </svelte:head>
 
 <main class="home-page">
-	<HomeHero {featuredPlayers} />
+	<HomeHero featuredPlayers={awardWinners} />
 
 	<div class="home-layout">
 		{#snippet leaderCard(player, value, abbr)}

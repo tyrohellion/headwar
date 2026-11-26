@@ -1,0 +1,50 @@
+[
+  {
+    "id": 670541,
+    "name": "Yordan Alvarez",
+    "href": "/players/670541",
+    "awardId": "ALMVP",
+    "awardLabel": "AL MVP",
+    "season": 2026
+  },
+  {
+    "id": 691718,
+    "name": "Pete Crow-Armstrong",
+    "href": "/players/691718",
+    "awardId": "NLMVP",
+    "awardLabel": "NL MVP",
+    "season": 2026
+  },
+  {
+    "id": 592450,
+    "name": "Aaron Judge",
+    "href": "/players/592450",
+    "awardId": "ALMVP",
+    "awardLabel": "AL MVP",
+    "season": 2025
+  },
+  {
+    "id": 660271,
+    "name": "Shohei Ohtani",
+    "href": "/players/660271",
+    "awardId": "NLMVP",
+    "awardLabel": "NL MVP",
+    "season": 2025
+  },
+  {
+    "id": 693645,
+    "name": "Cam Schlittler",
+    "href": "/players/693645",
+    "awardId": "ALCY",
+    "awardLabel": "AL Cy Young",
+    "season": 2026
+  },
+  {
+    "id": 694819,
+    "name": "Jacob Misiorowski",
+    "href": "/players/694819",
+    "awardId": "NLCY",
+    "awardLabel": "NL Cy Young",
+    "season": 2026
+  }
+]
